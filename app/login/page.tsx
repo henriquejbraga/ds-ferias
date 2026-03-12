@@ -4,18 +4,17 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setError(null);
 
     const res = await fetch("/api/login", {
       method: "POST",
@@ -27,7 +26,7 @@ export default function LoginPage() {
 
     if (!res.ok) {
       const data = await res.json().catch(() => null);
-      setError(data?.error ?? "Erro ao fazer login");
+      toast.error(data?.error ?? "Erro ao fazer login");
       return;
     }
 
@@ -79,10 +78,6 @@ export default function LoginPage() {
               placeholder="••••••••"
             />
           </div>
-
-          {error && (
-            <p className="text-sm font-medium text-destructive">{error}</p>
-          )}
 
           <Button
             type="submit"

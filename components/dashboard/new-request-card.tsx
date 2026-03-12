@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 type Props = {
   canRequest: boolean;
@@ -13,24 +13,21 @@ type Props = {
 export function NewRequestCardClient({ canRequest }: Props) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isPending, startTransition] = useTransition();
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<
-    { type: "success" | "error"; message: string } | null
-  >(null);
+  const [localToast, setLocalToast] = useState(false);
 
   useEffect(() => {
-    if (!toast) return;
-    const id = setTimeout(() => setToast(null), 4000);
+    if (!localToast) return;
+    const id = setTimeout(() => setLocalToast(false), 4000);
     return () => clearTimeout(id);
-  }, [toast]);
+  }, [localToast]);
 
   if (!canRequest) {
     return (
-      <div className="space-y-3 rounded-2xl border border-white/10 bg-card/90 p-4 text-sm text-muted-foreground">
+      <div className="space-y-3 rounded-2xl border border-white/10 bg-card/90 p-5 text-base text-muted-foreground shadow-md shadow-black/20">
         <p>
           Apenas colaboradores podem abrir novas solicitações de férias. Use a
           visão geral ao lado para aprovar ou reprovar pedidos.
@@ -44,8 +41,7 @@ export function NewRequestCardClient({ canRequest }: Props) {
     if (submitting || isPending) return;
 
     setError(null);
-    setSuccess(null);
-    setToast(null);
+    setError(null);
 
     setSubmitting(true);
 
@@ -62,14 +58,13 @@ export function NewRequestCardClient({ canRequest }: Props) {
     if (!res.ok) {
       const msg = data?.error ?? "Não foi possível solicitar férias.";
       setError(msg);
-      setToast({ type: "error", message: msg });
+      toast.error(msg);
       setSubmitting(false);
       return;
     }
 
     const okMsg = "Solicitação de férias criada com sucesso.";
-    setSuccess(okMsg);
-    setToast({ type: "success", message: okMsg });
+    toast.success(okMsg);
     setStartDate("");
     setEndDate("");
 
@@ -80,26 +75,8 @@ export function NewRequestCardClient({ canRequest }: Props) {
   }
 
   return (
-    <>
-      {toast && (
-        <div className="pointer-events-none fixed inset-x-0 top-4 z-50 flex justify-center px-4">
-          <div
-            className={`pointer-events-auto max-w-md rounded-2xl border px-4 py-3 shadow-lg shadow-black/30 backdrop-blur-md ${
-              toast.type === "success"
-                ? "border-emerald-400/60 bg-emerald-500/15 text-emerald-50"
-                : "border-destructive/70 bg-destructive/15 text-destructive"
-            }`}
-          >
-            <p className="text-xs font-semibold uppercase tracking-wide">
-              {toast.type === "success" ? "Tudo certo" : "Algo deu errado"}
-            </p>
-            <p className="mt-1 text-sm">{toast.message}</p>
-          </div>
-        </div>
-      )}
-
     <form
-      className="space-y-4 rounded-2xl border border-white/10 bg-card/95 p-4 text-sm shadow-lg shadow-black/20"
+      className="space-y-5 rounded-2xl border border-white/10 bg-card/95 p-5 text-base shadow-lg shadow-black/20"
       onSubmit={handleSubmit}
     >
       <p className="text-xs text-muted-foreground">
@@ -107,13 +84,9 @@ export function NewRequestCardClient({ canRequest }: Props) {
         validadas automaticamente pelo sistema.
       </p>
 
-      {error && !toast && (
-        <Alert variant="destructive">
-          <AlertTitle>Não foi possível solicitar férias</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
+      {error && (
+        <p className="text-xs font-medium text-destructive">{error}</p>
       )}
-
       <div className="space-y-2">
         <label className="block text-xs font-medium text-primary-foreground">
           Período de férias
@@ -156,7 +129,6 @@ export function NewRequestCardClient({ canRequest }: Props) {
         {isPending || submitting ? "Enviando..." : "Solicitar férias"}
       </Button>
     </form>
-    </>
   );
 }
 

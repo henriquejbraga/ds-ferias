@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,9 +33,27 @@ export function ActionButtonForm({
     if (isPending) return;
 
     startTransition(async () => {
-      await fetch(action, {
-        method: method.toUpperCase(),
-      });
+      try {
+        const res = await fetch(action, {
+          method: method.toUpperCase(),
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        const data = await res.json().catch(() => null);
+
+        if (!res.ok) {
+          toast.error(
+            data?.error ?? "Não foi possível concluir esta ação.",
+          );
+        } else {
+          toast.success("Ação realizada com sucesso.");
+        }
+      } catch {
+        toast.error("Erro de rede ao comunicar com o servidor.");
+      }
+
       router.refresh();
     });
   }
