@@ -1,0 +1,73 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  COLABORADOR
+  GESTOR
+  RH
+}
+
+enum VacationStatus {
+  PENDENTE
+  APROVADO_GESTOR
+  APROVADO_RH
+  REPROVADO
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+
+  vacationRequests VacationRequest[]
+  historyEntries   VacationRequestHistory[] @relation("HistoryChangedByUser")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VacationRequest {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id])
+
+  startDate DateTime
+  endDate   DateTime
+
+  status      VacationStatus @default(PENDENTE)
+  managerNote String?        @db.Text
+  hrNote      String?        @db.Text
+
+  history VacationRequestHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VacationRequestHistory {
+  id                String         @id @default(cuid())
+  vacationRequestId String
+  vacationRequest   VacationRequest @relation(fields: [vacationRequestId], references: [id])
+
+  previousStatus VacationStatus
+  newStatus      VacationStatus
+
+  changedByUserId String
+  changedByUser   User           @relation("HistoryChangedByUser", fields: [changedByUserId], references: [id])
+
+  note      String?   @db.Text
+  changedAt DateTime  @default(now())
+}
