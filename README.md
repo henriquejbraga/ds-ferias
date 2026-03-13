@@ -31,12 +31,16 @@ Aplicação interna para gestão de férias (colaborador, gestor e RH) construí
       - `previousStatus`, `newStatus`, `changedByUserId`, `note`, `changedAt`.
     - O histórico é exibido para colaborador, gestor e RH (data **e hora**).
 
-- **Regras de CLT implementadas**
-  - Período mínimo de férias em um bloco: **5 dias corridos**.
-  - Período máximo em um bloco: **30 dias**.
-  - Aviso mínimo: **30 dias de antecedência** entre a data de hoje e o início das férias.
-  - **Proíbe sobreposição de períodos**:
-    - Não é possível criar/editar uma solicitação que sobreponha outra solicitação **pendente ou aprovada** do mesmo colaborador.
+-- **Regras de CLT implementadas**
+  - As férias são sempre de **30 dias corridos no total**, podendo ser gozadas em **até 3 períodos**.
+  - Regras de fracionamento (implementadas em `lib/vacationRules.ts`):
+    - Pelo menos **um dos períodos** deve ter **14 dias corridos ou mais**.
+    - Os demais períodos, se existirem, devem ter **no mínimo 5 dias corridos**.
+    - Não é permitido que os períodos se **sobreponham** entre si.
+  - Aviso mínimo: **30 dias de antecedência** entre a data de hoje e o início do **primeiro período**.
+  - **Conflitos com outras solicitações**:
+    - Não é possível criar/editar um período que se sobreponha a outra solicitação **pendente ou aprovada** do mesmo colaborador.
+    - Períodos que “encostam” (ex.: um termina dia 29 e outro começa dia 30) são permitidos.
 
 ---
 
