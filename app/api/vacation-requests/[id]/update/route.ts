@@ -6,17 +6,18 @@ import {
 } from "@/app/api/vacation-requests/route";
 
 type Params = {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 };
 
 export async function POST(request: Request, { params }: Params) {
+  const { id } = await params;
   const user = await getSessionUser();
   if (!user || user.role !== "COLABORADOR") {
     return NextResponse.json({ error: "Somente colaboradores podem alterar pedidos" }, { status: 403 });
   }
 
   const existing = await prisma.vacationRequest.findUnique({
-    where: { id: params.id },
+    where: { id },
   });
 
   if (!existing || existing.userId !== user.id) {
@@ -88,7 +89,7 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const updated = await prisma.vacationRequest.update({
-    where: { id: params.id },
+    where: { id },
     data: {
       startDate,
       endDate,

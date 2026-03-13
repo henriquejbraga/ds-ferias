@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 
-export async function POST(request: Request) {
-  const url = new URL(request.url);
-  const segments = url.pathname.split("/");
-  const id = segments[segments.length - 2] ?? "";
+type Params = {
+  params: Promise<{ id: string }>;
+};
+
+export async function POST(request: Request, { params }: Params) {
+  const { id } = await params;
 
   if (!id) {
     return NextResponse.json({ error: "ID inválido" }, { status: 400 });
@@ -20,12 +22,12 @@ export async function POST(request: Request) {
     where: { id },
   });
 
-  const isOwner = existing.userId === user.id;
-  const isManager = user.role === "GESTOR" || user.role === "RH";
-
   if (!existing) {
     return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
   }
+
+  const isOwner = existing.userId === user.id;
+  const isManager = user.role === "GESTOR" || user.role === "RH";
 
   // Colaborador só pode excluir solicitações pendentes.
   if (isOwner && existing.status !== "PENDENTE") {

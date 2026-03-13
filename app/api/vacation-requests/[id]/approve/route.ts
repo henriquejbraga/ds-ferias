@@ -1,17 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
-import { type VacationStatus } from "@/../generated/prisma/enums";
+import { type VacationStatus } from "@/generated/prisma/enums";
 
-export async function POST(request: Request) {
+type Params = {
+  params: Promise<{ id: string }>;
+};
+
+export async function POST(request: Request, { params }: Params) {
+  const { id } = await params;
   const user = await getSessionUser();
   if (!user || (user.role !== "GESTOR" && user.role !== "RH")) {
     return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
   }
-
-  const url = new URL(request.url);
-  const segments = url.pathname.split("/");
-  const id = segments[segments.length - 2] ?? "";
 
   if (!id) {
     return NextResponse.json({ error: "ID inválido" }, { status: 400 });
