@@ -67,19 +67,19 @@ export function NewRequestCardClient({ canRequest = true }: Props) {
       className="space-y-5 rounded-2xl border border-white/10 bg-card/95 p-5 text-base shadow-lg shadow-black/20"
       onSubmit={handleSubmit}
     >
-      <p className="text-xs text-muted-foreground">
+      <p className="text-sm font-medium text-muted-foreground">
         Informe o período desejado de férias. As regras de CLT (SP) são
         validadas automaticamente pelo sistema.
       </p>
 
       {/* Erros agora aparecem apenas via toast do Sonner */}
-      <div className="space-y-2">
-        <label className="block text-xs font-medium text-primary-foreground">
+      <div className="space-y-3">
+        <label className="block text-base font-semibold text-primary-foreground">
           Período de férias
         </label>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="flex-1 space-y-1">
-            <span className="block text-[11px] text-muted-foreground">
+          <div className="flex-1 space-y-2">
+            <span className="block text-sm font-semibold text-muted-foreground">
               Início
             </span>
             <input
@@ -88,11 +88,11 @@ export function NewRequestCardClient({ canRequest = true }: Props) {
               required
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background/80 px-3 py-2 text-sm text-foreground outline-none ring-0 transition focus:border-primary focus:ring-2 focus:ring-primary/40"
+              className="w-full rounded-lg border border-input bg-background/80 px-3 py-3 text-base text-foreground outline-none ring-0 transition focus:border-primary focus:ring-2 focus:ring-primary/40"
             />
           </div>
-          <div className="flex-1 space-y-1">
-            <span className="block text-[11px] text-muted-foreground">
+          <div className="flex-1 space-y-2">
+            <span className="block text-sm font-semibold text-muted-foreground">
               Término
             </span>
             <input
@@ -101,7 +101,7 @@ export function NewRequestCardClient({ canRequest = true }: Props) {
               required
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="w-full rounded-lg border border-input bg-background/80 px-3 py-2 text-sm text-foreground outline-none ring-0 transition focus:border-primary focus:ring-2 focus:ring-primary/40"
+              className="w-full rounded-lg border border-input bg-background/80 px-3 py-3 text-base text-foreground outline-none ring-0 transition focus:border-primary focus:ring-2 focus:ring-primary/40"
             />
           </div>
         </div>
@@ -109,7 +109,7 @@ export function NewRequestCardClient({ canRequest = true }: Props) {
 
       <Button
         type="submit"
-        className="mt-2 h-9 w-full text-sm font-semibold"
+        className="mt-3 h-11 w-full text-base font-semibold"
         disabled={isPending || submitting}
       >
         {isPending || submitting ? "Enviando..." : "Solicitar férias"}
