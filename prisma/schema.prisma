@@ -1,8 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -12,28 +10,53 @@ datasource db {
   provider = "postgresql"
 }
 
+// ============================================================
+// HIERARQUIA DE CARGOS
+// ============================================================
+// FUNCIONARIO → aprovação por COORDENADOR → GERENTE → RH
+// COORDENADOR  → aprovação por GERENTE → RH
+// GERENTE      → aprovação por RH
+// RH           → aprovação por GERENTE (outro RH não se auto-aprova)
+// Aliases legados mantidos para compatibilidade de dados existentes
+// ============================================================
 enum Role {
-  COLABORADOR
-  GESTOR
+  COLABORADOR  // alias legado → FUNCIONARIO
+  GESTOR       // alias legado → COORDENADOR
+  FUNCIONARIO
+  COORDENADOR
+  GERENTE
   RH
 }
 
+// ============================================================
+// STATUS DO CICLO DE APROVAÇÃO
+// ============================================================
+// PENDENTE → APROVADO_COORDENADOR → APROVADO_GERENTE → APROVADO_RH
+// Aliases legados mantidos para compatibilidade
+// ============================================================
 enum VacationStatus {
   PENDENTE
-  APROVADO_GESTOR
+  APROVADO_GESTOR      // legado
+  APROVADO_COORDENADOR
+  APROVADO_GERENTE
   APROVADO_RH
   REPROVADO
+  CANCELADO
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   name         String
-  email        String   @unique
+  email        String    @unique
   passwordHash String
   role         Role
 
+  department   String?   // Ex: "Engenharia", "Comercial", "Financeiro"
+  hireDate     DateTime? // Data de admissão para cálculo de saldo
+
   vacationRequests VacationRequest[]
   historyEntries   VacationRequestHistory[] @relation("HistoryChangedByUser")
+  blackoutPeriods  BlackoutPeriod[]
 
   managerId String?
   manager   User?   @relation("ManagerReports", fields: [managerId], references: [id])
@@ -52,8 +75,9 @@ model VacationRequest {
   endDate   DateTime
 
   status      VacationStatus @default(PENDENTE)
-  managerNote String?        @db.Text
-  hrNote      String?        @db.Text
+  notes       String?        @db.Text  // nota do solicitante
+  managerNote String?        @db.Text  // nota do coordenador/gestor
+  hrNote      String?        @db.Text  // nota do RH
 
   history VacationRequestHistory[]
 
@@ -64,7 +88,7 @@ model VacationRequest {
 model VacationRequestHistory {
   id                String         @id @default(cuid())
   vacationRequestId String
-  vacationRequest   VacationRequest @relation(fields: [vacationRequestId], references: [id])
+  vacationRequest   VacationRequest @relation(fields: [vacationRequestId], references: [id], onDelete: Cascade)
 
   previousStatus VacationStatus
   newStatus      VacationStatus
@@ -74,4 +98,22 @@ model VacationRequestHistory {
 
   note      String?   @db.Text
   changedAt DateTime  @default(now())
+}
+
+// ============================================================
+// PERÍODOS DE BLOQUEIO (somente RH/Gerente pode criar)
+// Impede solicitação de férias em datas críticas da empresa
+// Ex: fechamento fiscal, auditoria, período de pico
+// ============================================================
+model BlackoutPeriod {
+  id          String    @id @default(cuid())
+  startDate   DateTime
+  endDate     DateTime
+  reason      String
+  department  String?   // null = aplica a todos os departamentos
+
+  createdById String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+
+  createdAt   DateTime  @default(now())
 }

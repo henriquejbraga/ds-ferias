@@ -1,27 +1,20 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
-import { type VacationStatus } from "@/generated/prisma/enums";
+import { canApproveRequest, getNextApprovalStatus, ROLE_LEVEL } from "@/lib/vacationRules";
 
-type Params = {
-  params: Promise<{ id: string }>;
-};
+type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
   const user = await getSessionUser();
-  if (!user || (user.role !== "GESTOR" && user.role !== "RH")) {
-    return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
-  }
 
-  if (!id) {
-    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+  // Apenas COORDENADOR, GESTOR, GERENTE e RH podem aprovar
+  if (!user || ROLE_LEVEL[user.role] < 2) {
+    return NextResponse.json({ error: "Sem permissão para aprovar solicitações." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => null);
-  const noteField = user.role === "GESTOR" ? "managerNote" : "hrNote";
-  const nextStatus: VacationStatus =
-    user.role === "GESTOR" ? "APROVADO_GESTOR" : "APROVADO_RH";
 
   const existing = await prisma.vacationRequest.findUnique({
     where: { id },
@@ -29,47 +22,58 @@ export async function POST(request: Request, { params }: Params) {
       user: {
         select: {
           id: true,
+          role: true,
           managerId: true,
+          manager: { select: { managerId: true } },
         },
       },
     },
   });
 
   if (!existing) {
-    return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Solicitação não encontrada." }, { status: 404 });
   }
 
-  if (existing.userId === user.id) {
+  // Verifica se pode aprovar (lógica de hierarquia)
+  const canApprove = canApproveRequest(user.role, user.id, {
+    userId: existing.userId,
+    status: existing.status,
+    user: { role: existing.user.role },
+  });
+
+  if (!canApprove) {
     return NextResponse.json(
-      { error: "Você não pode aprovar a própria solicitação de férias." },
-      { status: 400 },
+      { error: "Você não tem permissão para aprovar esta solicitação neste momento." },
+      { status: 403 },
     );
   }
 
-  // Gestor só pode aprovar férias de colaboradores do seu time
-  if (user.role === "GESTOR") {
-    if (!existing.user || existing.user.managerId !== user.id) {
+  // Para COORDENADOR/GESTOR: só pode aprovar do seu time direto
+  if (ROLE_LEVEL[user.role] === 2) {
+    if (existing.user.managerId !== user.id) {
       return NextResponse.json(
-        { error: "Você só pode aprovar solicitações de férias do seu time direto." },
+        { error: "Você só pode aprovar solicitações do seu time direto." },
         { status: 403 },
       );
     }
   }
 
-  // Regra de ordem: primeiro gestor, depois RH
-  if (user.role === "GESTOR" && existing.status !== "PENDENTE") {
-    return NextResponse.json(
-      { error: "Somente solicitações pendentes podem ser aprovadas pelo gestor." },
-      { status: 400 },
-    );
+  // Para GERENTE: pode aprovar reportes diretos (coordenadores) e indiretos (funcionários dos coordenadores)
+  if (ROLE_LEVEL[user.role] === 3) {
+    const isDirectReport = existing.user.managerId === user.id;
+    const isIndirectReport = existing.user.manager?.managerId === user.id;
+    const isOwnRequest = existing.userId === user.id;
+
+    if (!isDirectReport && !isIndirectReport && !isOwnRequest) {
+      return NextResponse.json(
+        { error: "Você só pode aprovar solicitações da sua cadeia de equipe." },
+        { status: 403 },
+      );
+    }
   }
 
-  if (user.role === "RH" && existing.status !== "APROVADO_GESTOR") {
-    return NextResponse.json(
-      { error: "O gestor precisa aprovar primeiro. Só depois o RH pode aprovar." },
-      { status: 400 },
-    );
-  }
+  const nextStatus = getNextApprovalStatus(user.role) as any;
+  const noteField = ROLE_LEVEL[user.role] === 2 ? "managerNote" : "hrNote";
 
   const updated = await prisma.vacationRequest.update({
     where: { id },
@@ -89,5 +93,3 @@ export async function POST(request: Request, { params }: Params) {
 
   return NextResponse.json({ request: updated });
 }
-
-

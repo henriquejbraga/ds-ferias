@@ -1,37 +1,45 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { ROLE_LEVEL, canApproveRequest } from "@/lib/vacationRules";
 
-type Params = {
-  params: Promise<{ id: string }>;
-};
+type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
   const user = await getSessionUser();
-  if (!user || (user.role !== "GESTOR" && user.role !== "RH")) {
-    return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
-  }
 
-  if (!id) {
-    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+  if (!user || ROLE_LEVEL[user.role] < 2) {
+    return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => null);
-  const noteField = user.role === "GESTOR" ? "managerNote" : "hrNote";
+  const noteField = ROLE_LEVEL[user.role] === 2 ? "managerNote" : "hrNote";
 
   const existing = await prisma.vacationRequest.findUnique({
     where: { id },
+    include: { user: { select: { id: true, role: true, managerId: true } } },
   });
 
   if (!existing) {
-    return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Solicitação não encontrada." }, { status: 404 });
   }
 
   if (existing.userId === user.id) {
+    return NextResponse.json({ error: "Você não pode reprovar a própria solicitação." }, { status: 400 });
+  }
+
+  // Mesmo pode reprovar quem pode aprovar
+  const canAct = canApproveRequest(user.role, user.id, {
+    userId: existing.userId,
+    status: existing.status,
+    user: { role: existing.user.role },
+  });
+
+  if (!canAct) {
     return NextResponse.json(
-      { error: "Você não pode reprovar a própria solicitação de férias." },
-      { status: 400 },
+      { error: "Você não tem permissão para reprovar esta solicitação." },
+      { status: 403 },
     );
   }
 
@@ -53,5 +61,3 @@ export async function POST(request: Request, { params }: Params) {
 
   return NextResponse.json({ request: updated });
 }
-
-

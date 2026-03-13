@@ -27,23 +27,22 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const isOwner = existing.userId === user.id;
-  const isManager = user.role === "GESTOR" || user.role === "RH";
+  const { ROLE_LEVEL } = await import("@/lib/vacationRules");
+  const isApprover = ROLE_LEVEL[user.role] >= 2;
 
-  // Regra para colaborador:
-  // - Pode excluir enquanto o RH ainda não tiver atuado:
-  //   - PENDENTE (antes do gestor)
-  //   - APROVADO_GESTOR (pendente RH)
-  // - Não pode excluir depois que o RH aprovou ou reprovou.
+  // Funcionário pode excluir enquanto não tiver aprovação final do RH
+  const deletableStatuses = ["PENDENTE", "APROVADO_GESTOR", "APROVADO_COORDENADOR", "APROVADO_GERENTE"];
+
   if (isOwner) {
-    if (existing.status !== "PENDENTE" && existing.status !== "APROVADO_GESTOR") {
+    if (!deletableStatuses.includes(existing.status)) {
       return NextResponse.json(
-        { error: "Você só pode excluir solicitações pendentes ou aprovadas apenas pelo gestor (aguardando RH)." },
+        { error: "Você só pode excluir solicitações que ainda não foram aprovadas pelo RH." },
         { status: 400 },
       );
     }
   }
 
-  if (!isOwner && !isManager) {
+  if (!isOwner && !isApprover) {
     return NextResponse.json(
       { error: "Você não tem permissão para excluir este pedido." },
       { status: 403 },
