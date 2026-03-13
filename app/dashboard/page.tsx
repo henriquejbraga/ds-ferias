@@ -52,16 +52,22 @@ async function getData(
   return { myRequests: [], managedRequests };
 }
 
+type DashboardSearchParams = {
+  [key: string]: string | string[] | undefined;
+};
+
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined };
+  searchParams: Promise<DashboardSearchParams>;
 }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
-  const qParam = searchParams.q;
-  const statusParam = searchParams.status;
+  const params = await searchParams;
+
+  const qParam = params.q;
+  const statusParam = params.status;
 
   const q =
     typeof qParam === "string"
@@ -464,6 +470,20 @@ function ManagerView({
     );
   }
 
+  const normalizedQuery = currentQuery.trim().toLowerCase();
+  const normalizedStatus = currentStatus || "TODOS";
+
+  const filteredRequests = requests.filter((r) => {
+    const matchesName = normalizedQuery
+      ? r.user?.name?.toLowerCase().includes(normalizedQuery)
+      : true;
+
+    const matchesStatus =
+      normalizedStatus === "TODOS" ? true : r.status === normalizedStatus;
+
+    return matchesName && matchesStatus;
+  });
+
   return (
     <div className="space-y-4">
       {/* Filtros - enviam q e status via query string */}
@@ -503,7 +523,7 @@ function ManagerView({
       </form>
 
       {/* Lista de solicitações */}
-      {requests.map((r) => (
+      {filteredRequests.map((r) => (
         <div
           key={r.id}
           className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
