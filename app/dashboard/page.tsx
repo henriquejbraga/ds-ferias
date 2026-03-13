@@ -199,7 +199,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   </p>
                 </div>
                 <div className="p-5">
-                  <NewRequestCardClient canRequest />
+                  <NewRequestCardClient canRequest balance={balance} />
                 </div>
               </div>
 

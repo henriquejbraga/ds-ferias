@@ -296,7 +296,12 @@ export function calculateVacationBalance(
 }
 
 function calcDays(start: Date, end: Date): number {
-  return Math.round((new Date(end).getTime() - new Date(start).getTime()) / ONE_DAY_MS) + 1;
+  const s = new Date(start);
+  const e = new Date(end);
+  // Normaliza para meia-noite para evitar desvios de fuso/horário de verão
+  s.setHours(0, 0, 0, 0);
+  e.setHours(0, 0, 0, 0);
+  return Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
 }
 
 function calcUsedDays(
@@ -307,6 +312,77 @@ function calcUsedDays(
   return requests
     .filter((r) => r.status === status && new Date(r.startDate).getFullYear() === year)
     .reduce((sum, r) => sum + calcDays(r.startDate, r.endDate), 0);
+}
+
+// ============================================================
+// FERIADOS – SÃO PAULO (NACIONAL + ESTADUAL/MUNICIPAL)
+// ============================================================
+
+function isSaoPauloHoliday(date: Date): boolean {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const year = d.getFullYear();
+  const month = d.getMonth() + 1; // 1-12
+  const day = d.getDate();
+
+  // Fixos nacionais
+  const fixed = [
+    [1, 1],   // 01/01 – Confraternização Universal
+    [4, 21],  // 21/04 – Tiradentes
+    [5, 1],   // 01/05 – Dia do Trabalho
+    [9, 7],   // 07/09 – Independência
+    [10, 12], // 12/10 – N. Sra Aparecida
+    [11, 2],  // 02/11 – Finados
+    [11, 15], // 15/11 – Proclamação da República
+    [12, 25], // 25/12 – Natal
+  ];
+
+  // Fixos estado/município SP
+  const fixedSp = [
+    [1, 25],  // 25/01 – Aniversário da cidade de SP
+    [7, 9],   // 09/07 – Revolução Constitucionalista (feriado estadual)
+    [11, 20], // 20/11 – Consciência Negra (feriado municipal SP)
+  ];
+
+  if (fixed.concat(fixedSp).some(([m, d0]) => m === month && d0 === day)) return true;
+
+  // Móveis baseados na Páscoa: Carnaval (3ª feira), Sexta-Feira Santa, Corpus Christi
+  const easter = getEasterSunday(year); // domingo
+  const carnival = addDays(easter, -47);      // terça de carnaval
+  const goodFriday = addDays(easter, -2);     // sexta-feira santa
+  const corpusChristi = addDays(easter, 60);  // corpus christi
+
+  const movables = [carnival, goodFriday, corpusChristi];
+  return movables.some((h) => {
+    const hd = new Date(h);
+    hd.setHours(0, 0, 0, 0);
+    return hd.getTime() === d.getTime();
+  });
+}
+
+function addDays(base: Date, days: number): Date {
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+// Algoritmo de Gauss para Páscoa (calendário gregoriano)
+function getEasterSunday(year: number): Date {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31); // 3=mar, 4=abr
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
 }
 
 // ============================================================
@@ -383,15 +459,23 @@ export function validateCltPeriod(startDate: Date, endDate: Date): string | null
 
 /**
  * Validação CLT para férias fracionadas em até 3 períodos.
+ * Se existingDaysInCycle for informado (dias já pendentes/aprovados no ciclo), a soma desta
+ * solicitação com os existentes não pode ultrapassar 30 dias, e a regra dos 14 dias pode
+ * já estar atendida por outra solicitação do ciclo.
  */
 export function validateCltPeriods(
   periods: VacationPeriod[],
-  options: { checkAdvanceNotice?: boolean } = { checkAdvanceNotice: true },
+  options: {
+    checkAdvanceNotice?: boolean;
+    /** Dias já solicitados no ciclo (pendentes + aprovados), para permitir fracionar em mais de uma solicitação */
+    existingDaysInCycle?: number;
+  } = { checkAdvanceNotice: true },
 ): string | null {
   if (!periods.length) return "É necessário informar ao menos um período de férias.";
   if (periods.length > 3) return "As férias podem ser fracionadas em no máximo 3 períodos.";
 
   const sorted = [...periods].sort((a, b) => a.start.getTime() - b.start.getTime());
+  const existingDays = options.existingDaysInCycle ?? 0;
 
   let hasPeriodWith14OrMore = false;
 
@@ -410,7 +494,8 @@ export function validateCltPeriods(
     }
   }
 
-  if (!hasPeriodWith14OrMore) {
+  // CLT: pelo menos um período de 14 dias no ciclo; se já há 14+ dias em outra solicitação, não exige nesta
+  if (existingDays < 14 && !hasPeriodWith14OrMore) {
     return "Pelo menos um período deve ter 14 dias ou mais (CLT).";
   }
 
@@ -418,7 +503,11 @@ export function validateCltPeriods(
     return acc + Math.round((p.end.getTime() - p.start.getTime()) / ONE_DAY_MS) + 1;
   }, 0);
 
-  if (totalDays !== 30) {
+  const totalInCycle = existingDays + totalDays;
+  if (totalInCycle > 30) {
+    return `Total do ciclo não pode ultrapassar 30 dias. Você já tem ${existingDays} dias no ciclo (pendentes/aprovados) e está solicitando ${totalDays} dias (total: ${totalInCycle}).`;
+  }
+  if (existingDays === 0 && totalDays !== 30) {
     return "A soma dos períodos deve totalizar exatamente 30 dias corridos.";
   }
 
@@ -429,6 +518,23 @@ export function validateCltPeriods(
       (firstStart.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0)) / ONE_DAY_MS,
     );
     if (diffDays < 30) return "O primeiro período deve respeitar aviso prévio mínimo de 30 dias.";
+
+    // Lei 13.467/2017, art. 134, §3º: é vedado o início das férias
+    // no período de 2 dias que antecede feriado ou repouso semanal remunerado.
+    // DSR: assumimos domingo → não permitir início na sexta (5) ou sábado (6).
+    const weekDay = firstStart.getDay(); // 0 = domingo, 6 = sábado
+    if (weekDay === 5 || weekDay === 6) {
+      return "O início das férias não pode ocorrer na sexta ou no sábado, conforme art. 134, §3º, da CLT.";
+    }
+
+    // Feriados (São Paulo capital + nacionais): não pode iniciar nos 2 dias que antecedem
+    for (let offset = 1; offset <= 2; offset++) {
+      const check = new Date(firstStart);
+      check.setDate(check.getDate() + offset);
+      if (isSaoPauloHoliday(check)) {
+        return "O início das férias não pode ocorrer nos 2 dias que antecedem feriado, conforme art. 134, §3º, da CLT.";
+      }
+    }
   }
 
   return null;

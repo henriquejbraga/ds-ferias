@@ -4,8 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+type Balance = { pendingDays: number; usedDays: number };
+
 type Props = {
   canRequest?: boolean;
+  /** Saldo do ciclo (pendentes + usados) para permitir solicitar menos de 30 dias quando já há dias no ciclo */
+  balance?: Balance | null;
 };
 
 type Period = {
@@ -13,7 +17,7 @@ type Period = {
   end: string;
 };
 
-export function NewRequestCardClient({ canRequest = true }: Props) {
+export function NewRequestCardClient({ canRequest = true, balance }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [submitting, setSubmitting] = useState(false);
@@ -25,6 +29,13 @@ export function NewRequestCardClient({ canRequest = true }: Props) {
   ]);
 
   const stats = calculatePeriodStats(periods);
+  const existingDaysInCycle = balance ? balance.pendingDays + balance.usedDays : 0;
+  const maxDaysThisRequest = Math.max(0, 30 - existingDaysInCycle);
+  const totalOk = maxDaysThisRequest === 0 ? stats.totalDays === 0 : stats.totalDays > 0 && stats.totalDays <= maxDaysThisRequest;
+  const hasPeriod14OrMore = stats.periods.some((p) => p.days >= 14);
+  const needsPeriod14 = existingDaysInCycle < 14 && !hasPeriod14OrMore;
+  const totalWithExisting = existingDaysInCycle + stats.totalDays;
+  const cycleTotalOk = totalWithExisting <= 30;
 
   function updatePeriod(index: number, field: "start" | "end", value: string) {
     const next = [...periods];
@@ -82,9 +93,11 @@ export function NewRequestCardClient({ canRequest = true }: Props) {
         <ul className="space-y-1">
           {[
             "Cada período: 5–30 dias corridos",
-            "Um período deve ter 14 dias ou mais",
+            "Um período de 14+ dias (ou já ter no ciclo)",
             "Aviso prévio mínimo de 30 dias",
-            "Máximo de 3 períodos, totalizando 30 dias",
+            existingDaysInCycle > 0
+              ? `Máximo de 3 períodos; total do ciclo 30 dias (você já tem ${existingDaysInCycle} no ciclo)`
+              : "Máximo de 3 períodos, totalizando 30 dias",
           ].map((rule, i) => (
             <li key={i} className="flex items-start gap-1.5 text-sm text-[#64748b] dark:text-slate-400">
               <span className="mt-0.5 text-blue-500">•</span>
@@ -164,30 +177,60 @@ export function NewRequestCardClient({ canRequest = true }: Props) {
                 </div>
               ),
           )}
-          <div className="mt-2 flex items-center justify-between border-t border-[#e2e8f0] pt-2 dark:border-[#252a35]">
-            <span className="text-sm font-semibold text-[#1a1d23] dark:text-white">Total</span>
-            <span
-              className={`text-base font-bold ${
-                stats.totalDays === 30
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-amber-600 dark:text-amber-400"
-              }`}
-            >
-              {stats.totalDays} dias
-            </span>
+          <div className="mt-2 flex flex-col gap-1 border-t border-[#e2e8f0] pt-2 dark:border-[#252a35]">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-[#1a1d23] dark:text-white">Total desta solicitação</span>
+              <span
+                className={`text-base font-bold ${
+                  totalOk && !needsPeriod14 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                }`}
+              >
+                {stats.totalDays} dias
+              </span>
+            </div>
+            {existingDaysInCycle > 0 && (
+              <div className="flex items-center justify-between text-sm text-[#64748b] dark:text-slate-400">
+                <span>Já no ciclo (pendentes + usados)</span>
+                <span>{existingDaysInCycle} dias</span>
+              </div>
+            )}
+            {existingDaysInCycle > 0 && (
+              <div className="flex items-center justify-between text-sm font-medium text-[#1a1d23] dark:text-white">
+                <span>Total no ciclo</span>
+                <span className={cycleTotalOk ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
+                  {totalWithExisting} dias
+                </span>
+              </div>
+            )}
+            {!totalOk && stats.totalDays > 0 && (
+              <p className="mt-1.5 text-sm text-amber-600 dark:text-amber-400">
+                {existingDaysInCycle > 0
+                  ? `⚠ Nesta solicitação você pode solicitar até ${maxDaysThisRequest} dias (ciclo: ${existingDaysInCycle} + ${stats.totalDays} = ${totalWithExisting}).`
+                  : "⚠ O total deve ser exatamente 30 dias."}
+              </p>
+            )}
+            {needsPeriod14 && stats.totalDays > 0 && (
+              <p className="mt-1.5 text-sm text-amber-600 dark:text-amber-400">
+                ⚠ Pelo menos um período deve ter 14 dias ou mais (CLT).
+              </p>
+            )}
           </div>
-          {stats.totalDays !== 30 && (
-            <p className="mt-1.5 text-sm text-amber-600 dark:text-amber-400">
-              ⚠ O total deve ser exatamente 30 dias.
-            </p>
-          )}
         </div>
       )}
 
       {/* Botão */}
       <button
         type="submit"
-        disabled={isPending || submitting || !periods[0].start || !periods[0].end}
+        disabled={
+          isPending ||
+          submitting ||
+          !periods[0].start ||
+          !periods[0].end ||
+          stats.totalDays <= 0 ||
+          !totalOk ||
+          needsPeriod14 ||
+          !cycleTotalOk
+        }
         className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-base font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isPending || submitting ? (

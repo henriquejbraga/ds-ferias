@@ -89,16 +89,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "É necessário informar ao menos um período de férias." }, { status: 400 });
   }
 
-  // Validação CLT (30 dias total, fracionamento, aviso prévio)
-  const cltError = validateCltPeriods(periods);
-  if (cltError) return NextResponse.json({ error: cltError }, { status: 400 });
+  // Buscar usuário e períodos de bloqueio para validações
+  const [blackouts, userFull] = await Promise.all([
+    prisma.blackoutPeriod.findMany(),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { hireDate: true, department: true, vacationRequests: true },
+    }),
+  ]);
 
-  // Verificar períodos de bloqueio
-  const blackouts = await prisma.blackoutPeriod.findMany();
-  const userFull = await prisma.user.findUnique({
-    where: { id: user.id },
-    select: { hireDate: true, department: true, vacationRequests: true },
+  // Dias já no ciclo (pendentes + aprovados) para permitir nova solicitação que complete os 30 dias
+  const existingDaysInCycle =
+    userFull?.hireDate && userFull.vacationRequests
+      ? (() => {
+          const balance = calculateVacationBalance(userFull.hireDate, userFull.vacationRequests as any);
+          return balance.pendingDays + balance.usedDays;
+        })()
+      : 0;
+
+  // Validação CLT (total do ciclo até 30 dias, fracionamento, aviso prévio)
+  const cltError = validateCltPeriods(periods, {
+    checkAdvanceNotice: true,
+    existingDaysInCycle,
   });
+  if (cltError) return NextResponse.json({ error: cltError }, { status: 400 });
 
   for (const p of periods) {
     if (isNaN(p.start.getTime()) || isNaN(p.end.getTime()) || p.end < p.start) {
