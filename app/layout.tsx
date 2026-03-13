@@ -4,7 +4,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Portal de Férias",
+  title: "DS-Férias",
   description: "Gestão interna de férias com fluxo de aprovação.",
 };
 
