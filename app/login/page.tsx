@@ -169,6 +169,8 @@ function TestUsersPanel() {
     { role: "Funcionária", email: "colaborador2@empresa.com" },
     { role: "Coordenador", email: "gestor1@empresa.com" },
     { role: "Coordenador", email: "gestor2@empresa.com" },
+    { role: "Gerente", email: "gerente1@empresa.com" },
+    { role: "Gerente", email: "gerente2@empresa.com" },
     { role: "RH / Admin", email: "rh1@empresa.com" },
     { role: "RH / Admin", email: "rh2@empresa.com" },
   ];
