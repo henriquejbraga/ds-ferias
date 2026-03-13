@@ -12,7 +12,7 @@ type Props = {
 
 export function NewRequestCardClient({ canRequest = true }: Props) {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // mantido só para lógica interna, não exibido
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -30,7 +30,6 @@ export function NewRequestCardClient({ canRequest = true }: Props) {
     if (submitting || isPending) return;
 
     setError(null);
-    setError(null);
 
     setSubmitting(true);
 
@@ -47,13 +46,13 @@ export function NewRequestCardClient({ canRequest = true }: Props) {
     if (!res.ok) {
       const msg = data?.error ?? "Não foi possível solicitar férias.";
       setError(msg);
-      toast.error(msg);
+      toast.error(msg, { duration: 8000 });
       setSubmitting(false);
       return;
     }
 
     const okMsg = "Solicitação de férias criada com sucesso.";
-    toast.success(okMsg);
+    toast.success(okMsg, { duration: 8000 });
     setStartDate("");
     setEndDate("");
 
@@ -73,9 +72,7 @@ export function NewRequestCardClient({ canRequest = true }: Props) {
         validadas automaticamente pelo sistema.
       </p>
 
-      {error && (
-        <p className="text-xs font-medium text-destructive">{error}</p>
-      )}
+      {/* Erros agora aparecem apenas via toast do Sonner */}
       <div className="space-y-2">
         <label className="block text-xs font-medium text-primary-foreground">
           Período de férias

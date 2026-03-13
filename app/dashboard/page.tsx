@@ -343,15 +343,25 @@ function RequestsList({
                   Histórico
                 </p>
                 <div className="space-y-1.5">
-                  {r.history.map((h: any, idx: number) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
-                      <span className="text-slate-400">→</span>
-                      <span className="font-medium">{new Date(h.changedAt).toLocaleDateString("pt-BR")}</span>
-                      <span className="text-slate-500 dark:text-slate-400">
-                        {h.previousStatus} → {h.newStatus}
-                      </span>
-                    </div>
-                  ))}
+                  {r.history.map((h: any, idx: number) => {
+                    const changedAt = new Date(h.changedAt).toLocaleString("pt-BR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+
+                    return (
+                      <div key={idx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                        <span className="text-slate-400">→</span>
+                        <span className="font-medium">{changedAt}</span>
+                        <span className="text-slate-500 dark:text-slate-400">
+                          {h.previousStatus} → {h.newStatus}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -460,26 +470,16 @@ function ManagerView({
     );
   }
 
-  if (!requests.length) {
-    return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white/50 p-12 text-center dark:border-slate-700 dark:bg-slate-900/50">
-        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-          <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-        </div>
-        <p className="text-base font-medium text-slate-900 dark:text-white">Nenhuma solicitação pendente</p>
-        <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-          Não há solicitações de férias para aprovação no momento
-        </p>
-      </div>
-    );
-  }
-
   const normalizedQuery = currentQuery.trim().toLowerCase();
   const normalizedStatus = currentStatus || "TODOS";
 
   const filteredRequests = requests.filter((r) => {
+    // Gestor só vê o próprio time; RH vê tudo
+    const inManagerTeam =
+      userRole === "GESTOR" ? r.user?.managerId === userId : true;
+
+    if (!inManagerTeam) return false;
+
     const matchesName = normalizedQuery
       ? r.user?.name?.toLowerCase().includes(normalizedQuery)
       : true;
@@ -529,103 +529,127 @@ function ManagerView({
       </form>
 
       {/* Lista de solicitações */}
-      {filteredRequests.map((r) => (
-        <div
-          key={r.id}
-          className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
-        >
-          <div className="p-6">
-            {/* Header */}
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white shadow-lg shadow-blue-500/30">
-                  {r.user?.name?.charAt(0).toUpperCase() || "?"}
+      {filteredRequests.length === 0 ? (
+        <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-300 bg-white/50 p-12 text-center dark:border-slate-700 dark:bg-slate-900/50">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
+            <svg className="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          </div>
+          <p className="text-base font-medium text-slate-900 dark:text-white">Nenhuma solicitação encontrada</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
+            Ajuste os filtros de busca para visualizar outras solicitações.
+          </p>
+        </div>
+      ) : (
+        filteredRequests.map((r) => (
+          <div
+            key={r.id}
+            className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:shadow-md dark:border-slate-800 dark:bg-slate-900"
+          >
+            <div className="p-6">
+              {/* Header */}
+              <div className="mb-4 flex items-start justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white shadow-lg shadow-blue-500/30">
+                    {r.user?.name?.charAt(0).toUpperCase() || "?"}
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold text-slate-900 dark:text-white">
+                      {r.user?.name ?? "Colaborador"}
+                    </p>
+                    <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">
+                      {r.user?.email}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-base font-semibold text-slate-900 dark:text-white">
-                    {r.user?.name ?? "Colaborador"}
-                  </p>
-                  <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-400">
-                    {r.user?.email}
-                  </p>
-                </div>
+                <StatusBadge status={r.status} />
               </div>
-              <StatusBadge status={r.status} />
-            </div>
 
-            {/* Período */}
-            <div className="mb-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-              <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span className="font-medium">
-                {new Date(r.startDate).toLocaleDateString("pt-BR")} → {new Date(r.endDate).toLocaleDateString("pt-BR")}
-              </span>
-            </div>
-
-            {/* Histórico */}
-            {Array.isArray(r.history) && r.history.length > 0 && (
-              <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
-                  Histórico
-                </p>
-                <div className="space-y-1.5">
-                  {r.history.map((h: any, idx: number) => (
-                    <div key={idx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
-                      <span className="text-slate-400">→</span>
-                      <span className="font-medium">{new Date(h.changedAt).toLocaleDateString("pt-BR")}</span>
-                      <span className="text-slate-500 dark:text-slate-400">
-                        {h.previousStatus} → {h.newStatus}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+              {/* Período */}
+              <div className="mb-4 flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="font-medium">
+                  {new Date(r.startDate).toLocaleDateString("pt-BR")} → {new Date(r.endDate).toLocaleDateString("pt-BR")}
+                </span>
               </div>
-            )}
 
-            {/* Ações */}
-            <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
-              {/* Gestor aprova PENDENTE, RH aprova APROVADO_GESTOR */}
-              {((userRole === "GESTOR" && r.status === "PENDENTE") ||
-                (userRole === "RH" && r.status === "APROVADO_GESTOR")) && (
-                <>
-              {/* Nunca aprovar/reprovar a própria solicitação */}
-              {r.user?.id !== userId && (
-                <>
-                  <ActionButtonForm
-                    action={`/api/vacation-requests/${r.id}/approve`}
-                    variant="outline"
-                    size="sm"
-                    label="✅ Aprovar"
-                    loadingLabel="Aprovando..."
-                    className="flex-1 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
-                  />
-                  <ActionButtonForm
-                    action={`/api/vacation-requests/${r.id}/reject`}
-                    variant="outline"
-                    size="sm"
-                    label="❌ Reprovar"
-                    loadingLabel="Reprovando..."
-                    className="flex-1 border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
-                  />
-                </>
-              )}
-                </>
+              {/* Histórico */}
+              {Array.isArray(r.history) && r.history.length > 0 && (
+                <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-400">
+                    Histórico
+                  </p>
+                  <div className="space-y-1.5">
+                    {r.history.map((h: any, idx: number) => {
+                      const changedAt = new Date(h.changedAt).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      });
+
+                      return (
+                        <div key={idx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300">
+                          <span className="text-slate-400">→</span>
+                          <span className="font-medium">{changedAt}</span>
+                          <span className="text-slate-500 dark:text-slate-400">
+                            {h.previousStatus} → {h.newStatus}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
 
-              {/* Excluir disponível sempre para gestor/RH */}
-              <ActionButtonForm
-                action={`/api/vacation-requests/${r.id}/delete`}
-                variant="outline"
-                size="sm"
-                label="🗑️ Excluir"
-                loadingLabel="Excluindo..."
-                className="border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-              />
+              {/* Ações */}
+              <div className="flex flex-wrap gap-2 border-t border-slate-200 pt-4 dark:border-slate-700">
+                {/* Gestor aprova PENDENTE, RH aprova APROVADO_GESTOR */}
+                {((userRole === "GESTOR" && r.status === "PENDENTE") ||
+                  (userRole === "RH" && r.status === "APROVADO_GESTOR")) && (
+                  <>
+                    {/* Nunca aprovar/reprovar a própria solicitação */}
+                    {r.user?.id !== userId && (
+                      <>
+                        <ActionButtonForm
+                          action={`/api/vacation-requests/${r.id}/approve`}
+                          variant="outline"
+                          size="sm"
+                          label="✅ Aprovar"
+                          loadingLabel="Aprovando..."
+                          className="flex-1 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-400 dark:hover:bg-emerald-950/50"
+                        />
+                        <ActionButtonForm
+                          action={`/api/vacation-requests/${r.id}/reject`}
+                          variant="outline"
+                          size="sm"
+                          label="❌ Reprovar"
+                          loadingLabel="Reprovando..."
+                          className="flex-1 border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
+                        />
+                      </>
+                    )}
+                  </>
+                )}
+
+                {/* Excluir disponível sempre para gestor/RH */}
+                <ActionButtonForm
+                  action={`/api/vacation-requests/${r.id}/delete`}
+                  variant="outline"
+                  size="sm"
+                  label="🗑️ Excluir"
+                  loadingLabel="Excluindo..."
+                  className="border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                />
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }

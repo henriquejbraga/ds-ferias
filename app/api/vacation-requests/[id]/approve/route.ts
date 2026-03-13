@@ -25,6 +25,14 @@ export async function POST(request: Request, { params }: Params) {
 
   const existing = await prisma.vacationRequest.findUnique({
     where: { id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          managerId: true,
+        },
+      },
+    },
   });
 
   if (!existing) {
@@ -36,6 +44,16 @@ export async function POST(request: Request, { params }: Params) {
       { error: "Você não pode aprovar a própria solicitação de férias." },
       { status: 400 },
     );
+  }
+
+  // Gestor só pode aprovar férias de colaboradores do seu time
+  if (user.role === "GESTOR") {
+    if (!existing.user || existing.user.managerId !== user.id) {
+      return NextResponse.json(
+        { error: "Você só pode aprovar solicitações de férias do seu time direto." },
+        { status: 403 },
+      );
+    }
   }
 
   // Regra de ordem: primeiro gestor, depois RH

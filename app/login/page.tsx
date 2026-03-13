@@ -183,21 +183,39 @@ export default function LoginPage() {
             </summary>
             <div className="space-y-3 border-t border-slate-200 p-4 dark:border-slate-700">
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">COLABORADOR</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">COLABORADOR1</p>
                 <p className="font-mono text-xs text-slate-700 dark:text-slate-300">
-                  colaborador@empresa.com
+                  colaborador1@empresa.com
                 </p>
               </div>
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">GESTOR</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">GESTOR1</p>
                 <p className="font-mono text-xs text-slate-700 dark:text-slate-300">
-                  gestor@empresa.com
+                  gestor1@empresa.com
                 </p>
               </div>
               <div className="space-y-1.5">
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">RH</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">RH1</p>
                 <p className="font-mono text-xs text-slate-700 dark:text-slate-300">
-                  rh@empresa.com
+                  rh1@empresa.com
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">COLABORADOR2</p>
+                <p className="font-mono text-xs text-slate-700 dark:text-slate-300">
+                  colaborador2@empresa.com
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">GESTOR2</p>
+                <p className="font-mono text-xs text-slate-700 dark:text-slate-300">
+                  gestor2@empresa.com
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">RH2</p>
+                <p className="font-mono text-xs text-slate-700 dark:text-slate-300">
+                  rh2@empresa.com
                 </p>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
