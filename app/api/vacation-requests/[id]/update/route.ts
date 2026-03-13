@@ -70,8 +70,8 @@ export async function POST(request: Request, { params }: Params) {
         in: ["PENDENTE", "APROVADO_GESTOR", "APROVADO_RH"],
       },
       AND: [
-        { startDate: { lte: endDate } },
-        { endDate: { gte: startDate } },
+        { startDate: { lt: endDate } },
+        { endDate: { gt: startDate } },
       ],
     },
   });

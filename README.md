@@ -183,11 +183,15 @@ A aplicação ficará disponível em `http://localhost:3000`.
 ### Como contribuir / extender o sistema
 
 - **Novas regras de negócio**
-  - Centralizar novas validações de CLT em funções reutilizáveis (ex.: expansão para dividir férias em até 3 períodos).
+  - Validações de CLT centralizadas em `lib/vacationRules.ts`:
+    - `validateCltPeriod` para um único bloco (5–30 dias, aviso mínimo de 30 dias).
+    - `validateCltPeriods` para férias fracionadas em até 3 períodos (um ≥ 14 dias, demais ≥ 5, sem sobreposição, aviso mínimo).
   - Adicionar regras específicas da empresa (ex.: bloquear férias em períodos críticos, limite de colaboradores simultâneos por equipe).
 
 - **Melhorias de UX**
-  - Mais filtros na visão do RH (por área, por período, por tipo de contrato).
+  - Visão do RH com filtros adicionais:
+    - Por gestor (managerId) – selecionar apenas equipes de um gestor específico.
+    - Por período (data inicial/final) – filtrar solicitações por janela de datas.
   - Dashboard adicional com calendário consolidado da empresa.
 
 - **Backoffice / Admin**

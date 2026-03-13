@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { type VacationStatus } from "../../../generated/prisma/enums";
-import { validateCltPeriod } from "@/lib/vacationRules";
+import { validateCltPeriod, validateCltPeriods } from "@/lib/vacationRules";
 
 async function hasOverlappingRequest(userId: string, startDate: Date, endDate: Date) {
   const overlapping = await prisma.vacationRequest.findFirst({
@@ -12,8 +12,8 @@ async function hasOverlappingRequest(userId: string, startDate: Date, endDate: D
         in: ["PENDENTE", "APROVADO_GESTOR", "APROVADO_RH"],
       },
       AND: [
-        { startDate: { lte: endDate } },
-        { endDate: { gte: startDate } },
+        { startDate: { lt: endDate } },
+        { endDate: { gt: startDate } },
       ],
     },
   });
@@ -68,9 +68,11 @@ export async function POST(request: Request) {
 
   let startDateRaw: string | null = null;
   let endDateRaw: string | null = null;
+  let periodsRaw: { startDate: string; endDate: string }[] | null = null;
 
   if (contentType.includes("application/json")) {
     const body = await request.json().catch(() => null);
+    periodsRaw = Array.isArray(body?.periods) ? body.periods : null;
     startDateRaw = body?.startDate ?? null;
     endDateRaw = body?.endDate ?? null;
   } else {
@@ -81,41 +83,70 @@ export async function POST(request: Request) {
     }
   }
 
-  if (!startDateRaw || !endDateRaw) {
-    return NextResponse.json({ error: "Datas obrigatórias" }, { status: 400 });
+  // Monta períodos a partir do payload:
+  // - se veio "periods", usa até 3 itens válidos
+  // - senão, cai no modo legado com startDate/endDate únicos
+  let periods: { start: Date; end: Date }[] = [];
+
+  if (periodsRaw && periodsRaw.length > 0) {
+    periods = periodsRaw
+      .filter((p) => p.startDate && p.endDate)
+      .slice(0, 3)
+      .map((p) => ({
+        start: new Date(p.startDate),
+        end: new Date(p.endDate),
+      }));
+  } else if (startDateRaw && endDateRaw) {
+    periods = [
+      {
+        start: new Date(startDateRaw),
+        end: new Date(endDateRaw),
+      },
+    ];
   }
 
-  const startDate = new Date(startDateRaw);
-  const endDate = new Date(endDateRaw);
-
-  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || endDate < startDate) {
-    return NextResponse.json({ error: "Período inválido" }, { status: 400 });
+  if (!periods.length) {
+    return NextResponse.json({ error: "É necessário informar ao menos um período de férias." }, { status: 400 });
   }
 
-  const cltError = validateCltPeriod(startDate, endDate);
+  // Validação CLT para até 3 períodos (incluindo soma total = 30 dias)
+  const cltError = validateCltPeriods(periods);
+
   if (cltError) {
     return NextResponse.json({ error: cltError }, { status: 400 });
   }
 
-  const overlap = await hasOverlappingRequest(user.id, startDate, endDate);
-  if (overlap) {
-    return NextResponse.json(
-      {
-        error:
-          "Já existe outra solicitação de férias (pendente ou aprovada) que conflita com esse período.",
-      },
-      { status: 400 },
-    );
+  // Checa sobreposição com outras solicitações do colaborador para cada período
+  for (const p of periods) {
+    if (isNaN(p.start.getTime()) || isNaN(p.end.getTime()) || p.end < p.start) {
+      return NextResponse.json({ error: "Período inválido" }, { status: 400 });
+    }
+
+    const overlap = await hasOverlappingRequest(user.id, p.start, p.end);
+    if (overlap) {
+      return NextResponse.json(
+        {
+          error:
+            "Já existe outra solicitação de férias (pendente ou aprovada) que conflita com um dos períodos informados.",
+        },
+        { status: 400 },
+      );
+    }
   }
 
-  const requestCreated = await prisma.vacationRequest.create({
-    data: {
-      userId: user.id,
-      startDate,
-      endDate,
-    },
-  });
+  // Cria uma VacationRequest por período, em transação
+  const created = await prisma.$transaction(
+    periods.map((p) =>
+      prisma.vacationRequest.create({
+        data: {
+          userId: user.id,
+          startDate: p.start,
+          endDate: p.end,
+        },
+      }),
+    ),
+  );
 
-  return NextResponse.json({ request: requestCreated }, { status: 201 });
+  return NextResponse.json({ requests: created }, { status: 201 });
 }
 

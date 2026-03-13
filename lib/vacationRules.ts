@@ -92,6 +92,16 @@ export function validateCltPeriods(
     return "Pelo menos um dos períodos de férias deve ter 14 dias corridos ou mais, conforme CLT.";
   }
 
+  // Soma total de dias dos períodos
+  const totalDays = sorted.reduce((acc, p) => {
+    const days = Math.round((p.end.getTime() - p.start.getTime()) / ONE_DAY_MS) + 1;
+    return acc + days;
+  }, 0);
+
+  if (totalDays !== 30) {
+    return "A soma dos períodos de férias deve totalizar exatamente 30 dias corridos.";
+  }
+
   if (options.checkAdvanceNotice) {
     const firstStart = sorted[0].start;
     const today = new Date();
