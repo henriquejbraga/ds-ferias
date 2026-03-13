@@ -125,12 +125,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const approvedCount = managedRequests.filter((r) => r.status === "APROVADO_RH").length;
 
   const isApprover = userRoleLevel >= 2;
+  const isMyView = !isApprover || view === "minhas";
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#f5f6f8] dark:bg-[#0f1117]">
       <AppSidebar
         user={user}
-        activeView={view}
+        activeView={isMyView ? "minhas" : view}
         pendingCount={pendingCount}
         balance={balance}
         department={userFull?.department}
@@ -143,7 +144,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           {/* Cabeçalho da página */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-[#1a1d23] dark:text-white">
-              {isApprover ? "Gestão de Férias" : "Minhas Férias"}
+              {isMyView ? "Minhas Férias" : "Gestão de Férias"}
             </h1>
             <p className="mt-1 text-base text-[#64748b] dark:text-slate-400">
               Bem-vindo(a), {user.name} · {getRoleLabel(user.role)}
@@ -156,7 +157,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </div>
 
           {/* Cards de estatísticas (aprovadores) */}
-          {isApprover && (
+          {!isMyView && isApprover && (
             <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
               <StatCard label="Total" value={managedRequests.length} sublabel="Solicitações" />
               <StatCard label="Pendentes" value={pendingCount} sublabel="Aguardando você" alert={pendingCount > 0} />
@@ -172,7 +173,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
           <div className="grid gap-6 lg:grid-cols-12">
             <section className="lg:col-span-8">
-              {!isApprover ? (
+              {isMyView ? (
                 <MyRequestsList requests={myRequests} balance={balance} />
               ) : (
                 <ManagerView
@@ -252,7 +253,13 @@ function AppSidebar({
 
       {/* Navegação compacta no mobile */}
       <nav className="flex flex-wrap items-center gap-2 px-3 py-2 lg:hidden">
-        <SidebarItem href="/dashboard" icon={<IconDashboard />} label="Dashboard" active={level < 2} />
+        <SidebarItem href="/dashboard" icon={<IconDashboard />} label="Dashboard" active={!activeView || activeView === "dashboard"} />
+        <SidebarItem
+          href="/dashboard?view=minhas"
+          icon={<IconCalendar />}
+          label="Minhas Férias"
+          active={activeView === "minhas"}
+        />
         {level >= 2 && (
           <>
             <SidebarItem
@@ -270,20 +277,19 @@ function AppSidebar({
               active={activeView === "historico"}
             />
           </>
-        )}
-        {level < 2 && (
-          <SidebarItem
-            href="/dashboard"
-            icon={<IconCalendar />} 
-            label="Minhas Férias"
-          />
         )}
       </nav>
 
       {/* Navegação completa no desktop */}
       <nav className="hidden flex-1 flex-col gap-1 px-3 py-4 lg:flex">
         <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#94a3b8]">Menu</p>
-        <SidebarItem href="/dashboard" icon={<IconDashboard />} label="Dashboard" active={level < 2} />
+        <SidebarItem href="/dashboard" icon={<IconDashboard />} label="Dashboard" active={!activeView || activeView === "dashboard"} />
+        <SidebarItem
+          href="/dashboard?view=minhas"
+          icon={<IconCalendar />}
+          label="Minhas Férias"
+          active={activeView === "minhas"}
+        />
 
         {level >= 2 && (
           <>
@@ -302,14 +308,6 @@ function AppSidebar({
               active={activeView === "historico"}
             />
           </>
-        )}
-
-        {level < 2 && (
-          <SidebarItem
-            href="/dashboard"
-            icon={<IconCalendar />} 
-            label="Minhas Férias"
-          />
         )}
 
         <div className="my-2 border-t border-[#e2e8f0] dark:border-[#252a35]" />
