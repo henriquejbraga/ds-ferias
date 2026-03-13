@@ -188,7 +188,6 @@ A aplicação ficará disponível em `http://localhost:3000`.
 
 - **Melhorias de UX**
   - Mais filtros na visão do RH (por área, por período, por tipo de contrato).
-  - Exportar relatórios (CSV/Excel) a partir das listas de solicitações/histórico.
   - Dashboard adicional com calendário consolidado da empresa.
 
 - **Backoffice / Admin**

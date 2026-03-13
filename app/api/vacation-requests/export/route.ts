@@ -110,7 +110,6 @@ export async function GET(request: Request) {
 
   // Cabeçalho
   lines.push([
-    "TipoLinha",
     "Colaborador",
     "EmailColaborador",
     "Gestor",
@@ -120,7 +119,6 @@ export async function GET(request: Request) {
     "StatusAnterior",
     "StatusNovo",
     "AlteradoPor",
-    "EmailAlteradoPor",
     "DataAlteracao",
   ].join(";"));
 
@@ -135,7 +133,6 @@ export async function GET(request: Request) {
     if (!r.history.length) {
       // Linha única de solicitação sem histórico
       lines.push([
-        "SOLICITACAO",
         colaborador,
         emailColab,
         gestor,
@@ -146,14 +143,12 @@ export async function GET(request: Request) {
         "",
         "",
         "",
-        "",
       ].join(";"));
       continue;
     }
 
     // Linha principal da solicitação (dados gerais)
     lines.push([
-      "SOLICITACAO",
       colaborador,
       emailColab,
       gestor,
@@ -170,7 +165,6 @@ export async function GET(request: Request) {
     // Linhas de histórico
     for (const h of r.history) {
       const changedByName = h.changedByUser?.name ?? "";
-      const changedByEmail = h.changedByUser?.email ?? "";
       const changedAt = h.changedAt.toLocaleString("pt-BR", {
         day: "2-digit",
         month: "2-digit",
@@ -180,7 +174,6 @@ export async function GET(request: Request) {
       });
 
       lines.push([
-        "HISTORICO",
         colaborador,
         emailColab,
         gestor,
@@ -190,7 +183,6 @@ export async function GET(request: Request) {
         h.previousStatus ?? "",
         h.newStatus ?? "",
         changedByName,
-        changedByEmail,
         changedAt,
       ].join(";"));
     }
