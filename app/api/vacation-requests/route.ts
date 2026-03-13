@@ -98,9 +98,10 @@ export async function POST(request: Request) {
     }),
   ]);
 
-  // Dias já no ciclo (pendentes + aprovados) para permitir nova solicitação que complete os 30 dias
+  // Dias já no ciclo (pendentes + aprovados) para permitir nova solicitação que complete os 30 dias.
+  // Usa a mesma regra de cálculo do card de saldo, inclusive quando não há hireDate.
   const existingDaysInCycle =
-    userFull?.hireDate && userFull.vacationRequests
+    userFull && userFull.vacationRequests
       ? (() => {
           const balance = calculateVacationBalance(userFull.hireDate, userFull.vacationRequests as any);
           return balance.pendingDays + balance.usedDays;

@@ -41,6 +41,10 @@ Aplicação interna para gestão de férias (colaborador, gestor e RH) construí
   - **Conflitos com outras solicitações**:
     - Não é possível criar/editar um período que se sobreponha a outra solicitação **pendente ou aprovada** do mesmo colaborador.
     - Períodos que “encostam” (ex.: um termina dia 29 e outro começa dia 30) são permitidos.
+  - **Saldo por período aquisitivo (CLT)**:
+    - A cada **12 meses** de trabalho (a partir da data de admissão), o colaborador adquire direito a **30 dias** de férias.
+    - Ex.: **quase 2 anos** de empresa sem ter gozado férias → **2 períodos** → direito a **60 dias** (30 + 30).
+    - O saldo é calculado em `lib/vacationRules.ts` (`calculateVacationBalance`).
 
 ---
 
@@ -122,6 +126,7 @@ Todos os usuários abaixo usam a **mesma senha**:
   - E-mail: `colaborador1@empresa.com`
 - **Colaborador 2**
   - E-mail: `colaborador2@empresa.com`
+  - Cenário de teste: **quase 2 anos de empresa, nunca tirou férias** → direito a **60 dias** (2 períodos). Para popular: `npm run db:seed` (define `hireDate` em ~24 meses atrás).
 
 #### Gestores
 
@@ -169,6 +174,9 @@ npm install
 npx prisma migrate dev
 npx prisma generate
 ```
+
+4.1. **Popular cenário Colaborador 2 (quase 2 anos, 60 dias de direito)**  
+   - Rode o seed: `npm run db:seed`. Isso cria/atualiza o usuário `colaborador2@empresa.com` com `hireDate` em ~24 meses atrás, sem férias, resultando em **60 dias disponíveis**.
 
 5. **Subir o servidor de desenvolvimento**
 
