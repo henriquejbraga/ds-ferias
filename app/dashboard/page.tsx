@@ -143,7 +143,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar />
 
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {/* Cabeçalho da página */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-[#1a1d23] dark:text-white">
@@ -240,19 +240,19 @@ function AppSidebar({
   return (
     <aside className="flex w-full flex-col border-b border-[#e2e8f0] bg-white lg:w-72 lg:border-b-0 lg:border-r dark:border-[#252a35] dark:bg-[#141720]">
       {/* Logo */}
-      <div className="flex h-16 items-center justify-between gap-3 border-b border-[#e2e8f0] px-5 dark:border-[#252a35]">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
+      <div className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-[#e2e8f0] px-3 dark:border-[#252a35] sm:h-16 sm:px-5">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600">
             <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <span className="text-lg font-bold text-[#1a1d23] dark:text-white">Editora Globo - Férias</span>
+          <span className="truncate text-base font-bold text-[#1a1d23] dark:text-white sm:text-lg">Editora Globo - Férias</span>
         </div>
       </div>
 
       {/* Navegação compacta no mobile */}
-      <nav className="flex flex-wrap items-center gap-2 px-3 py-2 lg:hidden">
+      <nav className="flex flex-wrap items-center gap-1.5 px-3 py-2 lg:hidden" aria-label="Menu principal">
         <SidebarItem
           href="/dashboard?view=minhas"
           icon={<IconCalendar />}
@@ -324,12 +324,12 @@ function AppSidebar({
       </nav>
 
       {/* Usuário (em baixo) */}
-      <div className="border-t border-[#e2e8f0] px-4 py-4 dark:border-[#252a35]">
+      <div className="shrink-0 border-t border-[#e2e8f0] px-3 py-3 dark:border-[#252a35] sm:px-4 sm:py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-base font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
             {user.name.charAt(0).toUpperCase()}
           </div>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-0 flex-1 overflow-hidden">
             <p className="truncate text-base font-semibold text-[#1a1d23] dark:text-white">{user.name}</p>
             <p className="truncate text-sm text-[#64748b] dark:text-slate-400">{getRoleLabel(user.role)}</p>
           </div>
@@ -411,7 +411,7 @@ function SidebarItem({
   return (
     <Link
       href={href}
-      className={`flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors ${
+      className={`flex min-h-[44px] items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors sm:min-h-0 sm:gap-3 ${
         active
           ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
           : "text-[#64748b] hover:bg-[#f5f6f8] hover:text-[#1a1d23] dark:text-slate-400 dark:hover:bg-[#1e2330] dark:hover:text-white"
@@ -430,7 +430,7 @@ function SidebarItem({
 
 function TopBar() {
   return (
-    <header className="flex h-16 items-center justify-end border-b border-[#e2e8f0] bg-white px-6 dark:border-[#252a35] dark:bg-[#141720]">
+    <header className="flex h-14 sm:h-16 items-center justify-end border-b border-[#e2e8f0] bg-white px-4 sm:px-6 dark:border-[#252a35] dark:bg-[#141720]">
       <ThemeToggle />
     </header>
   );
@@ -729,12 +729,12 @@ function FilterForm({
             name="q"
             placeholder="Buscar colaborador..."
             defaultValue={filters.query}
-            className="h-9 min-w-[180px] flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] placeholder:text-[#94a3b8] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+            className="h-10 min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] placeholder:text-[#94a3b8] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:min-w-[180px]"
           />
           <select
             name="status"
             defaultValue={filters.status}
-            className="h-9 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+            className="h-10 min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
           >
             <option value="TODOS">Todos os status</option>
             <option value="PENDENTE">Pendente aprovação</option>
@@ -748,7 +748,7 @@ function FilterForm({
             <select
               name="managerId"
               defaultValue={filters.managerId}
-              className="h-9 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              className="h-10 min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
             >
               <option value="ALL">Todos os coordenadores</option>
               {managerOptions.map((m) => (
@@ -761,7 +761,7 @@ function FilterForm({
             <select
               name="department"
               defaultValue={filters.department}
-              className="h-9 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              className="h-10 min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
             >
               <option value="">Todos os departamentos</option>
               {deptOptions.map((d) => (
@@ -773,15 +773,15 @@ function FilterForm({
 
         {userLevel >= 4 && (
           <div className="flex flex-wrap gap-2">
-            <div className="min-w-[140px] flex-1">
+            <div className="min-w-0 flex-1 sm:min-w-[140px]">
               <label className="mb-1 block text-sm text-[#64748b] dark:text-slate-400">Início a partir de</label>
               <input type="date" name="from" defaultValue={filters.from}
-                className="h-9 w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white" />
+                className="h-10 w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white" />
             </div>
-            <div className="min-w-[140px] flex-1">
+            <div className="min-w-0 flex-1 sm:min-w-[140px]">
               <label className="mb-1 block text-sm text-[#64748b] dark:text-slate-400">Fim até</label>
               <input type="date" name="to" defaultValue={filters.to}
-                className="h-9 w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white" />
+                className="h-10 w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white" />
             </div>
           </div>
         )}
@@ -846,9 +846,9 @@ function RequestCard({
 
   return (
     <div className="rounded-lg border border-[#e2e8f0] bg-white transition-shadow hover:shadow-sm dark:border-[#252a35] dark:bg-[#1a1d23]">
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
+      <div className="p-4 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 flex-col items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/20">
               <span className="text-lg font-bold leading-none text-blue-700 dark:text-blue-400">
                 {new Date(request.startDate).getDate()}
@@ -857,22 +857,24 @@ function RequestCard({
                 {new Date(request.startDate).toLocaleDateString("pt-BR", { month: "short" })}
               </span>
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               {!isOwner && request.user && (
-                <div className="flex items-center gap-2">
-                  <p className="text-base font-semibold text-[#1a1d23] dark:text-white">{request.user.name}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate text-base font-semibold text-[#1a1d23] dark:text-white">{request.user.name}</p>
                   <RoleChip role={request.user.role} />
                 </div>
               )}
-              <p className="text-base text-[#64748b] dark:text-slate-400">
+              <p className="truncate text-base text-[#64748b] dark:text-slate-400">
                 {formatDateRange(request.startDate, request.endDate)}
               </p>
               {request.user?.department && (
-                <p className="text-sm text-[#94a3b8]">{request.user.department}</p>
+                <p className="truncate text-sm text-[#94a3b8]">{request.user.department}</p>
               )}
             </div>
           </div>
-          <StatusBadge status={request.status} />
+          <div className="w-full shrink-0 sm:w-auto">
+            <StatusBadge status={request.status} />
+          </div>
         </div>
 
         {/* Nota do solicitante */}
@@ -951,7 +953,7 @@ function RequestActions({
   const isPendingRH = request.status === "APROVADO_COORDENADOR" || request.status === "APROVADO_GESTOR";
 
   return (
-    <div className="mt-4 flex flex-wrap gap-2 border-t border-[#e2e8f0] pt-4 dark:border-[#252a35]">
+    <div className="mt-4 flex flex-wrap gap-2 border-t border-[#e2e8f0] pt-4 dark:border-[#252a35] [&_button]:min-h-[44px] [&_a]:inline-flex [&_a]:min-h-[44px] [&_a]:items-center">
       {hasApprovePermission && (
         <>
           <ActionButtonForm

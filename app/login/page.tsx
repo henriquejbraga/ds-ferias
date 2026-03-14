@@ -77,9 +77,9 @@ export default function LoginPage() {
       {/* Painel direito — formulário */}
       <div className="flex flex-1 flex-col">
         {/* Topbar */}
-        <div className="flex items-center justify-between px-8 py-6">
+        <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-6">
           {/* Logo só aparece no mobile */}
-          <div className="flex items-center gap-2 lg:invisible">
+          <div className="flex items-center gap-2 lg:hidden">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600">
               <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -91,7 +91,7 @@ export default function LoginPage() {
         </div>
 
         {/* Formulário centralizado */}
-        <div className="flex flex-1 items-center justify-center px-8 pb-12">
+        <div className="flex flex-1 items-center justify-center px-4 pb-8 sm:px-6 sm:pb-12 lg:px-8 lg:pb-12">
           <div className="w-full max-w-sm">
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-[#1a1d23] dark:text-white">Entrar na conta</h1>

@@ -121,7 +121,7 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
 
       {/* Período 2 – opcional */}
       <details className="group rounded-md border border-[#e2e8f0] dark:border-[#252a35]">
-        <summary className="flex cursor-pointer items-center justify-between px-3 py-2.5 text-base font-medium text-[#475569] hover:bg-[#f5f6f8] dark:text-slate-300 dark:hover:bg-[#1e2330]">
+        <summary className="flex min-h-[44px] cursor-pointer items-center justify-between px-3 py-2.5 text-base font-medium text-[#475569] hover:bg-[#f5f6f8] dark:text-slate-300 dark:hover:bg-[#1e2330]">
           <span className="flex items-center gap-1.5">
             <span className="flex h-4 w-4 items-center justify-center rounded-full border border-[#e2e8f0] text-[10px] font-bold dark:border-[#252a35]">2</span>
             Adicionar 2º período (opcional)
@@ -142,7 +142,7 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
 
       {/* Período 3 – opcional */}
       <details className="group rounded-md border border-[#e2e8f0] dark:border-[#252a35]">
-        <summary className="flex cursor-pointer items-center justify-between px-3 py-2.5 text-base font-medium text-[#475569] hover:bg-[#f5f6f8] dark:text-slate-300 dark:hover:bg-[#1e2330]">
+        <summary className="flex min-h-[44px] cursor-pointer items-center justify-between px-3 py-2.5 text-base font-medium text-[#475569] hover:bg-[#f5f6f8] dark:text-slate-300 dark:hover:bg-[#1e2330]">
           <span className="flex items-center gap-1.5">
             <span className="flex h-4 w-4 items-center justify-center rounded-full border border-[#e2e8f0] text-[10px] font-bold dark:border-[#252a35]">3</span>
             Adicionar 3º período (opcional)
