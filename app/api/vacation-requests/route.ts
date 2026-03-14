@@ -7,6 +7,7 @@ import {
   checkBlackoutPeriods,
   calculateVacationBalance,
 } from "@/lib/vacationRules";
+import { notifyNewRequest } from "@/lib/notifications";
 
 async function hasOverlappingRequest(userId: string, startDate: Date, endDate: Date) {
   const overlapping = await prisma.vacationRequest.findFirst({
@@ -180,6 +181,22 @@ export async function POST(request: Request) {
       }),
     ),
   );
+
+  const first = created[0];
+  if (first && user.name && user.email) {
+    const withManager = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { manager: { select: { email: true } } },
+    }).catch(() => null);
+    notifyNewRequest({
+      requestId: first.id,
+      userName: user.name,
+      userEmail: user.email,
+      managerEmail: withManager?.manager?.email ?? null,
+      startDate: first.startDate,
+      endDate: first.endDate,
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ requests: created }, { status: 201 });
 }

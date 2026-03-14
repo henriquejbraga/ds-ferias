@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { ROLE_LEVEL, canApproveRequest } from "@/lib/vacationRules";
+import { notifyRejected } from "@/lib/notifications";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -18,7 +19,7 @@ export async function POST(request: Request, { params }: Params) {
 
   const existing = await prisma.vacationRequest.findUnique({
     where: { id },
-    include: { user: { select: { id: true, role: true, managerId: true } } },
+    include: { user: { select: { id: true, name: true, email: true, role: true, managerId: true } } },
   });
 
   if (!existing) {
@@ -58,6 +59,16 @@ export async function POST(request: Request, { params }: Params) {
       },
     },
   });
+
+  if (existing.user?.name && existing.user?.email && user.name) {
+    notifyRejected({
+      requestId: id,
+      userName: existing.user.name,
+      userEmail: existing.user.email,
+      approverName: user.name,
+      note: body?.note ?? null,
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ request: updated });
 }

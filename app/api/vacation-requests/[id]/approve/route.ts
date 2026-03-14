@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { canApproveRequest, getNextApprovalStatus, ROLE_LEVEL } from "@/lib/vacationRules";
+import { notifyApproved } from "@/lib/notifications";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -22,6 +23,8 @@ export async function POST(request: Request, { params }: Params) {
       user: {
         select: {
           id: true,
+          name: true,
+          email: true,
           role: true,
           managerId: true,
           manager: { select: { managerId: true } },
@@ -90,6 +93,16 @@ export async function POST(request: Request, { params }: Params) {
       },
     },
   });
+
+  if (existing.user?.name && existing.user?.email && user.name) {
+    notifyApproved({
+      requestId: id,
+      userName: existing.user.name,
+      userEmail: existing.user.email,
+      approverName: user.name,
+      status: nextStatus,
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ request: updated });
 }

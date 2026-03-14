@@ -219,11 +219,17 @@ A aplicação ficará disponível em `http://localhost:3000`.
 
 ---
 
+### O que já foi implementado (UX e relatórios)
+
+- **Filtros RH**: na visão de aprovação, filtros por coordenador (`managerId`), departamento, período (início a partir de / fim até). O export CSV usa os mesmos filtros (query string: `managerId`, `from`, `to`, `department`).
+- **Backoffice**: página **/admin** (apenas RH) com lista de usuários e edição de nome, papel, departamento, data de admissão e coordenador/gerente (`managerId`). Acesso pelo menu "Backoffice" na sidebar.
+- **Notificações**: `lib/notifications.ts` com `notifyNewRequest`, `notifyApproved`, `notifyRejected`. Chamadas ao criar solicitação e ao aprovar/reprovar. Por padrão só registra em log; para envio real, defina `NOTIFY_WEBHOOK_URL` no `.env` (POST JSON com o evento).
+- **Relatórios**: export de solicitações (CSV) já existente, agora com todos os filtros; **Relatório de saldo** (CSV) em `/api/reports/balance` (botão "Relatório de saldo (CSV)" para RH na tela de Gestão de Férias).
+
 ### O que ainda falta / para melhorar
 
-- Garantir que o dashboard repasse sempre o `balance` completo (`entitledDays`, `availableDays`) para o card de nova solicitação (já vem de `calculateVacationBalance`; conferir tipo em `page.tsx` se necessário).
-- Incluir **gerente1** / **gerente2** no seed (ou equivalentes) para evitar 401 no login, se esses usuários forem usados em testes.
-- Ajustes pontuais de UX: filtros RH por gestor/período, backoffice para usuários e `managerId`, notificações (e-mail/Teams), relatórios exportáveis (conforme roadmap abaixo).
+- Integração de notificações com e-mail (ex.: Resend) ou Slack/Teams além do webhook genérico.
+- Calendário consolidado, limite de pessoas em férias por equipe, relatórios gerenciais adicionais (conforme roadmap abaixo).
 
 ---
 

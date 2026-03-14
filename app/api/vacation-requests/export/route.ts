@@ -16,11 +16,12 @@ export async function GET(request: Request) {
   const managerParam = searchParams.get("managerId") ?? "";
   const fromParam = searchParams.get("from") ?? "";
   const toParam = searchParams.get("to") ?? "";
+  const departmentParam = searchParams.get("department") ?? "";
 
   // Busca base no banco
   const where: any = {};
 
-  if (user.role === "COLABORADOR") {
+  if (user.role === "COLABORADOR" || user.role === "FUNCIONARIO") {
     where.userId = user.id;
   }
 
@@ -28,10 +29,10 @@ export async function GET(request: Request) {
     where.status = statusParam;
   }
 
-  if (q) {
-    where.user = {
-      name: { contains: q, mode: "insensitive" },
-    };
+  if (q || departmentParam) {
+    where.user = {};
+    if (q) where.user.name = { contains: q, mode: "insensitive" };
+    if (departmentParam) where.user.department = departmentParam;
   }
 
   const requests = await prisma.vacationRequest.findMany({
@@ -70,27 +71,36 @@ export async function GET(request: Request) {
   const normalizedQuery = q.trim().toLowerCase();
   const normalizedStatus = statusParam || "TODOS";
 
+  const isCoord = user.role === "GESTOR" || user.role === "COORDENADOR";
+  const isGerente = user.role === "GERENTE";
+  const isRH = user.role === "RH";
+
   const filtered = requests.filter((r) => {
-    // Escopo do gestor: apenas seu time direto
-    if (user.role === "GESTOR") {
-      if (r.user?.managerId !== user.id) return false;
+    // Escopo: coordenador vê apenas reportes diretos; gerente vê coordenadores e seus reportes; RH vê todos
+    if (isCoord && r.user?.managerId !== user.id) return false;
+    if (isGerente) {
+      const managerId = r.user?.managerId;
+      const manager = r.user?.manager;
+      const isMyReport = managerId === user.id || manager?.managerId === user.id;
+      if (!isMyReport) return false;
     }
 
-    // Escopo por view (apenas para gestor/RH)
-    if (user.role === "GESTOR" || user.role === "RH") {
+    // Escopo por view
+    if (isCoord || isGerente || isRH) {
       if (view === "inbox") {
-        if (user.role === "GESTOR" && r.status !== "PENDENTE") return false;
-        if (user.role === "RH" && r.status !== "APROVADO_GESTOR") return false;
+        if (isCoord && r.status !== "PENDENTE") return false;
+        if (isGerente && !["APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status)) return false;
+        if (isRH && r.status !== "APROVADO_GERENTE") return false;
       }
-
       if (view === "historico") {
-        if (user.role === "GESTOR") {
-          const allowed = ["APROVADO_GESTOR", "APROVADO_RH", "REPROVADO"];
-          if (!allowed.includes(r.status)) return false;
+        if (isCoord) {
+          if (!["APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE", "APROVADO_RH", "REPROVADO"].includes(r.status)) return false;
         }
-        if (user.role === "RH") {
-          const allowed = ["APROVADO_RH", "REPROVADO"];
-          if (!allowed.includes(r.status)) return false;
+        if (isGerente) {
+          if (!["APROVADO_GERENTE", "APROVADO_RH", "REPROVADO"].includes(r.status)) return false;
+        }
+        if (isRH) {
+          if (!["APROVADO_RH", "REPROVADO"].includes(r.status)) return false;
         }
       }
     }
@@ -105,12 +115,13 @@ export async function GET(request: Request) {
       return false;
     }
 
-    // Filtro adicional de gestor (RH)
-    if (user.role === "RH" && managerParam && managerParam !== "ALL") {
-      if (!r.user?.manager?.id || r.user.manager.id !== managerParam) {
-        return false;
-      }
+    // Filtro por coordenador (RH)
+    if (isRH && managerParam && managerParam !== "ALL") {
+      if (!r.user?.manager?.id || r.user.manager.id !== managerParam) return false;
     }
+
+    // Filtro por departamento
+    if (departmentParam && r.user?.department !== departmentParam) return false;
 
     // Filtro de período (todas as roles)
     if (fromParam) {

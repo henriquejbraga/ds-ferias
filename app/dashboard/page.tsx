@@ -271,6 +271,13 @@ function AppSidebar({
               label="Histórico"
               active={activeView === "historico"}
             />
+            {level >= 4 && (
+              <SidebarItem
+                href="/admin"
+                icon={<IconSettings />}
+                label="Backoffice"
+              />
+            )}
           </>
         )}
       </nav>
@@ -300,6 +307,9 @@ function AppSidebar({
               label="Histórico"
               active={activeView === "historico"}
             />
+            {level >= 4 && (
+              <SidebarItem href="/admin" icon={<IconSettings />} label="Backoffice" />
+            )}
           </>
         )}
 
@@ -653,8 +663,17 @@ function ManagerView({
         view={view}
       />
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <ExportButton href={`/api/vacation-requests/export?${buildExportQuery(filters)}`} />
+        {userLevel >= 4 && (
+          <a
+            href="/api/reports/balance"
+            download
+            className="inline-flex items-center gap-2 rounded-md border border-[#e2e8f0] bg-white px-4 py-2 text-sm font-medium text-[#1a1d23] hover:bg-[#f5f6f8] dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white dark:hover:bg-[#252a35]"
+          >
+            Relatório de saldo (CSV)
+          </a>
+        )}
       </div>
 
       {filteredRequests.length === 0 ? (
@@ -1031,6 +1050,9 @@ function IconInbox() {
 function IconHistory() {
   return <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
 }
+function IconSettings() {
+  return <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+}
 function IconLogout() {
   return <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>;
 }
@@ -1112,5 +1134,14 @@ function groupByManager(requests: any[]) {
 }
 
 function buildExportQuery(filters: Filters): string {
-  return new URLSearchParams({ q: filters.query, status: filters.status || "TODOS", view: filters.view }).toString();
+  const params: Record<string, string> = {
+    q: filters.query,
+    status: filters.status || "TODOS",
+    view: filters.view,
+  };
+  if (filters.managerId) params.managerId = filters.managerId;
+  if (filters.from) params.from = filters.from;
+  if (filters.to) params.to = filters.to;
+  if (filters.department) params.department = filters.department;
+  return new URLSearchParams(params).toString();
 }
