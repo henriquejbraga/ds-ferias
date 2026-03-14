@@ -100,7 +100,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const q = normalizeParam(params.q);
   const statusFilter = normalizeParam(params.status, "TODOS");
-  const view = normalizeParam(params.view, defaultView);
+  const rawView = normalizeParam(params.view, defaultView);
+  const view = ["inbox", "historico", "minhas"].includes(rawView) ? rawView : defaultView;
   const managerFilter = normalizeParam(params.managerId);
   const fromFilter = normalizeParam(params.from);
   const toFilter = normalizeParam(params.to);
@@ -175,9 +176,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
           <div className="grid gap-6 lg:grid-cols-12">
             <section className="min-w-0 lg:col-span-6">
-              {isMyView ? (
-                <MyRequestsList requests={myRequests} balance={balance} />
-              ) : (
+              {isApprover && (view === "inbox" || view === "historico") ? (
                 <ManagerView
                   userRole={user.role}
                   userId={user.id}
@@ -185,22 +184,26 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   blackouts={blackouts}
                   filters={{ query: q, status: statusFilter, view, managerId: managerFilter, from: fromFilter, to: toFilter, department: deptFilter }}
                 />
+              ) : (
+                <MyRequestsList requests={myRequests} balance={balance} />
               )}
             </section>
 
             <aside className="min-w-0 space-y-4 lg:col-span-6">
-              {/* Nova solicitação */}
-              <div className="min-w-0 rounded-lg border-2 border-blue-200 bg-white dark:border-blue-800/50 dark:bg-[#1a1d23]">
-                <div className="border-b border-[#e2e8f0] bg-blue-50/80 px-5 py-4 dark:border-[#252a35] dark:bg-blue-950/20">
-                  <h3 className="text-xl font-bold text-[#1a1d23] dark:text-white">Nova Solicitação</h3>
-                  <p className="mt-1 text-base font-medium text-[#475569] dark:text-slate-300">
-                    Informe as datas de cada período de férias
-                  </p>
+              {/* Nova solicitação — apenas em Minhas Férias */}
+              {isMyView && (
+                <div className="min-w-0 rounded-lg border-2 border-blue-200 bg-white dark:border-blue-800/50 dark:bg-[#1a1d23]">
+                  <div className="border-b border-[#e2e8f0] bg-blue-50/80 px-5 py-4 dark:border-[#252a35] dark:bg-blue-950/20">
+                    <h3 className="text-xl font-bold text-[#1a1d23] dark:text-white">Nova Solicitação</h3>
+                    <p className="mt-1 text-base font-medium text-[#475569] dark:text-slate-300">
+                      Informe as datas de cada período de férias
+                    </p>
+                  </div>
+                  <div className="min-w-0 p-5">
+                    <NewRequestCardClient canRequest balance={balance} />
+                  </div>
                 </div>
-                <div className="min-w-0 p-5">
-                  <NewRequestCardClient canRequest balance={balance} />
-                </div>
-              </div>
+              )}
 
               {/* Períodos de bloqueio (para aprovadores) */}
               {isApprover && blackouts.length > 0 && (
