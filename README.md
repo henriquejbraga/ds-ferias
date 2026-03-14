@@ -1,6 +1,6 @@
-## Portal de Férias (DS-Férias)
+## Editora Globo - Férias
 
-Aplicação interna para gestão de férias (colaborador, gestor e RH) construída em **Next.js 16**, **Prisma 7** e **Postgres**, com fluxo de aprovação em duas etapas (gestor → RH), histórico de mudanças e validações alinhadas à CLT (São Paulo).
+Aplicação interna para gestão de férias (colaborador, gestor e RH) construída em **Next.js 16**, **Prisma 7** e **Postgres**, com fluxo de aprovação em cadeia (Coordenador → Gerente → RH), histórico de mudanças e validações alinhadas à **CLT** (São Paulo).
 
 ---
 
@@ -31,31 +31,19 @@ Aplicação interna para gestão de férias (colaborador, gestor e RH) construí
       - `previousStatus`, `newStatus`, `changedByUserId`, `note`, `changedAt`.
     - O histórico é exibido para colaborador, gestor e RH (data **e hora**).
 
--- **Regras de CLT implementadas**
-  - As férias são sempre de **30 dias corridos no total**, podendo ser gozadas em **até 3 períodos**.
-  - Regras de fracionamento (implementadas em `lib/vacationRules.ts`):
-    - Pelo menos **um dos períodos** deve ter **14 dias corridos ou mais**.
-    - Os demais períodos, se existirem, devem ter **no mínimo 5 dias corridos**.
-    - Não é permitido que os períodos se **sobreponham** entre si.
-  - Aviso mínimo: **30 dias de antecedência** entre a data de hoje e o início do **primeiro período**.
-  - **Conflitos com outras solicitações**:
-    - Não é possível criar/editar um período que se sobreponha a outra solicitação **pendente ou aprovada** do mesmo colaborador.
-    - Períodos que “encostam” (ex.: um termina dia 29 e outro começa dia 30) são permitidos.
-  - **Saldo por período aquisitivo (CLT)**:
-    - A cada **12 meses** de trabalho (a partir da data de admissão), o colaborador adquire direito a **30 dias** de férias.
-    - Ex.: **quase 2 anos** de empresa sem ter gozado férias → **2 períodos** → direito a **60 dias** (30 + 30).
-    - O saldo é calculado em `lib/vacationRules.ts` (`calculateVacationBalance`).
-
+- **Regras de CLT implementadas** (`lib/vacationRules.ts`):
+  - Direito: **30 dias** a cada 12 meses; **60 dias** com 2 períodos (ex.: quase 2 anos sem gozar). Férias em **até 3 períodos** (art. 134, §1º): um com **14+ dias**, demais **mín. 5**; não é obrigatório solicitar os 30 de uma vez.
+  - **Início**: não pode ser sexta nem sábado (art. 134, §3º). **Término**: não pode ser sábado nem domingo (DSR).
+  - **Aviso prévio**: 30 dias. **Feriados**: início não nos 2 dias que antecedem feriado (SP + nacionais).
+  - **Conflitos**: não sobrepor outra solicitação pendente/aprovada.
+  - **Saldo**: `calculateVacationBalance` retorna `entitledDays`, `availableDays`, `pendingDays`, `usedDays`.
 ---
 
 ### UX / UI e comportamento de tela
 
 - **Dashboard**
   - **Colaborador**:
-    - Coluna principal: `Minhas Solicitações` (cards com período, status e histórico).
-    - Sidebar:
-      - Card **Nova Solicitação** com seletor de data (início/término).
-      - Card “Como funciona” explicando o fluxo de aprovação.
+    - Vista padrão: **Minhas Férias**; lista à esquerda, formulário à direita. **Saldo de férias** (sidebar): Pendente/Disponível por extenso. Status **Pendente aprovação**; **Editar período** e **Excluir solicitação**. Nova Solicitação: "Informe as datas de cada período de férias"; até 3 períodos; regras CLT; resumo com dias disponíveis/total no ciclo. **Nenhuma solicitação** com largura adequada. Sem card Fluxo de Aprovação.
   - **Gestor / RH**:
     - Coluna principal:
       - Navegação em pill:
@@ -192,13 +180,24 @@ A aplicação ficará disponível em `http://localhost:3000`.
 
 ---
 
+### O que já fizemos
+
+- **Marca e fluxo**: Nome **Editora Globo - Férias**; fluxo de aprovação em cadeia (Coordenador → Gerente → RH); aba "Dashboard" removida; vista padrão colaborador = Minhas Férias, aprovador = Caixa de Aprovação.
+- **Regras CLT**: Início não pode ser sexta nem sábado; término não pode ser sábado nem domingo; aviso 30 dias; feriados SP + nacionais; fracionamento em até 3 períodos (um ≥ 14 dias, demais ≥ 5); **não é obrigatório** solicitar os 30 dias de uma vez (pode 14 agora e o restante depois); teto por ciclo com `entitledDays` (30 ou 60).
+- **Saldo**: Cálculo por período aquisitivo (12 meses = 30 dias; 2 períodos = 60 dias); `calculateVacationBalance` com `entitledDays`, `availableDays`, `pendingDays`, `usedDays`; API e front usam esse saldo para validar e exibir limite correto (correção do bug "pode solicitar até 0 dias" quando ainda há 30 disponíveis).
+- **UI colaborador**: Saldo único no sidebar (Pendente / Disponível por extenso, sem número verde em destaque); status **Pendente aprovação**; botões **Excluir solicitação** e **Editar período**; subtítulo do card "Informe as datas de cada período de férias"; regras CLT no card; resumo com total desta solicitação, já no ciclo, total no ciclo e aviso quando ultrapassar direito; bloco **Nenhuma solicitação** com largura adequada; card **Fluxo de Aprovação** removido.
+- **Layout**: Responsivo (mobile com coluna única, formulário acessível); sidebar mais larga no desktop; tema claro/escuro.
+- **Seed**: Colaborador 2 com `hireDate` ~24 meses atrás para cenário de 60 dias (`npm run db:seed`).
+
+---
+
 ### Como contribuir / extender o sistema
 
 - **Novas regras de negócio**
-  - Validações de CLT centralizadas em `lib/vacationRules.ts`:
-    - `validateCltPeriod` para um único bloco (5–30 dias, aviso mínimo de 30 dias).
-    - `validateCltPeriods` para férias fracionadas em até 3 períodos (um ≥ 14 dias, demais ≥ 5, sem sobreposição, aviso mínimo).
-  - Adicionar regras específicas da empresa (ex.: bloquear férias em períodos críticos, limite de colaboradores simultâneos por equipe).
+  - Validações de CLT em `lib/vacationRules.ts`:
+    - `validateCltPeriod`: um bloco (5–30 dias, aviso 30 dias, início/término em dias permitidos).
+    - `validateCltPeriods`: até 3 períodos (um ≥ 14 dias, demais ≥ 5), `existingDaysInCycle`, `entitledDays` (30 ou 60), início/término CLT, feriados, sem obrigar 30 dias numa só solicitação.
+  - Regras da empresa: bloquear períodos (blackout), limite de pessoas em férias por equipe, etc.
 
 - **Melhorias de UX**
   - Visão do RH com filtros adicionais:
@@ -220,9 +219,17 @@ A aplicação ficará disponível em `http://localhost:3000`.
 
 ---
 
+### O que ainda falta / para melhorar
+
+- Garantir que o dashboard repasse sempre o `balance` completo (`entitledDays`, `availableDays`) para o card de nova solicitação (já vem de `calculateVacationBalance`; conferir tipo em `page.tsx` se necessário).
+- Incluir **gerente1** / **gerente2** no seed (ou equivalentes) para evitar 401 no login, se esses usuários forem usados em testes.
+- Ajustes pontuais de UX: filtros RH por gestor/período, backoffice para usuários e `managerId`, notificações (e-mail/Teams), relatórios exportáveis (conforme roadmap abaixo).
+
+---
+
 ### Ideias de melhorias futuras (roadmap sugerido)
 
-Estas são sugestões baseadas em padrões comuns de portais internos de férias em empresas médias/grandes:
+Sugestões baseadas em padrões comuns de portais internos de férias em empresas médias/grandes:
 
 - **1. Calendário corporativo consolidado**
   - Visão mensal/anual mostrando:
