@@ -5,7 +5,7 @@ import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DS-Férias",
+  title: "Editora Globo - Férias",
   description: "Gestão interna de férias com fluxo de aprovação.",
 };
 

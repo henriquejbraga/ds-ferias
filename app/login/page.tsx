@@ -42,7 +42,7 @@ export default function LoginPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <span className="text-lg font-bold text-white">DS-Férias</span>
+          <span className="text-lg font-bold text-white">Editora Globo - Férias</span>
         </div>
 
         <div>
@@ -71,7 +71,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="text-sm text-blue-200">© 2026 DS-Férias. Todos os direitos reservados.</p>
+        <p className="text-sm text-blue-200">© 2026 Editora Globo - Férias. Todos os direitos reservados.</p>
       </div>
 
       {/* Painel direito — formulário */}
@@ -85,7 +85,7 @@ export default function LoginPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <span className="text-base font-bold text-[#1a1d23] dark:text-white">DS-Férias</span>
+            <span className="text-base font-bold text-[#1a1d23] dark:text-white">Editora Globo - Férias</span>
           </div>
           <ThemeToggle />
         </div>

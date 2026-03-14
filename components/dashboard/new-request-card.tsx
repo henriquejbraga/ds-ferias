@@ -88,9 +88,9 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Regras CLT */}
-      <div className="rounded-md border border-[#e2e8f0] bg-[#f5f6f8] p-3 dark:border-[#252a35] dark:bg-[#0f1117]">
-        <p className="mb-1.5 text-sm font-semibold text-[#1a1d23] dark:text-white">Regras CLT</p>
-        <ul className="space-y-1">
+      <div className="rounded-md border border-[#e2e8f0] bg-[#f5f6f8] p-4 dark:border-[#252a35] dark:bg-[#0f1117]">
+        <p className="mb-2 text-base font-bold text-[#1a1d23] dark:text-white">Regras CLT</p>
+        <ul className="space-y-1.5 break-words">
           {[
             "Cada período: 5–30 dias corridos",
             "Um período de 14+ dias (ou já ter no ciclo)",
@@ -99,9 +99,9 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
               ? `Máximo de 3 períodos; total do ciclo 30 dias (você já tem ${existingDaysInCycle} no ciclo)`
               : "Máximo de 3 períodos, totalizando 30 dias",
           ].map((rule, i) => (
-            <li key={i} className="flex items-start gap-1.5 text-sm text-[#64748b] dark:text-slate-400">
-              <span className="mt-0.5 text-blue-500">•</span>
-              {rule}
+            <li key={i} className="flex items-start gap-2 text-base text-[#475569] dark:text-slate-300">
+              <span className="mt-0.5 shrink-0 text-blue-500">•</span>
+              <span className="min-w-0">{rule}</span>
             </li>
           ))}
         </ul>
@@ -119,7 +119,7 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
 
       {/* Período 2 – opcional */}
       <details className="group rounded-md border border-[#e2e8f0] dark:border-[#252a35]">
-        <summary className="flex cursor-pointer items-center justify-between px-3 py-2.5 text-sm font-medium text-[#64748b] hover:bg-[#f5f6f8] dark:text-slate-400 dark:hover:bg-[#1e2330]">
+        <summary className="flex cursor-pointer items-center justify-between px-3 py-2.5 text-base font-medium text-[#475569] hover:bg-[#f5f6f8] dark:text-slate-300 dark:hover:bg-[#1e2330]">
           <span className="flex items-center gap-1.5">
             <span className="flex h-4 w-4 items-center justify-center rounded-full border border-[#e2e8f0] text-[10px] font-bold dark:border-[#252a35]">2</span>
             Adicionar 2º período (opcional)
@@ -140,7 +140,7 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
 
       {/* Período 3 – opcional */}
       <details className="group rounded-md border border-[#e2e8f0] dark:border-[#252a35]">
-        <summary className="flex cursor-pointer items-center justify-between px-3 py-2.5 text-sm font-medium text-[#64748b] hover:bg-[#f5f6f8] dark:text-slate-400 dark:hover:bg-[#1e2330]">
+        <summary className="flex cursor-pointer items-center justify-between px-3 py-2.5 text-base font-medium text-[#475569] hover:bg-[#f5f6f8] dark:text-slate-300 dark:hover:bg-[#1e2330]">
           <span className="flex items-center gap-1.5">
             <span className="flex h-4 w-4 items-center justify-center rounded-full border border-[#e2e8f0] text-[10px] font-bold dark:border-[#252a35]">3</span>
             Adicionar 3º período (opcional)
@@ -161,15 +161,15 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
 
       {/* Resumo */}
       {stats.totalDays > 0 && (
-        <div className="rounded-md border border-[#e2e8f0] bg-[#f5f6f8] p-3 dark:border-[#252a35] dark:bg-[#0f1117]">
+        <div className="rounded-md border border-[#e2e8f0] bg-[#f5f6f8] p-4 dark:border-[#252a35] dark:bg-[#0f1117]">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-semibold text-[#1a1d23] dark:text-white">Resumo</span>
-            <span className="text-sm text-[#64748b]">{stats.validPeriods} período(s)</span>
+            <span className="text-base font-bold text-[#1a1d23] dark:text-white">Resumo</span>
+            <span className="text-base text-[#64748b]">{stats.validPeriods} período(s)</span>
           </div>
           {stats.periods.map(
             (p, i) =>
               p.days > 0 && (
-                <div key={i} className="flex items-center justify-between text-sm">
+                <div key={i} className="flex items-center justify-between text-base">
                   <span className="text-[#64748b] dark:text-slate-400">
                     Período {i + 1}{p.range ? ` · ${p.range.start} → ${p.range.end}` : ""}
                   </span>
@@ -179,9 +179,9 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
           )}
           <div className="mt-2 flex flex-col gap-1 border-t border-[#e2e8f0] pt-2 dark:border-[#252a35]">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold text-[#1a1d23] dark:text-white">Total desta solicitação</span>
+              <span className="text-base font-semibold text-[#1a1d23] dark:text-white">Total desta solicitação</span>
               <span
-                className={`text-base font-bold ${
+                className={`text-lg font-bold ${
                   totalOk && !needsPeriod14 ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
                 }`}
               >
@@ -189,13 +189,13 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
               </span>
             </div>
             {existingDaysInCycle > 0 && (
-              <div className="flex items-center justify-between text-sm text-[#64748b] dark:text-slate-400">
+              <div className="flex items-center justify-between text-base text-[#64748b] dark:text-slate-400">
                 <span>Já no ciclo (pendentes + usados)</span>
                 <span>{existingDaysInCycle} dias</span>
               </div>
             )}
             {existingDaysInCycle > 0 && (
-              <div className="flex items-center justify-between text-sm font-medium text-[#1a1d23] dark:text-white">
+              <div className="flex items-center justify-between text-base font-medium text-[#1a1d23] dark:text-white">
                 <span>Total no ciclo</span>
                 <span className={cycleTotalOk ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
                   {totalWithExisting} dias
@@ -203,14 +203,14 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
               </div>
             )}
             {!totalOk && stats.totalDays > 0 && (
-              <p className="mt-1.5 text-sm text-amber-600 dark:text-amber-400">
+              <p className="mt-1.5 text-base text-amber-600 dark:text-amber-400">
                 {existingDaysInCycle > 0
                   ? `⚠ Nesta solicitação você pode solicitar até ${maxDaysThisRequest} dias (ciclo: ${existingDaysInCycle} + ${stats.totalDays} = ${totalWithExisting}).`
                   : "⚠ O total deve ser exatamente 30 dias."}
               </p>
             )}
             {needsPeriod14 && stats.totalDays > 0 && (
-              <p className="mt-1.5 text-sm text-amber-600 dark:text-amber-400">
+              <p className="mt-1.5 text-base text-amber-600 dark:text-amber-400">
                 ⚠ Pelo menos um período deve ter 14 dias ou mais (CLT).
               </p>
             )}
@@ -231,7 +231,7 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
           needsPeriod14 ||
           !cycleTotalOk
         }
-        className="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-base font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-lg font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isPending || submitting ? (
           <>
@@ -271,37 +271,37 @@ function PeriodBlock({
   return (
     <div className="space-y-2">
       {label && (
-        <p className="text-sm font-medium text-[#1a1d23] dark:text-white">
+        <p className="text-base font-semibold text-[#1a1d23] dark:text-white">
           {label} {required && <span className="text-red-500">*</span>}
         </p>
       )}
       <div className="grid gap-2 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-sm text-[#64748b] dark:text-slate-400">Início</label>
+          <label className="mb-1 block text-base font-medium text-[#475569] dark:text-slate-300">Início</label>
           <input
             type="date"
             required={required}
             value={period.start}
             onChange={(e) => onChange("start", e.target.value)}
-            className="h-9 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
+            className="h-10 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm text-[#64748b] dark:text-slate-400">Término</label>
+          <label className="mb-1 block text-base font-medium text-[#475569] dark:text-slate-300">Término</label>
           <input
             type="date"
             required={required}
             value={period.end}
             onChange={(e) => onChange("end", e.target.value)}
-            className="h-9 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
+            className="h-10 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
           />
         </div>
       </div>
       {stat.days > 0 && (
-        <div className="flex items-center justify-between rounded-md bg-[#f5f6f8] px-3 py-1.5 dark:bg-[#0f1117]">
-          <span className="text-sm text-[#64748b] dark:text-slate-400">Duração</span>
+        <div className="flex items-center justify-between rounded-md bg-[#f5f6f8] px-3 py-2 dark:bg-[#0f1117]">
+          <span className="text-base font-medium text-[#64748b] dark:text-slate-400">Duração</span>
           <span
-            className={`text-sm font-semibold ${
+            className={`text-base font-bold ${
               stat.isValid ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
             }`}
           >

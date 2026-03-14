@@ -305,7 +305,9 @@ function calcDays(start: Date, end: Date): number {
   // Normaliza para meia-noite para evitar desvios de fuso/horário de verão
   s.setHours(0, 0, 0, 0);
   e.setHours(0, 0, 0, 0);
-  return Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
+  const raw = Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
+  // CLT: um período de férias não pode exceder 30 dias; evita 31 por arredondamento/fuso
+  return Math.min(Math.max(1, raw), 30);
 }
 
 function calcUsedDays(

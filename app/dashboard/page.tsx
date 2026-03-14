@@ -22,7 +22,7 @@ import {
 // DATA FETCHING
 // ============================================================================
 
-async function getData(userId: string, role: string, q?: string, status?: string) {
+async function getData(userId: string, role: string, q?: string, status?: string) { 
   // Sempre busca minhas solicitações
   const myRequestsPromise = prisma.vacationRequest.findMany({
     where: { userId },
@@ -93,9 +93,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   if (!user) redirect("/login");
 
   const params = await searchParams;
+  const userRoleLevel = getRoleLevel(user.role);
+  const isApprover = userRoleLevel >= 2;
+  const defaultView = isApprover ? "inbox" : "minhas";
+
   const q = normalizeParam(params.q);
   const statusFilter = normalizeParam(params.status, "TODOS");
-  const view = normalizeParam(params.view, "inbox");
+  const view = normalizeParam(params.view, defaultView);
   const managerFilter = normalizeParam(params.managerId);
   const fromFilter = normalizeParam(params.from);
   const toFilter = normalizeParam(params.to);
@@ -112,8 +116,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   });
   const balance = calculateVacationBalance(userFull?.hireDate ?? null, userFull?.vacationRequests ?? [] as any);
 
-  const userRoleLevel = getRoleLevel(user.role);
-
   const pendingCount = managedRequests.filter((r) => {
     if (!hasTeamVisibility(user.role, user.id, r as any)) return false;
     if (userRoleLevel === 2) return r.status === "PENDENTE";
@@ -124,7 +126,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const approvedCount = managedRequests.filter((r) => r.status === "APROVADO_RH").length;
 
-  const isApprover = userRoleLevel >= 2;
   const isMyView = !isApprover || view === "minhas";
 
   return (
@@ -172,7 +173,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           )}
 
           <div className="grid gap-6 lg:grid-cols-12">
-            <section className="lg:col-span-8">
+            <section className="min-w-0 lg:col-span-6">
               {isMyView ? (
                 <MyRequestsList requests={myRequests} balance={balance} />
               ) : (
@@ -186,19 +187,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               )}
             </section>
 
-            <aside className="space-y-4 lg:col-span-4">
-              {/* Saldo de férias */}
-              <VacationBalanceCard balance={balance} />
-
+            <aside className="min-w-0 space-y-4 lg:col-span-6">
               {/* Nova solicitação */}
-              <div className="rounded-lg border border-[#e2e8f0] bg-white dark:border-[#252a35] dark:bg-[#1a1d23]">
-                <div className="border-b border-[#e2e8f0] px-5 py-4 dark:border-[#252a35]">
-                  <h3 className="text-base font-semibold text-[#1a1d23] dark:text-white">Nova Solicitação</h3>
-                  <p className="mt-0.5 text-sm text-[#64748b] dark:text-slate-400">
+              <div className="min-w-0 rounded-lg border-2 border-blue-200 bg-white dark:border-blue-800/50 dark:bg-[#1a1d23]">
+                <div className="border-b border-[#e2e8f0] bg-blue-50/80 px-5 py-4 dark:border-[#252a35] dark:bg-blue-950/20">
+                  <h3 className="text-xl font-bold text-[#1a1d23] dark:text-white">Nova Solicitação</h3>
+                  <p className="mt-1 text-base font-medium text-[#475569] dark:text-slate-300">
                     Informe os períodos desejados
                   </p>
                 </div>
-                <div className="p-5">
+                <div className="min-w-0 p-5">
                   <NewRequestCardClient canRequest balance={balance} />
                 </div>
               </div>
@@ -238,7 +236,7 @@ function AppSidebar({
   const level = getRoleLevel(user.role);
 
   return (
-    <aside className="flex w-full flex-col border-b border-[#e2e8f0] bg-white lg:w-60 lg:border-b-0 lg:border-r dark:border-[#252a35] dark:bg-[#141720]">
+    <aside className="flex w-full flex-col border-b border-[#e2e8f0] bg-white lg:w-72 lg:border-b-0 lg:border-r dark:border-[#252a35] dark:bg-[#141720]">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between gap-3 border-b border-[#e2e8f0] px-5 dark:border-[#252a35]">
         <div className="flex items-center gap-3">
@@ -247,13 +245,12 @@ function AppSidebar({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <span className="text-lg font-bold text-[#1a1d23] dark:text-white">DS-Férias</span>
+          <span className="text-lg font-bold text-[#1a1d23] dark:text-white">Editora Globo - Férias</span>
         </div>
       </div>
 
       {/* Navegação compacta no mobile */}
       <nav className="flex flex-wrap items-center gap-2 px-3 py-2 lg:hidden">
-        <SidebarItem href="/dashboard" icon={<IconDashboard />} label="Dashboard" active={!activeView || activeView === "dashboard"} />
         <SidebarItem
           href="/dashboard?view=minhas"
           icon={<IconCalendar />}
@@ -283,14 +280,12 @@ function AppSidebar({
       {/* Navegação completa no desktop */}
       <nav className="hidden flex-1 flex-col gap-1 px-3 py-4 lg:flex">
         <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#94a3b8]">Menu</p>
-        <SidebarItem href="/dashboard" icon={<IconDashboard />} label="Dashboard" active={!activeView || activeView === "dashboard"} />
         <SidebarItem
           href="/dashboard?view=minhas"
           icon={<IconCalendar />}
           label="Minhas Férias"
           active={activeView === "minhas"}
         />
-
         {level >= 2 && (
           <>
             <SidebarItem
@@ -311,27 +306,9 @@ function AppSidebar({
         )}
 
         <div className="my-2 border-t border-[#e2e8f0] dark:border-[#252a35]" />
-        <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#94a3b8]">Saldo</p>
+        <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wider text-[#64748b] dark:text-slate-400">Saldo de Férias</p>
 
-        <div className="rounded-md bg-[#f5f6f8] px-3 py-2.5 dark:bg-[#1e2330]">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-[#64748b] dark:text-slate-400">Disponível</span>
-            <span className={`text-base font-bold ${balance.availableDays > 0 ? "text-emerald-600" : "text-red-500"}`}>
-              {balance.availableDays} dias
-            </span>
-          </div>
-          {balance.hasEntitlement && (
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#e2e8f0] dark:bg-[#252a35]">
-              <div
-                className="h-full rounded-full bg-blue-500 transition-all"
-                style={{ width: `${Math.min(100, Math.round((balance.usedDays / 30) * 100))}%` }}
-              />
-            </div>
-          )}
-          <p className="mt-1 text-[10px] text-[#94a3b8]">
-            {balance.usedDays}/{balance.entitledDays || 30} dias usados
-          </p>
-        </div>
+        <SidebarBalance balance={balance} />
       </nav>
 
       {/* Usuário (em baixo) */}
@@ -356,6 +333,51 @@ function AppSidebar({
         </form>
       </div>
     </aside>
+  );
+}
+
+function SidebarBalance({ balance }: { balance: ReturnType<typeof calculateVacationBalance> }) {
+  const usedPct = balance.entitledDays > 0
+    ? Math.min(100, Math.round((balance.usedDays / balance.entitledDays) * 100))
+    : 0;
+  const pendingPct = balance.entitledDays > 0
+    ? Math.min(100 - usedPct, Math.round((balance.pendingDays / balance.entitledDays) * 100))
+    : 0;
+
+  if (!balance.hasEntitlement) {
+    return (
+      <div className="rounded-md bg-[#f5f6f8] px-3 py-3 dark:bg-[#1e2330]">
+        <p className="text-center text-xl font-bold text-amber-500">{Math.max(0, 12 - balance.monthsWorked)} meses</p>
+        <p className="mt-1 text-center text-sm text-[#64748b] dark:text-slate-400">para direito a férias</p>
+        <p className="mt-1.5 text-center text-xs text-[#94a3b8]">{balance.monthsWorked} meses de empresa</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-md bg-[#f5f6f8] px-3 py-3 dark:bg-[#1e2330]">
+      <p className="text-center text-sm font-semibold text-[#64748b] dark:text-slate-400">{balance.entitledDays} dias/ciclo</p>
+      <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#e2e8f0] dark:bg-[#252a35]">
+        <div className="flex h-full">
+          <div className="bg-blue-500 transition-all" style={{ width: `${usedPct}%` }} />
+          <div className="bg-amber-400 transition-all" style={{ width: `${pendingPct}%` }} />
+        </div>
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+        <div>
+          <p className="text-base font-bold text-blue-600 dark:text-blue-400">{balance.usedDays}</p>
+          <p className="mt-0.5 text-xs font-medium text-[#64748b] dark:text-slate-400">Usados</p>
+        </div>
+        <div>
+          <p className="text-base font-bold text-amber-600 dark:text-amber-400">{balance.pendingDays}</p>
+          <p className="mt-0.5 text-xs font-medium text-[#64748b] dark:text-slate-400">Pendente</p>
+        </div>
+        <div>
+          <p className="text-base font-bold text-emerald-600 dark:text-emerald-400">{balance.availableDays}</p>
+          <p className="mt-0.5 text-xs font-medium text-[#64748b] dark:text-slate-400">Disponível</p>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -412,79 +434,6 @@ function StatCard({ label, value, sublabel, alert = false }: { label: string; va
       <p className="text-sm font-medium uppercase tracking-wide text-[#64748b] dark:text-slate-400">{label}</p>
       <p className={`mt-1 text-3xl font-bold ${alert && value > 0 ? "text-red-500" : "text-[#1a1d23] dark:text-white"}`}>{value}</p>
       <p className="mt-1 text-sm text-[#64748b] dark:text-slate-500">{sublabel}</p>
-    </div>
-  );
-}
-
-// ============================================================================
-// CARD DE SALDO DE FÉRIAS
-// ============================================================================
-
-function VacationBalanceCard({ balance }: { balance: ReturnType<typeof calculateVacationBalance> }) {
-  const usedPct = balance.entitledDays > 0
-    ? Math.min(100, Math.round((balance.usedDays / balance.entitledDays) * 100))
-    : 0;
-  const pendingPct = balance.entitledDays > 0
-    ? Math.min(100 - usedPct, Math.round((balance.pendingDays / balance.entitledDays) * 100))
-    : 0;
-
-  return (
-    <div className="rounded-lg border border-[#e2e8f0] bg-white dark:border-[#252a35] dark:bg-[#1a1d23]">
-      <div className="border-b border-[#e2e8f0] px-5 py-4 dark:border-[#252a35]">
-        <h3 className="text-base font-semibold text-[#1a1d23] dark:text-white">Saldo de Férias</h3>
-        <p className="mt-0.5 text-sm text-[#64748b]">Ciclo atual</p>
-      </div>
-      <div className="p-5">
-        {!balance.hasEntitlement ? (
-          <div className="text-center">
-            <p className="text-2xl font-bold text-amber-500">
-              {Math.max(0, 12 - balance.monthsWorked)} meses
-            </p>
-            <p className="mt-1 text-sm text-[#64748b] dark:text-slate-400">para adquirir direito a férias</p>
-            <p className="mt-2 text-sm text-[#94a3b8]">{balance.monthsWorked} meses de empresa</p>
-          </div>
-        ) : (
-          <>
-            <div className="mb-4 flex items-end justify-between">
-              <div>
-                <p className="text-3xl font-bold text-[#1a1d23] dark:text-white">{balance.availableDays}</p>
-                <p className="text-sm text-[#64748b] dark:text-slate-400">dias disponíveis</p>
-              </div>
-              <div className="text-right text-sm text-[#64748b] dark:text-slate-400">
-                <p>{balance.entitledDays} dias/ciclo</p>
-              </div>
-            </div>
-
-            {/* Barra de progresso */}
-            <div className="h-2 overflow-hidden rounded-full bg-[#f1f5f9] dark:bg-[#252a35]">
-              <div className="flex h-full">
-                <div className="bg-blue-500 transition-all" style={{ width: `${usedPct}%` }} />
-                <div className="bg-amber-400 transition-all" style={{ width: `${pendingPct}%` }} />
-              </div>
-            </div>
-
-            <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-              <BalanceStat label="Usados" value={balance.usedDays} color="blue" />
-              <BalanceStat label="Pendentes" value={balance.pendingDays} color="amber" />
-              <BalanceStat label="Disponíveis" value={balance.availableDays} color="green" />
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function BalanceStat({ label, value, color }: { label: string; value: number; color: "blue" | "amber" | "green" }) {
-  const colors = {
-    blue: "text-blue-600 dark:text-blue-400",
-    amber: "text-amber-600 dark:text-amber-400",
-    green: "text-emerald-600 dark:text-emerald-400",
-  }[color];
-  return (
-    <div>
-      <p className={`text-lg font-bold ${colors}`}>{value}</p>
-      <p className="text-[10px] text-[#94a3b8]">{label}</p>
     </div>
   );
 }
@@ -1076,14 +1025,14 @@ function EditPeriodForm({ request }: { request: any }) {
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-[#e2e8f0] bg-white py-14 text-center dark:border-[#252a35] dark:bg-[#1a1d23]">
-      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#f5f6f8] dark:bg-[#252a35]">
-        <svg className="h-6 w-6 text-[#94a3b8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <div className="flex w-full flex-col items-center justify-center rounded-xl border border-dashed border-[#e2e8f0] bg-white px-8 py-12 text-center dark:border-[#252a35] dark:bg-[#1a1d23]">
+      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f5f6f8] dark:bg-[#252a35]">
+        <svg className="h-7 w-7 text-[#94a3b8]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       </div>
-      <p className="text-base font-semibold text-[#1a1d23] dark:text-white">Nenhuma solicitação</p>
-      <p className="mt-1 text-sm text-[#64748b] dark:text-slate-400">{message}</p>
+      <p className="text-xl font-semibold text-[#1a1d23] dark:text-white">Nenhuma solicitação</p>
+      <p className="mt-2 max-w-md text-base leading-relaxed text-[#64748b] dark:text-slate-400">{message}</p>
     </div>
   );
 }
@@ -1103,9 +1052,6 @@ function ExportButton({ href }: { href: string }) {
 // ÍCONES
 // ============================================================================
 
-function IconDashboard() {
-  return <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM13 7a2 2 0 012-2h3a2 2 0 012 2v3a2 2 0 01-2 2h-3a2 2 0 01-2-2V7zM3 17a2 2 0 012-2h3a2 2 0 012 2v1a2 2 0 01-2 2H5a2 2 0 01-2-2v-1zM13 17a2 2 0 012-2h3a2 2 0 012 2v1a2 2 0 01-2 2h-3a2 2 0 01-2-2v-1z" /></svg>;
-}
 function IconCalendar() {
   return <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
 }
