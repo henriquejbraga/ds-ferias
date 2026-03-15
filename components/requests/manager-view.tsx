@@ -61,7 +61,8 @@ export function ManagerView({
           <a
             href="/api/reports/balance"
             download
-            className="inline-flex items-center gap-2 rounded-md border border-[#e2e8f0] bg-white px-4 py-2 text-sm font-medium text-[#1a1d23] hover:bg-[#f5f6f8] dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white dark:hover:bg-[#252a35]"
+            aria-label="Baixar relatório de saldo em CSV"
+            className="inline-flex items-center gap-2 rounded-md border border-[#e2e8f0] bg-white px-4 py-2 text-sm font-medium text-[#1a1d23] hover:bg-[#f5f6f8] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white dark:hover:bg-[#252a35]"
           >
             Relatório de saldo (CSV)
           </a>

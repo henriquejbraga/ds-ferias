@@ -90,7 +90,7 @@ export default async function DashboardPage({
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar />
 
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <main id="main" className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8" tabIndex={-1}>
           <div className="mb-6">
             <DashboardBreadcrumb currentView={isTimesView ? "times" : isMyView ? "minhas" : view} />
             <h1 className="text-2xl font-bold text-[#1a1d23] dark:text-white">

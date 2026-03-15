@@ -74,13 +74,13 @@ export function BackofficeClient({
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b border-[#e2e8f0] bg-[#f8fafc] dark:border-[#252a35] dark:bg-[#141720]">
-              <th className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Nome</th>
-              <th className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">E-mail</th>
-              <th className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Papel</th>
-              <th className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Departamento</th>
-              <th className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Admissão</th>
-              <th className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Coordenador/Gerente</th>
-              <th className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Ações</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Nome</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">E-mail</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Papel</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Departamento</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Admissão</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Coordenador/Gerente</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Ações</th>
             </tr>
           </thead>
           <tbody>
@@ -91,6 +91,7 @@ export function BackofficeClient({
                     <input
                       value={form.name ?? ""}
                       onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                      aria-label="Nome do usuário"
                       className="w-full rounded border border-[#e2e8f0] bg-white px-2 py-1.5 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
                     />
                   ) : (
@@ -103,6 +104,7 @@ export function BackofficeClient({
                     <select
                       value={form.role ?? u.role}
                       onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                      aria-label="Papel do usuário"
                       className="rounded border border-[#e2e8f0] bg-white px-2 py-1.5 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
                     >
                       <option value="FUNCIONARIO">Funcionário(a)</option>
@@ -120,6 +122,7 @@ export function BackofficeClient({
                       value={form.department ?? ""}
                       onChange={(e) => setForm((f) => ({ ...f, department: e.target.value || null }))}
                       placeholder="Ex: Engenharia"
+                      aria-label="Departamento"
                       className="w-32 rounded border border-[#e2e8f0] bg-white px-2 py-1.5 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
                     />
                   ) : (
@@ -132,6 +135,7 @@ export function BackofficeClient({
                       type="date"
                       value={form.hireDate ? new Date(form.hireDate).toISOString().slice(0, 10) : ""}
                       onChange={(e) => setForm((f) => ({ ...f, hireDate: e.target.value ? new Date(e.target.value) : null }))}
+                      aria-label="Data de admissão"
                       className="rounded border border-[#e2e8f0] bg-white px-2 py-1.5 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
                     />
                   ) : (
@@ -143,6 +147,7 @@ export function BackofficeClient({
                     <select
                       value={form.managerId ?? ""}
                       onChange={(e) => setForm((f) => ({ ...f, managerId: e.target.value || null }))}
+                      aria-label="Coordenador ou gerente"
                       className="rounded border border-[#e2e8f0] bg-white px-2 py-1.5 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
                     >
                       <option value="">— Nenhum —</option>
@@ -157,15 +162,15 @@ export function BackofficeClient({
                 <td className="px-4 py-3">
                   {editingId === u.id ? (
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleSave(u.id)} disabled={saving}>
+                      <Button size="sm" onClick={() => handleSave(u.id)} disabled={saving} aria-label={saving ? "Salvando" : "Salvar alterações"}>
                         {saving ? "Salvando…" : "Salvar"}
                       </Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)} aria-label="Cancelar edição">
                         Cancelar
                       </Button>
                     </div>
                   ) : (
-                    <Button size="sm" variant="outline" onClick={() => startEdit(u)}>
+                    <Button size="sm" variant="outline" onClick={() => startEdit(u)} aria-label={`Editar usuário ${u.name}`}>
                       Editar
                     </Button>
                   )}

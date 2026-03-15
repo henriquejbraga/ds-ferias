@@ -81,3 +81,15 @@ Para validar: abrir no Chrome DevTools (modo dispositivo) ou em um celular real 
 3. Escolha um aparelho no topo (ex.: iPhone 14, Pixel 7) ou defina resolução customizada (ex.: 390×844).
 4. Recarregue a página e teste: login, abas da sidebar, saldo de férias, formulário de nova solicitação, filtros e botões de ação (Aprovar/Reprovar). Confira se os toques acertam os alvos e se não há overflow horizontal.
 5. Para testar em **celular real**: acesse pela mesma rede (ex.: `http://<IP-da-maquina>:3000`) ou use um túnel (ngrok, etc.).
+
+---
+
+## 6. Revisão de acessibilidade (segunda passada)
+
+- **Skip link:** Link “Pular para o conteúdo principal” no topo (visível ao receber foco); destinos com `id="main"` em login, dashboard e admin.
+- **Login:** Form e botão com `aria-label`; overlay de loading com `role="status"` e `aria-live="polite"`; botão com `aria-busy` e anel de foco.
+- **Sidebar:** Botão Sair com `aria-label` e anel de foco.
+- **Export e links:** Botão “Exportar CSV” e link “Relatório de saldo” com `aria-label` e `focus:ring`.
+- **Admin (backoffice):** Cabeçalhos de tabela com `scope="col"`; inputs/selects de edição com `aria-label`; botões Editar/Salvar/Cancelar com `aria-label`; link Voltar com `aria-label` e foco visível.
+- **Times (view):** Botões de expandir/recolher com `aria-expanded` e `aria-label` dinâmico (ex.: “Expandir time de X”).
+- **Foco:** Anel de foco consistente (`focus:ring-2` / `focus:ring-blue-500`) em controles interativos onde faltava.

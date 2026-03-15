@@ -38,7 +38,8 @@ export default async function AdminPage() {
           <div className="flex items-center gap-4">
             <Link
               href="/dashboard"
-              className="text-[#64748b] transition hover:text-[#1a1d23] dark:hover:text-white"
+              className="text-[#64748b] transition hover:text-[#1a1d23] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:hover:text-white"
+              aria-label="Voltar ao dashboard"
             >
               ← Voltar
             </Link>
@@ -46,7 +47,7 @@ export default async function AdminPage() {
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+      <main id="main" className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8" tabIndex={-1}>
         <BackofficeClient users={users} managers={managers} />
       </main>
     </div>

@@ -90,7 +90,8 @@ export function AppSidebar({
         <form action="/api/logout" method="post" className="mt-3">
           <button
             type="submit"
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-base text-[#64748b] transition hover:bg-[#f5f6f8] hover:text-[#1a1d23] dark:hover:bg-[#1e2330] dark:hover:text-white"
+            aria-label="Sair da conta"
+            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-base text-[#64748b] transition hover:bg-[#f5f6f8] hover:text-[#1a1d23] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset dark:hover:bg-[#1e2330] dark:hover:text-white"
           >
             <IconLogout />
             Sair

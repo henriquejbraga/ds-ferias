@@ -23,9 +23,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" suppressHydrationWarning>
-      <body
-        className={`antialiased bg-background text-foreground`}
-      >
+      <body className="antialiased bg-background text-foreground">
+        <a
+          href="#main"
+          className="fixed left-2 top-2 z-[100] -translate-y-[200%] rounded-md bg-[#1a1d23] px-4 py-2 text-sm font-semibold text-white shadow-lg transition focus:translate-y-0 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-white dark:text-[#1a1d23]"
+        >
+          Pular para o conteúdo principal
+        </a>
         <Suspense fallback={null}>
           <DashboardNavProvider>
             <Toaster richColors position="top-center" />

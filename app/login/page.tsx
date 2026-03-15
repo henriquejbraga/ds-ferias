@@ -74,9 +74,14 @@ export default function LoginPage() {
         {/* Formulário centralizado */}
         <div className="relative flex flex-1 items-center justify-center px-4 pb-8 sm:px-6 sm:pb-12 lg:px-8 lg:pb-12">
           {loading && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#f5f6f8]/90 dark:bg-[#0f1117]/90" aria-hidden="true">
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center bg-[#f5f6f8]/90 dark:bg-[#0f1117]/90"
+              role="status"
+              aria-live="polite"
+              aria-label="Entrando na conta, aguarde"
+            >
               <div className="flex flex-col items-center gap-3 rounded-xl border border-[#e2e8f0] bg-white px-8 py-6 shadow-lg dark:border-[#252a35] dark:bg-[#1a1d23]">
-                <svg className="h-10 w-10 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                <svg className="h-10 w-10 animate-spin text-blue-600" fill="none" viewBox="0 0 24 24" aria-hidden>
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
@@ -85,7 +90,7 @@ export default function LoginPage() {
               </div>
             </div>
           )}
-          <div className="w-full max-w-sm">
+          <div id="main" className="w-full max-w-sm" tabIndex={-1}>
             <div className="mb-8">
               <h1 className="text-2xl font-bold text-[#1a1d23] dark:text-white">Entrar na conta</h1>
               <p className="mt-1 text-base text-[#64748b] dark:text-slate-400">
@@ -93,7 +98,7 @@ export default function LoginPage() {
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" aria-label="Formulário de login">
               {/* E-mail */}
               <div>
                 <label htmlFor="email" className="mb-1.5 block text-base font-medium text-[#1a1d23] dark:text-white">
@@ -134,7 +139,9 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 flex min-h-[44px] w-full items-center justify-center rounded-md bg-blue-600 px-4 text-base font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label={loading ? "Entrando na conta" : "Entrar na conta"}
+                aria-busy={loading}
+                className="mt-2 flex min-h-[44px] w-full items-center justify-center rounded-md bg-blue-600 px-4 text-base font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
