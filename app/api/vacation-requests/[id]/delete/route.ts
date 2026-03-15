@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { ROLE_LEVEL, hasTeamVisibility } from "@/lib/vacationRules";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -20,6 +21,15 @@ export async function POST(request: Request, { params }: Params) {
 
   const existing = await prisma.vacationRequest.findUnique({
     where: { id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          managerId: true,
+          manager: { select: { managerId: true } },
+        },
+      },
+    },
   });
 
   if (!existing) {
@@ -27,7 +37,6 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   const isOwner = existing.userId === user.id;
-  const { ROLE_LEVEL } = await import("@/lib/vacationRules");
   const isApprover = ROLE_LEVEL[user.role] >= 2;
 
   // Funcionário pode excluir enquanto não tiver aprovação final do RH
@@ -47,6 +56,23 @@ export async function POST(request: Request, { params }: Params) {
       { error: "Você não tem permissão para excluir este pedido." },
       { status: 403 },
     );
+  }
+
+  // Coordenador e Gerente só podem excluir solicitações da sua equipe; RH pode excluir qualquer
+  if (isApprover && !isOwner && ROLE_LEVEL[user.role] < 4) {
+    const visible = hasTeamVisibility(user.role, user.id, {
+      userId: existing.userId,
+      user: {
+        managerId: existing.user?.managerId ?? null,
+        manager: existing.user?.manager ?? null,
+      },
+    });
+    if (!visible) {
+      return NextResponse.json(
+        { error: "Você não tem permissão para excluir este pedido." },
+        { status: 403 },
+      );
+    }
   }
 
   await prisma.vacationRequestHistory.deleteMany({

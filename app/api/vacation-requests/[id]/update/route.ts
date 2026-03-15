@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
-import { validateCltPeriod } from "@/lib/vacationRules";
+import { getRoleLevel, validateCltPeriod } from "@/lib/vacationRules";
 
 type Params = {
   params: Promise<{ id: string }>;
 };
 
+const ACTIVE_STATUSES = ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE", "APROVADO_RH"] as const;
+
 export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
   const user = await getSessionUser();
-  if (!user || user.role !== "COLABORADOR") {
+  if (!user || getRoleLevel(user.role) !== 1) {
     return NextResponse.json({ error: "Somente colaboradores podem alterar pedidos" }, { status: 403 });
   }
 
@@ -66,9 +68,7 @@ export async function POST(request: Request, { params }: Params) {
     where: {
       userId: user.id,
       id: { not: existing.id },
-      status: {
-        in: ["PENDENTE", "APROVADO_GESTOR", "APROVADO_RH"],
-      },
+      status: { in: [...ACTIVE_STATUSES] },
       AND: [
         { startDate: { lt: endDate } },
         { endDate: { gt: startDate } },

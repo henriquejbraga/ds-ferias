@@ -4,6 +4,7 @@ import { type Role } from "../generated/prisma/enums";
 import crypto from "crypto";
 
 const SESSION_COOKIE = "ds-ferias-session";
+const SESSION_MAX_AGE = 60 * 60 * 8; // 8h
 
 export type SessionUser = {
   id: string;
@@ -11,6 +12,39 @@ export type SessionUser = {
   email: string;
   role: Role;
 };
+
+function getSessionSecret(): string | null {
+  const secret = process.env.SESSION_SECRET;
+  return secret && secret.length >= 16 ? secret : null;
+}
+
+function signPayload(payload: string): string {
+  const secret = getSessionSecret();
+  if (!secret) return payload;
+  const hmac = crypto.createHmac("sha256", secret);
+  hmac.update(payload);
+  return payload + "." + hmac.digest("base64url");
+}
+
+function verifyPayload(signed: string): string | null {
+  const secret = getSessionSecret();
+  if (!secret) return null;
+  try {
+    const lastDot = signed.lastIndexOf(".");
+    if (lastDot === -1) return null;
+    const payload = signed.slice(0, lastDot);
+    const sig = signed.slice(lastDot + 1);
+    const hmac = crypto.createHmac("sha256", secret);
+    hmac.update(payload);
+    const expected = hmac.digest("base64url");
+    if (crypto.timingSafeEqual(Buffer.from(sig, "base64url"), Buffer.from(expected, "base64url"))) {
+      return payload;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
 
 function hashPassword(password: string) {
   return crypto.createHash("sha256").update(password).digest("hex");
@@ -22,11 +56,9 @@ export async function verifyCredentials(email: string, password: string) {
 
   const hashed = hashPassword(password);
   if (user.passwordHash !== hashed) {
-    console.error("[auth] senha inválida", {
-      email,
-      hashed,
-      stored: user.passwordHash,
-    });
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[auth] Invalid credentials for", email);
+    }
     return null;
   }
 
@@ -44,7 +76,17 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   if (!raw) return null;
 
   try {
-    const data = JSON.parse(raw) as SessionUser;
+    let payload: string;
+    if (raw.includes(".")) {
+      payload = verifyPayload(raw) ?? "";
+      if (!payload) return null;
+    } else {
+      payload = raw;
+    }
+    const data = JSON.parse(payload) as SessionUser;
+    if (typeof data?.id !== "string" || typeof data?.email !== "string" || typeof data?.role !== "string") {
+      return null;
+    }
     return data;
   } catch {
     return null;
@@ -53,12 +95,14 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
 export async function createSession(user: SessionUser) {
   const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, JSON.stringify(user), {
+  const payload = JSON.stringify(user);
+  const signed = signPayload(payload);
+  cookieStore.set(SESSION_COOKIE, signed, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 8, // 8h
+    maxAge: SESSION_MAX_AGE,
   });
 }
 

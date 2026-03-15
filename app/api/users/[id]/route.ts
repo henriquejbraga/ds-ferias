@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getRoleLevel } from "@/lib/vacationRules";
 import type { UserUncheckedUpdateInput } from "@/generated/prisma/models/User";
 
-const ROLES = ["FUNCIONARIO", "COORDENADOR", "GERENTE", "RH"] as const;
+const ROLES = ["FUNCIONARIO", "COLABORADOR", "COORDENADOR", "GESTOR", "GERENTE", "RH"] as const;
 
 /** PATCH: atualiza usuário (apenas RH). */
 export async function PATCH(

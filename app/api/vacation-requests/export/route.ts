@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { buildManagedRequestsWhere } from "@/lib/requestVisibility";
 
 export async function GET(request: Request) {
   const user = await getSessionUser();
@@ -18,25 +19,26 @@ export async function GET(request: Request) {
   const toParam = searchParams.get("to") ?? "";
   const departmentParam = searchParams.get("department") ?? "";
 
-  // Busca base no banco
-  const where: any = {};
-
+  let where: Record<string, unknown>;
   if (user.role === "COLABORADOR" || user.role === "FUNCIONARIO") {
-    where.userId = user.id;
-  }
-
-  if (statusParam && statusParam !== "TODOS") {
-    where.status = statusParam;
-  }
-
-  if (q || departmentParam) {
-    where.user = {};
-    if (q) where.user.name = { contains: q, mode: "insensitive" };
-    if (departmentParam) where.user.department = departmentParam;
+    where = { userId: user.id };
+    if (statusParam !== "TODOS") where.status = statusParam;
+    if (q?.trim() || departmentParam) {
+      (where as any).user = {};
+      if (q?.trim()) (where as any).user.name = { contains: q.trim(), mode: "insensitive" };
+      if (departmentParam) (where as any).user.department = departmentParam;
+    }
+  } else {
+    where = buildManagedRequestsWhere(user.id, user.role, {
+      query: q?.trim() || undefined,
+      status: statusParam !== "TODOS" ? statusParam : undefined,
+      department: departmentParam || undefined,
+    });
   }
 
   const requests = await prisma.vacationRequest.findMany({
-    where,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    where: where as any,
     include: {
       user: {
         select: {

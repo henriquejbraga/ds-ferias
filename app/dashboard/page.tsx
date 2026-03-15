@@ -18,6 +18,7 @@ import {
   hasTeamVisibility,
   calculateVacationBalance,
 } from "@/lib/vacationRules";
+import { buildManagedRequestsWhere } from "@/lib/requestVisibility";
 
 // ============================================================================
 // DATA FETCHING
@@ -42,9 +43,10 @@ async function getData(userId: string, role: string, q?: string, status?: string
     return { myRequests, managedRequests: [], blackouts: [], teamRequests: [] };
   }
 
-  const where: any = {};
-  if (q) where.user = { name: { contains: q, mode: "insensitive" } };
-  if (status && status !== "TODOS") where.status = status as VacationStatus;
+  const where = buildManagedRequestsWhere(userId, role, {
+    query: q,
+    status: status && status !== "TODOS" ? status : undefined,
+  }) as { [key: string]: unknown };
 
   const managedRequestsPromise = prisma.vacationRequest.findMany({
     where,
@@ -692,11 +694,11 @@ function ManagerView({
       {filteredRequests.length === 0 ? (
         <EmptyState message={emptyMessage} />
       ) : userLevel >= 4 ? (
-        <RequestsGroupedByManager requests={filteredRequests} userId={userId} />
+        <RequestsGroupedByManager requests={filteredRequests} userId={userId} userRole={userRole} />
       ) : (
         <div className="space-y-4">
           {filteredRequests.map((r) => (
-            <RequestCard key={r.id} request={r} userId={userId} />
+            <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />
           ))}
         </div>
       )}
@@ -796,7 +798,7 @@ function FilterForm({
   );
 }
 
-function RequestsGroupedByManager({ requests, userId }: { requests: any[]; userId: string }) {
+function RequestsGroupedByManager({ requests, userId, userRole }: { requests: any[]; userId: string; userRole: string }) {
   const groups = groupByManager(requests);
   return (
     <div className="space-y-5">
@@ -812,7 +814,7 @@ function RequestsGroupedByManager({ requests, userId }: { requests: any[]; userI
             <span className="ml-auto text-sm text-[#64748b]">{(groupReqs as any[]).length} solicitação(ões)</span>
           </div>
           {(groupReqs as any[]).map((r: any) => (
-            <RequestCard key={r.id} request={r} userId={userId} />
+            <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />
           ))}
         </section>
       ))}
@@ -827,15 +829,18 @@ function RequestsGroupedByManager({ requests, userId }: { requests: any[]; userI
 function RequestCard({
   request,
   userId,
+  userRole,
   isOwner = false,
 }: {
   request: any;
   userId?: string;
+  userRole?: string;
   isOwner?: boolean;
 }) {
+  const approverRole = userRole ?? request.user?.role ?? "FUNCIONARIO";
   const canApprove = userId
     ? canApproveRequest(
-        /* approverRole */ request.user?.role === undefined ? "FUNCIONARIO" : request._approverRole ?? "RH",
+        approverRole,
         userId,
         { userId: request.userId, status: request.status, user: { role: request.user?.role ?? "FUNCIONARIO" } },
       )

@@ -9,7 +9,9 @@
     "start": "next start",
     "lint": "eslint",
     "db:seed": "prisma db seed",
-    "db:check-visibility": "npx tsx scripts/check-visibility.ts"
+    "db:check-visibility": "npx tsx scripts/check-visibility.ts",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.5.0",
@@ -31,15 +33,17 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "tsx": "^4.19.2",
     "@types/node": "^20",
     "@types/pg": "^8.18.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "prisma": "^7.5.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.19.2",
+    "typescript": "^5",
+    "vitest": "^4.1.0"
   }
 }
