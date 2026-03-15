@@ -1,345 +1,157 @@
-## Editora Globo - Férias
+# Editora Globo - Férias
 
-Aplicação interna para gestão de férias (colaborador, gestor e RH) construída em **Next.js 16**, **Prisma 7** e **Postgres**, com fluxo de aprovação em cadeia (Coordenador → Gerente → RH), histórico de mudanças e validações alinhadas à **CLT** (São Paulo).
-
----
-
-### Visão geral funcional
-
-- **Papéis**
-  - **COLABORADOR**: cria solicitações, edita/exclui enquanto estiverem pendentes, acompanha o histórico.
-  - **GESTOR**: aprova/reprova férias do **seu time direto** e exclui solicitações; também pode criar as próprias férias.
-  - **RH**: faz a aprovação final, agrupada por gestor, e pode excluir qualquer solicitação; também pode criar as próprias férias.
-
-- **Regras principais**
-  - **Fluxo de aprovação em 2 etapas**:
-    - 1ª etapa: **Gestor** aprova solicitações com status `PENDENTE`.
-    - 2ª etapa: **RH** aprova solicitações com status `APROVADO_GESTOR`.
-  - **Autoprovação proibida**:
-    - Ninguém pode aprovar nem reprovar a **própria solicitação** (checado na API).
-  - **Escopo do Gestor**:
-    - Gestor só vê na tela de aprovação as férias dos **colaboradores cujo `managerId` = id do gestor** (e, no caso de Gerente, também dos subordinados dos coordenadores).
-  - **Exclusão de solicitações**:
-    - Colaborador pode excluir apenas as **próprias** solicitações (enquanto não aprovadas pelo RH). Coordenador e Gerente só podem excluir solicitações **da própria equipe**; RH pode excluir qualquer solicitação.
-  - **Caixa de aprovação x Histórico** (para Gestor/RH):
-    - **Caixa de aprovação (`view=inbox`)**:
-      - Gestor: apenas solicitações `PENDENTE` do seu time.
-      - RH: apenas solicitações `APROVADO_GESTOR`.
-    - **Histórico (`view=historico`)**:
-      - Gestor: `APROVADO_GESTOR`, `APROVADO_RH`, `REPROVADO`.
-      - RH: `APROVADO_RH`, `REPROVADO`, **agrupado por gestor**.
-  - **Histórico de mudanças**:
-    - Cada aprovação/reprovação gera um registro em `VacationRequestHistory` com:
-      - `previousStatus`, `newStatus`, `changedByUserId`, `note`, `changedAt`.
-    - O histórico é exibido para colaborador, gestor e RH (data **e hora**).
-
-- **Regras de CLT implementadas** (`lib/vacationRules.ts`):
-  - Direito: **30 dias** a cada 12 meses; **60 dias** com 2 períodos (ex.: quase 2 anos sem gozar). Férias em **até 3 períodos** (art. 134, §1º): um com **14+ dias**, demais **mín. 5**; não é obrigatório solicitar os 30 de uma vez.
-  - **Início**: não pode ser sexta nem sábado (art. 134, §3º). **Término**: não pode ser sábado nem domingo (DSR).
-  - **Aviso prévio**: 30 dias. **Feriados**: início não nos 2 dias que antecedem feriado (SP + nacionais).
-  - **Conflitos**: não sobrepor outra solicitação pendente/aprovada.
-  - **Saldo**: `calculateVacationBalance` retorna `entitledDays`, `availableDays`, `pendingDays`, `usedDays`.
----
-
-### UX / UI e comportamento de tela
-
-- **Dashboard**
-  - **Colaborador**:
-    - Vista padrão: **Minhas Férias**; lista à esquerda, formulário à direita. **Saldo de férias** (sidebar): Pendente/Disponível por extenso. Status **Pendente aprovação**; **Editar período** e **Excluir solicitação**. Nova Solicitação: "Informe as datas de cada período de férias"; até 3 períodos; regras CLT; resumo com dias disponíveis/total no ciclo. **Nenhuma solicitação** com largura adequada. Sem card Fluxo de Aprovação.
-  - **Gestor / RH**:
-    - Coluna principal:
-      - Navegação em pill:
-        - **📥 Caixa de Aprovação** – apenas pedidos que precisam de ação agora.
-        - **📋 Histórico** – pedidos já aprovados/reprovados.
-      - Filtros:
-        - Busca por colaborador (`q` via query string).
-        - Filtro por status (`status` via query string).
-      - Lista:
-        - Cards com nome/e-mail do colaborador, período, status e histórico.
-        - Botões de **Aprovar / Reprovar / Excluir** com estado de carregamento.
-        - Para RH, o histórico é **agrupado por gestor**.
-    - Sidebar:
-      - Card **Nova Solicitação** (gestor/RH também podem pedir férias).
-      - Card de dicas operacionais.
-      - Cards de **estatísticas rápidas** (pendentes / aprovadas).
-
-- **Feedback ao usuário**
-  - Uso de **toasts flutuantes** com [`sonner`](https://sonner.emilkowal.ski/):
-    - Sucesso: criação, aprovação, reprovação, exclusão.
-    - Erro: violações de CLT, sobreposição de datas, falta de permissão etc.
-  - Duração dos toasts: ~**8 segundos**.
-  - Botões exibem label de loading (ex.: “Aprovando…”, “Excluindo…”).
-
-- **Layout e tema**
-  - Estilo inspirado em **O Globo** (tons de azul, branco, cinza).
-  - Suporte a **modo claro/escuro** via `ThemeToggle`.
-  - Tipografia e espaçamentos ampliados para evitar necessidade de zoom manual.
+Sistema interno de gestão de férias com fluxo de aprovação em cadeia (Coordenador → Gerente → RH), regras CLT e auditoria. Desenvolvido com **Next.js 16** (App Router), **Prisma 7**, **PostgreSQL** e **TailwindCSS**.
 
 ---
 
-### Stack técnica
+## Visão geral
 
-- **Frontend / Backend**
-  - **Next.js 16** (App Router, rotas em `app/api/*`).
-  - Componentes com:
-    - Server Components para carregamento de dados e controle de sessão.
-    - Client Components para formulários, ações de aprovação e UI interativa.
-  - CSS com **Tailwind** + `app/globals.css` (tema customizado).
-  - Componentes base do **shadcn/ui** (ex.: `Button`) e `sonner` para toasts.
+- **Colaborador (FUNCIONARIO/COLABORADOR):** cria solicitações, edita/exclui as pendentes, acompanha histórico e saldo.
+- **Coordenador:** aprova/reprova férias do **seu time**, exclui solicitações da equipe e acessa a aba **Times** (todos os reportes diretos com status explícito).
+- **Gerente:** aprova solicitações dos coordenadores e dos times sob sua gestão; vê **Times** agrupados por coordenador.
+- **RH:** aprovação final, agrupada por gerente/coordenador; **Times** com todos os colaboradores; Backoffice; relatórios e export CSV.
 
-- **Banco / ORM**
-  - **Postgres**.
-  - **Prisma 7** com `PrismaPg` adapter:
-    - Schema em `prisma/schema.prisma`.
-    - Geração do client em `generated/prisma`.
-  - Modelos principais:
-    - `User` (inclui `role`, `managerId`, relação `reports`).
-    - `VacationRequest` (datas, status, notas de gestor/RH, usuário).
-    - `VacationRequestHistory` (auditoria de mudanças).
-
-- **Autenticação**
-  - Login por **e-mail + senha**.
-  - Senhas armazenadas com **hash SHA-256** (em produção, considere migrar para bcrypt/argon2).
-  - Sessão via cookie HTTP-only em `lib/auth.ts`. **Recomendado:** defina `SESSION_SECRET` no `.env` (mín. 16 caracteres) para assinar o cookie com HMAC-SHA256 e evitar falsificação de sessão.
+Fluxo: **PENDENTE** → Coordenador → **APROVADO_COORDENADOR** → Gerente → **APROVADO_GERENTE** → RH → **APROVADO_RH**. Ninguém aprova a própria solicitação.
 
 ---
 
-### Usuários de teste
+## Regras CLT (São Paulo)
 
-Todos os usuários abaixo usam a **mesma senha**:
+Implementadas em `lib/vacationRules.ts`:
 
-- **Senha padrão**: `senha123`
+- **Direito:** 30 dias a cada 12 meses; até 60 dias com 2 períodos aquisitivos.
+- **Fracionamento:** até 3 períodos (um com ≥ 14 dias, demais ≥ 5).
+- **Início:** não pode ser sexta nem sábado; **término:** não sábado nem domingo (DSR).
+- **Aviso prévio:** 30 dias; feriados (SP + nacionais) considerados.
+- **Conflitos:** não sobrepor outra solicitação pendente ou aprovada.
+- **Saldo:** `calculateVacationBalance` retorna `entitledDays`, `availableDays`, `pendingDays`, `usedDays`.
 
-Para criar/atualizar os usuários no banco: `npm run db:seed`.
-
-#### Colaboradores
-
-- **Colaborador 1** — `colaborador1@empresa.com`
-- **Colaborador 2** — `colaborador2@empresa.com`  
-  Cenário: **quase 2 anos de empresa** → direito a **60 dias** (o seed define `hireDate` em ~24 meses atrás).
-
-#### Coordenadores (Gestores)
-
-- **Gestor Um** — `gestor1@empresa.com`
-- **Gestor Dois** — `gestor2@empresa.com`
-
-#### Gerentes
-
-- **Gerente Um** — `gerente1@empresa.com`
-- **Gerente Dois** — `gerente2@empresa.com`
-
-#### RH
-
-- **RH Um** — `rh1@empresa.com`
-- **RH Dois** — `rh2@empresa.com`
-
-> Observação: gestores e RH também podem criar solicitações de férias, mas **não podem aprovar/reprovar as próprias solicitações**. Sempre é necessário outro usuário na cadeia para aprovar.
+Períodos em que a empresa não permite férias (blackout) são configurados pelo RH e bloqueiam novas solicitações.
 
 ---
 
-### Como rodar o projeto localmente
+## Arquitetura do projeto (pós-refatoração)
 
-1. **Dependências**
-   - Node.js LTS
-   - Postgres rodando e acessível (local ou remoto).
+- **`app/`** — Rotas (dashboard, login, admin, API).
+- **`components/`** — UI por domínio:
+  - **dashboard/** — Sidebar, topbar, stat-cards, blackout, times-view.
+  - **requests/** — RequestCard, filtros, ManagerView, MyRequestsList, aprovação.
+  - **layout/** — EmptyState, ExportButton, ícones.
+- **`lib/`** — Auth, regras de férias (`vacationRules.ts`), visibilidade (`requestVisibility.ts`), filtros do dashboard (`dashboardFilters.ts`), Prisma, utils.
+- **`repositories/`** — Acesso a dados (Prisma): vacation, user, blackout.
+- **`services/`** — Lógica de negócio e orquestração: `dashboardDataService`, `teamMembersService`.
+- **`types/`** — Tipos compartilhados (ex.: `dashboard.ts`).
 
-2. **Variáveis de ambiente**
+Detalhes em **`docs/refactor_report.md`**.
 
-Copie `.env.example` para `.env` e preencha (ou crie `.env` com):
+---
+
+## Stack
+
+- **Next.js 16** (App Router), **Prisma 7**, **PostgreSQL**, **TailwindCSS**, **shadcn/ui**, **sonner** (toasts).
+- Sessão: cookie HTTP-only; assinatura HMAC quando `SESSION_SECRET` está definido no `.env`.
+- Senhas: hash SHA-256 (recomendado em produção: migrar para bcrypt/argon2).
+
+---
+
+## Como rodar
+
+1. **Requisitos:** Node.js LTS, PostgreSQL.
+
+2. **Variáveis de ambiente** — Crie `.env` (pode copiar de `.env.example`):
 
 ```bash
 DATABASE_URL="postgresql://usuario:senha@host:porta/banco"
-
-# Recomendado em produção: assina o cookie de sessão (HMAC). Mín. 16 caracteres.
-# Se não definido, a sessão fica em JSON legado (menos seguro).
+# Recomendado: assina o cookie de sessão (mín. 16 caracteres)
 SESSION_SECRET="seu-secret-com-pelo-menos-16-caracteres"
 ```
 
-Opcional: `NOTIFY_WEBHOOK_URL` para notificações (POST JSON em novo pedido / aprovação / reprovação).
+Opcional: `NOTIFY_WEBHOOK_URL` para notificações (webhook em novo pedido / aprovação / reprovação).
 
-3. **Instalar dependências**
+3. **Instalar e preparar o banco:**
 
 ```bash
 npm install
-```
-
-4. **Rodar migrações e gerar Prisma Client**
-
-> Atenção: se o banco não estiver acessível, `prisma migrate` pode falhar com `P1001`. Corrija a conexão antes de rodar.
-
-```bash
 npx prisma migrate dev
 npx prisma generate
 ```
 
-4.1. **Popular cenário Colaborador 2 (quase 2 anos, 60 dias de direito)**  
-   - Rode o seed: `npm run db:seed`. Isso cria/atualiza o usuário `colaborador2@empresa.com` com `hireDate` em ~24 meses atrás, sem férias, resultando em **60 dias disponíveis**.
+4. **Popular usuários de teste:**
 
-5. **Subir o servidor de desenvolvimento**
+```bash
+npm run db:seed
+```
+
+Senha padrão para todos: **`senha123`**.
+
+Usuários criados: Coordenadores (`gestor1@empresa.com`, `gestor2@empresa.com`), Gerentes (`gerente1@empresa.com`, `gerente2@empresa.com`), RH (`rh1@empresa.com`, `rh2@empresa.com`), Colaboradores (`colaborador1@empresa.com`, `colaborador2@empresa.com`, `colaborador3@empresa.com`). Hierarquia: RH → Gerente → Coordenador → Colaborador (veja `prisma/seed.ts`).
+
+5. **Desenvolvimento:**
 
 ```bash
 npm run dev
 ```
 
-A aplicação ficará disponível em `http://localhost:3000`.
+Aplicação em `http://localhost:3000`.
 
-6. **Testes automatizados**
+6. **Testes:**
 
 ```bash
-npm run test        # modo watch
-npm run test:run    # execução única
+npm run test        # watch
+npm run test:run    # uma vez
 ```
 
-Os testes em `tests/vacationRules.test.ts` cobrem regras de papel, aprovação, visibilidade de equipe, validações CLT e cálculo de saldo.
-
-7. **Popular usuários**
-   - Rode `npm run db:seed` para criar/atualizar os usuários de teste (e-mails e papéis listados acima).
-   - Ou use o **Prisma Studio** para criar/editar usuários; defina o `role` e, para colaboradores, associe o `managerId` ao coordenador/gerente correto.
+Testes em `tests/vacationRules.test.ts` cobrem papéis, aprovação, visibilidade, CLT e saldo.
 
 ---
 
-### O que já fizemos
-
-- **Marca e fluxo**: Nome **Editora Globo - Férias**; fluxo de aprovação em cadeia (Coordenador → Gerente → RH); aba "Dashboard" removida; vista padrão colaborador = Minhas Férias, aprovador = Caixa de Aprovação.
-- **Regras CLT**: Início não pode ser sexta nem sábado; término não pode ser sábado nem domingo; aviso 30 dias; feriados SP + nacionais; fracionamento em até 3 períodos (um ≥ 14 dias, demais ≥ 5); **não é obrigatório** solicitar os 30 dias de uma vez (pode 14 agora e o restante depois); teto por ciclo com `entitledDays` (30 ou 60).
-- **Saldo**: Cálculo por período aquisitivo (12 meses = 30 dias; 2 períodos = 60 dias); `calculateVacationBalance` com `entitledDays`, `availableDays`, `pendingDays`, `usedDays`; API e front usam esse saldo para validar e exibir limite correto (correção do bug "pode solicitar até 0 dias" quando ainda há 30 disponíveis).
-- **UI colaborador**: Saldo único no sidebar (Pendente / Disponível por extenso, sem número verde em destaque); status **Pendente aprovação**; botões **Excluir solicitação** e **Editar período**; subtítulo do card "Informe as datas de cada período de férias"; regras CLT no card; resumo com total desta solicitação, já no ciclo, total no ciclo e aviso quando ultrapassar direito; bloco **Nenhuma solicitação** com largura adequada; card **Fluxo de Aprovação** removido.
-- **Layout**: Responsivo (mobile com coluna única, formulário acessível); sidebar mais larga no desktop; tema claro/escuro.
-- **Seed**: Colaborador 2 com `hireDate` ~24 meses atrás para cenário de 60 dias (`npm run db:seed`).
-- **Segurança e auditoria**: Cookie de sessão assinado com HMAC quando `SESSION_SECRET` está definido; Coordenador/Gerente só podem excluir solicitações da própria equipe; edição de solicitação pendente permitida para qualquer papel de nível 1 (FUNCIONARIO/COLABORADOR).
-- **Performance**: Dashboard e export de CSV usam filtro de visibilidade no banco (`lib/requestVisibility.ts`) para que Coordenador e Gerente não carreguem todas as solicitações.
-- **Testes**: Vitest para `lib/vacationRules.ts` (papéis, aprovação, visibilidade, CLT, saldo).
-
----
-
-### Como contribuir / extender o sistema
-
-- **Novas regras de negócio**
-  - Validações de CLT em `lib/vacationRules.ts`:
-    - `validateCltPeriod`: um bloco (5–30 dias, aviso 30 dias, início/término em dias permitidos).
-    - `validateCltPeriods`: até 3 períodos (um ≥ 14 dias, demais ≥ 5), `existingDaysInCycle`, `entitledDays` (30 ou 60), início/término CLT, feriados, sem obrigar 30 dias numa só solicitação.
-  - Regras da empresa: bloquear períodos (blackout), limite de pessoas em férias por equipe, etc.
-
-- **Melhorias de UX**
-  - Visão do RH com filtros adicionais:
-    - Por gestor (managerId) – selecionar apenas equipes de um gestor específico.
-    - Por período (data inicial/final) – filtrar solicitações por janela de datas.
-  - Dashboard adicional com calendário consolidado da empresa.
-
-- **Backoffice / Admin**
-  - Tela de administração para:
-    - Cadastrar/editar usuários.
-    - Definir relações de gestor → time (gerenciar `managerId`).
-    - Ajustar parâmetros de regra (mínimo/máximo de dias, aviso mínimo etc.).
-
-- **Boas práticas para PRs**
-  - Manter validações de regra sempre no **backend** (rotas API) e, opcionalmente, duplicar no front apenas para UX.
-  - Garantir que toda mudança em status crie um registro consistente em `VacationRequestHistory`.
-  - Rodar `npx prisma generate` após qualquer alteração em `schema.prisma`.
-  - Manter mensagens ao usuário em **português** e coerentes com o tom atual da UI.
-
----
-
-### O que já foi implementado (UX e relatórios)
-
-- **Filtros RH**: na visão de aprovação, filtros por coordenador (`managerId`), departamento, período (início a partir de / fim até). O export CSV usa os mesmos filtros (query string: `managerId`, `from`, `to`, `department`).
-- **Backoffice**: página **/admin** (apenas RH) com lista de usuários e edição de nome, papel, departamento, data de admissão e coordenador/gerente (`managerId`). Acesso pelo menu "Backoffice" na sidebar.
-- **Notificações**: `lib/notifications.ts` com `notifyNewRequest`, `notifyApproved`, `notifyRejected`. Chamadas ao criar solicitação e ao aprovar/reprovar. Por padrão só registra em log; para envio real, defina `NOTIFY_WEBHOOK_URL` no `.env` (POST JSON com o evento).
-- **Relatórios**: export de solicitações (CSV) já existente, agora com todos os filtros; **Relatório de saldo** (CSV) em `/api/reports/balance` (botão "Relatório de saldo (CSV)" para RH na tela de Gestão de Férias).
-
-### Documentação de engenharia
-
-Na pasta `docs/`:
-
-- **`system_audit.md`** — Auditoria do sistema (bugs, permissões, CLT, severidade).
-- **`security_audit.md`** — Autenticação, sessão, autorização, validação.
-- **`performance_report.md`** — Queries, filtros, sugestões de índice.
-- **`engineering_roadmap.md`** — Plano de melhorias priorizado.
-- **`agent_report.md`** — Resumo de melhorias aplicadas, bugs corrigidos e sugestões futuras.
-
-### O que ainda falta / para melhorar
-
-- Integração de notificações com e-mail (ex.: Resend) ou Slack/Teams além do webhook genérico.
-- Migração do hash de senha para bcrypt/argon2 (roadmap em `docs/engineering_roadmap.md`).
-- Calendário consolidado, limite de pessoas em férias por equipe, relatórios gerenciais adicionais (conforme roadmap abaixo).
-
----
-
-### Ideias de melhorias futuras (roadmap sugerido)
-
-Sugestões baseadas em padrões comuns de portais internos de férias em empresas médias/grandes:
-
-- **1. Calendário corporativo consolidado**
-  - Visão mensal/anual mostrando:
-    - Férias aprovadas por equipe/gestor.
-    - Picos de ausência (para evitar muitos colaboradores de uma mesma área saindo juntos).
-  - Filtros por área, gestor, colaborador e status.
-
-- **2. Limite de pessoas simultâneas em férias por equipe**
-  - Regra configurável por gestor/RH:
-    - Ex.: “no máximo 2 pessoas da equipe X em férias ao mesmo tempo”.
-  - Validação de conflito considerando esse limite, antes da aprovação.
-
-- **3. Sobra de saldo de férias / integração com folha**
-  - Campo de **saldo de dias** de férias do colaborador (sincronizado com folha ou cadastrado manualmente).
-  - Bloquear solicitações acima do saldo ou apenas sinalizar alerta para RH.
-
-- **4. Workflows especiais**
-  - Aprovação diferenciada para:
-    - Cargos críticos (ex.: diretoria, TI de produção).
-    - Períodos sensíveis (ex.: fechamento contábil, black friday).
-  - Tabelas de “janelas bloqueadas” por área/período.
-
-- **5. Notificações**
-  - Integração com e-mail/Teams/Slack:
-    - Quando um colaborador cria pedido → notificar gestor.
-    - Quando gestor aprova → notificar RH.
-    - Quando RH aprova/reprova → notificar colaborador.
-
-- **6. Relatórios gerenciais**
-  - Relatórios exportáveis (CSV/Excel) com:
-    - Férias por período, área, gestor, status.
-    - Indicadores: % de férias vencidas, média de dias gozados, concentração por mês.
-
-- **7. Autoatendimento mais rico para o colaborador**
-  - Mostrar:
-    - Linha do tempo completa das férias (últimos anos).
-    - Quantos dias já tirou no período aquisitivo e quantos restam.
-    - Sugestões de período que respeitam CLT + regras da empresa.
-
-- **8. Auditoria avançada**
-  - Guardar também:
-    - IP / user agent da aprovação (se fizer sentido para compliance interno).
-    - Justificativas obrigatórias para reprovação.
-
-- **9. Delegação de aprovação**
-  - Permitir que um gestor delegue temporariamente aprovação para outro (ex.: férias do gestor).
-  - Janelas de delegação com data de início e fim.
-
-- **10. Acessibilidade e internacionalização**
-  - Melhorar contraste, navegação por teclado e textos alternativos.
-  - Suporte a outros idiomas (ex.: en-US) caso a empresa tenha operações fora do Brasil.
-
-Estas melhorias não estão implementadas ainda, mas o código atual (modelo de dados, histórico, separação por papéis e validações no backend) já prepara um bom terreno para evoluir o sistema nessa direção.
-
----
-
-### Scripts disponíveis
+## Scripts
 
 | Script | Descrição |
 |--------|-----------|
 | `npm run dev` | Servidor de desenvolvimento |
 | `npm run build` | Gera Prisma Client e build de produção |
-| `npm run start` | Sobe o servidor em modo produção |
-| `npm run test` | Roda testes Vitest (watch) |
-| `npm run test:run` | Roda testes Vitest (uma vez) |
+| `npm run start` | Servidor em produção |
+| `npm run test` | Testes Vitest (watch) |
+| `npm run test:run` | Testes Vitest (uma execução) |
 | `npm run db:seed` | Popula/atualiza usuários de teste |
-| `npm run db:check-visibility` | Lista visibilidade de solicitações por usuário (script de diagnóstico) |
+| `npm run db:check-visibility` | Diagnóstico de visibilidade de solicitações por usuário |
 
-### Referências
+---
 
-- [Next.js Docs](https://nextjs.org/docs)
-- [Prisma Docs](https://www.prisma.io/docs)
+## Documentação em `docs/`
+
+- **`refactor_analysis.md`** — Análise que motivou a refatoração (arquivos grandes, responsabilidades).
+- **`refactor_plan.md`** — Plano de estrutura (repositórios, services, componentes).
+- **`refactor_report.md`** — Relatório final: arquivos criados, arquitetura atual e recomendações.
+
+---
+
+## Funcionalidades implementadas
+
+- Fluxo de aprovação em 3 níveis (Coordenador → Gerente → RH) com histórico em `VacationRequestHistory`.
+- Validações CLT (início/fim, aviso, feriados, fracionamento, conflitos).
+- Dashboard por papel: Minhas Férias, Caixa de Aprovação, Histórico, **Times** (com filtro e expandir/colapsar por gerente e coordenador).
+- Filtros (busca, status, coordenador, departamento, período); export CSV e relatório de saldo (RH).
+- Períodos de bloqueio (blackout) por RH.
+- Backoffice (**/admin**) para usuários (nome, papel, departamento, admissão, gestor).
+- Notificações via webhook (`lib/notifications.ts`); opcional definir `NOTIFY_WEBHOOK_URL`.
+- Tema claro/escuro; layout responsivo; loading na navegação (sidebar) e no login.
+
+---
+
+## Melhorias futuras sugeridas
+
+- Migrar hash de senha para bcrypt/argon2.
+- Notificações por e-mail (ex.: Resend) ou Slack/Teams.
+- Calendário consolidado de férias; limite de pessoas em férias por equipe.
+- Relatórios gerenciais adicionais; delegação temporária de aprovação.
+
+---
+
+## Referências
+
+- [Next.js](https://nextjs.org/docs)
+- [Prisma](https://www.prisma.io/docs)
 - [Tailwind CSS](https://tailwindcss.com/)
 - [shadcn/ui](https://ui.shadcn.com/)
-
