@@ -73,3 +73,11 @@ A aplicação está utilizável em mobile com:
 - Viewport e zoom configurados no layout raiz.
 
 Para validar: abrir no Chrome DevTools (modo dispositivo) ou em um celular real e percorrer login, dashboard, filtros, nova solicitação e aprovação/reprovação.
+
+### Teste rápido no DevTools (modo dispositivo)
+
+1. Abra o app no Chrome e pressione **F12** (ou Ctrl+Shift+I).
+2. Clique no ícone **Toggle device toolbar** (ou Ctrl+Shift+M) para ativar o modo dispositivo.
+3. Escolha um aparelho no topo (ex.: iPhone 14, Pixel 7) ou defina resolução customizada (ex.: 390×844).
+4. Recarregue a página e teste: login, abas da sidebar, saldo de férias, formulário de nova solicitação, filtros e botões de ação (Aprovar/Reprovar). Confira se os toques acertam os alvos e se não há overflow horizontal.
+5. Para testar em **celular real**: acesse pela mesma rede (ex.: `http://<IP-da-maquina>:3000`) ou use um túnel (ngrok, etc.).

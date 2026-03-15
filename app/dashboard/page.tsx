@@ -20,6 +20,7 @@ import { BlackoutListCard } from "@/components/dashboard/blackout-list-card";
 import { TimesView } from "@/components/dashboard/times-view";
 import { ManagerView } from "@/components/requests/manager-view";
 import { MyRequestsList } from "@/components/requests/my-requests-list";
+import { DashboardBreadcrumb } from "@/components/dashboard/breadcrumb";
 import type { DashboardFilters } from "@/types/dashboard";
 
 type DashboardSearchParams = { [key: string]: string | string[] | undefined };
@@ -91,6 +92,7 @@ export default async function DashboardPage({
 
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="mb-6">
+            <DashboardBreadcrumb currentView={isTimesView ? "times" : isMyView ? "minhas" : view} />
             <h1 className="text-2xl font-bold text-[#1a1d23] dark:text-white">
               {isTimesView ? "Times" : isMyView ? "Minhas Férias" : "Gestão de Férias"}
             </h1>

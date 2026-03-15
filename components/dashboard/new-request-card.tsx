@@ -223,6 +223,7 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
       {/* Botão */}
       <button
         type="submit"
+        aria-label="Enviar solicitação de férias"
         disabled={
           isPending ||
           submitting ||
@@ -279,22 +280,26 @@ function PeriodBlock({
       )}
       <div className="grid gap-2 sm:grid-cols-2">
         <div>
-          <label className="mb-1 block text-base font-medium text-[#475569] dark:text-slate-300">Início</label>
+          <label htmlFor={`new-req-period-${index}-start`} className="mb-1 block text-base font-medium text-[#475569] dark:text-slate-300">Início</label>
           <input
+            id={`new-req-period-${index}-start`}
             type="date"
             required={required}
             value={period.start}
             onChange={(e) => onChange("start", e.target.value)}
+            aria-label={label ? `Início do ${label}` : `Início do período ${index + 1}`}
             className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
           />
         </div>
         <div>
-          <label className="mb-1 block text-base font-medium text-[#475569] dark:text-slate-300">Término</label>
+          <label htmlFor={`new-req-period-${index}-end`} className="mb-1 block text-base font-medium text-[#475569] dark:text-slate-300">Término</label>
           <input
+            id={`new-req-period-${index}-end`}
             type="date"
             required={required}
             value={period.end}
             onChange={(e) => onChange("end", e.target.value)}
+            aria-label={label ? `Término do ${label}` : `Término do período ${index + 1}`}
             className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
           />
         </div>

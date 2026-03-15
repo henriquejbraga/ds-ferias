@@ -9,6 +9,9 @@ import {
   calculateVacationBalance,
 } from "@/lib/vacationRules";
 import { notifyNewRequest } from "@/lib/notifications";
+import { checkRateLimit } from "@/lib/rateLimit";
+
+const POST_REQUESTS_MAX_PER_MINUTE = 20;
 
 async function hasOverlappingRequest(userId: string, startDate: Date, endDate: Date) {
   const overlapping = await prisma.vacationRequest.findFirst({
@@ -58,6 +61,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+
+  if (!checkRateLimit(`vacation-post:${user.id}`, POST_REQUESTS_MAX_PER_MINUTE)) {
+    return NextResponse.json(
+      { error: "Muitas solicitações. Aguarde um momento antes de criar outra." },
+      { status: 429 },
+    );
+  }
 
   const contentType = request.headers.get("content-type") ?? "";
   let startDateRaw: string | null = null;

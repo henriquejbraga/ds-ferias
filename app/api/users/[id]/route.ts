@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRoleLevel } from "@/lib/vacationRules";
+import { isCuid } from "@/lib/validation";
 import type { UserUncheckedUpdateInput } from "@/generated/prisma/models/User";
 
 const ROLES = ["FUNCIONARIO", "COLABORADOR", "COORDENADOR", "GESTOR", "GERENTE", "RH"] as const;
@@ -18,6 +19,9 @@ export async function PATCH(
   }
 
   const { id } = await params;
+  if (!isCuid(id)) {
+    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+  }
   const body = await request.json().catch(() => ({}));
 
   const data: UserUncheckedUpdateInput = {};

@@ -3,11 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { ROLE_LEVEL, canApproveRequest } from "@/lib/vacationRules";
 import { notifyRejected } from "@/lib/notifications";
+import { isCuid } from "@/lib/validation";
+import { logger } from "@/lib/logger";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
+  if (!isCuid(id)) {
+    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+  }
   const user = await getSessionUser();
 
   if (!user || ROLE_LEVEL[user.role] < 2) {
@@ -70,5 +75,9 @@ export async function POST(request: Request, { params }: Params) {
     }).catch(() => {});
   }
 
+  logger.info("Solicitação reprovada", {
+    requestId: id,
+    rejectedById: user.id,
+  });
   return NextResponse.json({ request: updated });
 }

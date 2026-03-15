@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { getRoleLevel, validateCltPeriod } from "@/lib/vacationRules";
+import { isCuid } from "@/lib/validation";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -11,6 +12,9 @@ const ACTIVE_STATUSES = ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", 
 
 export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
+  if (!isCuid(id)) {
+    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+  }
   const user = await getSessionUser();
   if (!user || getRoleLevel(user.role) !== 1) {
     return NextResponse.json({ error: "Somente colaboradores podem alterar pedidos" }, { status: 403 });

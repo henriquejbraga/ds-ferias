@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { ROLE_LEVEL, hasTeamVisibility } from "@/lib/vacationRules";
+import { isCuid } from "@/lib/validation";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -9,8 +10,7 @@ type Params = {
 
 export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
-
-  if (!id) {
+  if (!isCuid(id)) {
     return NextResponse.json({ error: "ID inválido" }, { status: 400 });
   }
 

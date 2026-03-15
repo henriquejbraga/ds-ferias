@@ -3,12 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { canApproveRequest, getNextApprovalStatus, ROLE_LEVEL } from "@/lib/vacationRules";
 import { notifyApproved } from "@/lib/notifications";
+import { isCuid } from "@/lib/validation";
+import { logger } from "@/lib/logger";
 import type { VacationStatus } from "@/generated/prisma/enums";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
+  if (!isCuid(id)) {
+    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
+  }
   const user = await getSessionUser();
 
   // Apenas COORDENADOR, GESTOR, GERENTE e RH podem aprovar
@@ -105,5 +110,10 @@ export async function POST(request: Request, { params }: Params) {
     }).catch(() => {});
   }
 
+  logger.info("Solicitação aprovada", {
+    requestId: id,
+    approverId: user.id,
+    newStatus: nextStatus,
+  });
   return NextResponse.json({ request: updated });
 }

@@ -12,6 +12,8 @@ type Props = {
   method?: "post" | "get";
   label: string;
   loadingLabel?: string;
+  /** Mensagem de sucesso no toast (ex.: "Solicitação aprovada") */
+  successMessage?: string;
   variant?: React.ComponentProps<typeof Button>["variant"];
   size?: React.ComponentProps<typeof Button>["size"];
   className?: string;
@@ -58,6 +60,7 @@ export function ActionButtonForm({
   method = "post",
   label,
   loadingLabel,
+  successMessage,
   variant = "outline",
   size = "xs",
   className,
@@ -86,7 +89,7 @@ export function ActionButtonForm({
             data?.error ?? "Não foi possível concluir esta ação.",
           );
         } else {
-          toast.success("Ação realizada com sucesso.");
+          toast.success(successMessage ?? "Ação realizada com sucesso.");
         }
       } catch {
         toast.error("Erro de rede ao comunicar com o servidor.");
