@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
 import { DashboardNavProvider } from "@/components/dashboard-nav-provider";
@@ -25,11 +26,13 @@ export default function RootLayout({
       <body
         className={`antialiased bg-background text-foreground`}
       >
-        <DashboardNavProvider>
-          <Toaster richColors position="top-center" />
-          {children}
-          <Analytics />
-        </DashboardNavProvider>
+        <Suspense fallback={null}>
+          <DashboardNavProvider>
+            <Toaster richColors position="top-center" />
+            {children}
+            <Analytics />
+          </DashboardNavProvider>
+        </Suspense>
       </body>
     </html>
   );
