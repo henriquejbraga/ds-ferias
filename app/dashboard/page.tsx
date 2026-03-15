@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,7 @@ import {
   calculateVacationBalance,
 } from "@/lib/vacationRules";
 import { buildManagedRequestsWhere } from "@/lib/requestVisibility";
+import { DashboardSidebarItem } from "@/components/dashboard-sidebar-item";
 
 // ============================================================================
 // DATA FETCHING
@@ -60,7 +60,7 @@ async function getData(userId: string, role: string, q?: string, status?: string
           department: true,
           hireDate: true,
           managerId: true,
-          manager: { select: { id: true, name: true, managerId: true } },
+          manager: { select: { id: true, name: true, managerId: true, manager: { select: { id: true, name: true } } } },
         },
       },
       history: {
@@ -103,7 +103,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const q = normalizeParam(params.q);
   const statusFilter = normalizeParam(params.status, "TODOS");
   const rawView = normalizeParam(params.view, defaultView);
-  const view = ["inbox", "historico", "minhas"].includes(rawView) ? rawView : defaultView;
+  const view = ["inbox", "historico", "minhas", "times"].includes(rawView) ? rawView : defaultView;
   const managerFilter = normalizeParam(params.managerId);
   const fromFilter = normalizeParam(params.from);
   const toFilter = normalizeParam(params.to);
@@ -131,12 +131,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const approvedCount = visibleRequests.filter((r) => r.status === "APROVADO_RH").length;
 
   const isMyView = !isApprover || view === "minhas";
+  const isTimesView = isApprover && view === "times";
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f5f6f8] dark:bg-[#0f1117] lg:flex-row">
-      <AppSidebar
+        <AppSidebar
         user={user}
-        activeView={isMyView ? "minhas" : view}
+        activeView={isTimesView ? "times" : isMyView ? "minhas" : view}
         pendingCount={pendingCount}
         balance={balance}
         department={userFull?.department}
@@ -149,7 +150,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           {/* Cabeçalho da página */}
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-[#1a1d23] dark:text-white">
-              {isMyView ? "Minhas Férias" : "Gestão de Férias"}
+              {isTimesView ? "Times" : isMyView ? "Minhas Férias" : "Gestão de Férias"}
             </h1>
             <p className="mt-1 text-base text-[#64748b] dark:text-slate-400">
               Bem-vindo(a), {user.name} · {getRoleLabel(user.role)}
@@ -161,13 +162,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             </p>
           </div>
 
-          {/* Cards de estatísticas (aprovadores) */}
-          {!isMyView && isApprover && (
+          {/* Cards de estatísticas (aprovadores) — não exibir na aba Times */}
+          {!isMyView && isApprover && !isTimesView && (
             <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
               <StatCard label="Total" value={visibleRequests.length} sublabel="Solicitações (sua equipe)" />
               <StatCard label="Pendentes" value={pendingCount} sublabel="Aguardando você" alert={pendingCount > 0} />
               <StatCard label="Aprovadas" value={approvedCount} sublabel="Aprovadas pelo RH" />
-              <StatCard label="Bloqueios" value={blackouts.filter(b => new Date(b.endDate) >= new Date()).length} sublabel="Períodos ativos" />
+              <StatCard label="Períodos bloqueados" value={blackouts.filter(b => new Date(b.endDate) >= new Date()).length} sublabel="Datas em que a empresa não permite férias" />
             </div>
           )}
 
@@ -178,7 +179,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
           <div className="grid gap-6 lg:grid-cols-12">
             <section className="min-w-0 lg:col-span-6">
-              {isApprover && (view === "inbox" || view === "historico") ? (
+              {isTimesView ? (
+                <TimesView
+                  userRole={user.role}
+                  userId={user.id}
+                  requests={visibleRequests}
+                />
+              ) : isApprover && (view === "inbox" || view === "historico") ? (
                 <ManagerView
                   userRole={user.role}
                   userId={user.id}
@@ -255,7 +262,7 @@ function AppSidebar({
 
       {/* Navegação compacta no mobile */}
       <nav className="flex flex-wrap items-center gap-1.5 px-3 py-2 lg:hidden" aria-label="Menu principal">
-        <SidebarItem
+        <DashboardSidebarItem
           href="/dashboard?view=minhas"
           icon={<IconCalendar />}
           label="Minhas Férias"
@@ -263,7 +270,7 @@ function AppSidebar({
         />
         {level >= 2 && (
           <>
-            <SidebarItem
+            <DashboardSidebarItem
               href="/dashboard?view=inbox"
               icon={<IconInbox />} 
               label="Caixa de Aprovação"
@@ -271,14 +278,20 @@ function AppSidebar({
               badge={pendingCount > 0 ? pendingCount : undefined}
               badgeAlert
             />
-            <SidebarItem
+            <DashboardSidebarItem
               href="/dashboard?view=historico"
               icon={<IconHistory />} 
               label="Histórico"
               active={activeView === "historico"}
             />
+            <DashboardSidebarItem
+              href="/dashboard?view=times"
+              icon={<IconTeams />}
+              label="Times"
+              active={activeView === "times"}
+            />
             {level >= 4 && (
-              <SidebarItem
+              <DashboardSidebarItem
                 href="/admin"
                 icon={<IconSettings />}
                 label="Backoffice"
@@ -291,7 +304,7 @@ function AppSidebar({
       {/* Navegação completa no desktop */}
       <nav className="hidden flex-1 flex-col gap-1 px-3 py-4 lg:flex">
         <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#94a3b8]">Menu</p>
-        <SidebarItem
+        <DashboardSidebarItem
           href="/dashboard?view=minhas"
           icon={<IconCalendar />}
           label="Minhas Férias"
@@ -299,7 +312,7 @@ function AppSidebar({
         />
         {level >= 2 && (
           <>
-            <SidebarItem
+            <DashboardSidebarItem
               href="/dashboard?view=inbox"
               icon={<IconInbox />} 
               label="Caixa de Aprovação"
@@ -307,14 +320,20 @@ function AppSidebar({
               badge={pendingCount > 0 ? pendingCount : undefined}
               badgeAlert
             />
-            <SidebarItem
+            <DashboardSidebarItem
               href="/dashboard?view=historico"
               icon={<IconHistory />} 
               label="Histórico"
               active={activeView === "historico"}
             />
+            <DashboardSidebarItem
+              href="/dashboard?view=times"
+              icon={<IconTeams />}
+              label="Times"
+              active={activeView === "times"}
+            />
             {level >= 4 && (
-              <SidebarItem href="/admin" icon={<IconSettings />} label="Backoffice" />
+              <DashboardSidebarItem href="/admin" icon={<IconSettings />} label="Backoffice" />
             )}
           </>
         )}
@@ -395,41 +414,6 @@ function SidebarBalance({ balance }: { balance: VacationBalance }) {
   );
 }
 
-function SidebarItem({
-  href,
-  icon,
-  label,
-  active = false,
-  badge,
-  badgeAlert = false,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  badge?: number;
-  badgeAlert?: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`flex min-h-[44px] items-center gap-2 rounded-md px-3 py-2 text-base font-medium transition-colors sm:min-h-0 sm:gap-3 ${
-        active
-          ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
-          : "text-[#64748b] hover:bg-[#f5f6f8] hover:text-[#1a1d23] dark:text-slate-400 dark:hover:bg-[#1e2330] dark:hover:text-white"
-      }`}
-    >
-      <span className="h-4 w-4 shrink-0">{icon}</span>
-      <span className="flex-1">{label}</span>
-      {badge !== undefined && (
-        <span className={`flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-sm font-bold ${badgeAlert ? "bg-red-500 text-white" : "bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}>
-          {badge}
-        </span>
-      )}
-    </Link>
-  );
-}
-
 function TopBar() {
   return (
     <header className="flex h-14 sm:h-16 items-center justify-end border-b border-[#e2e8f0] bg-white px-4 sm:px-6 dark:border-[#252a35] dark:bg-[#141720]">
@@ -486,7 +470,8 @@ function BlackoutListCard({ blackouts }: { blackouts: any[] }) {
   return (
     <div className="rounded-lg border border-[#e2e8f0] bg-white dark:border-[#252a35] dark:bg-[#1a1d23]">
       <div className="border-b border-[#e2e8f0] px-5 py-3 dark:border-[#252a35]">
-        <h4 className="text-sm font-semibold text-[#1a1d23] dark:text-white">Períodos Bloqueados</h4>
+        <h4 className="text-sm font-semibold text-[#1a1d23] dark:text-white">Períodos bloqueados</h4>
+        <p className="mt-0.5 text-xs text-[#64748b] dark:text-slate-400">Datas em que a empresa não permite férias (ex.: fechamento, auditoria)</p>
       </div>
       <div className="divide-y divide-[#f1f5f9] dark:divide-[#252a35]">
         {active.map((b: any) => (
@@ -630,6 +615,160 @@ function MyRequestsList({
       {requests.map((r) => (
         <RequestCard key={r.id} request={r} isOwner />
       ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// VISÃO POR TIMES (COORDENADOR / GERENTE / RH)
+// ============================================================================
+
+function TimesView({
+  userRole,
+  userId,
+  requests,
+}: {
+  userRole: string;
+  userId: string;
+  requests: any[];
+}) {
+  const level = getRoleLevel(userRole);
+
+  if (requests.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#e2e8f0] bg-white px-8 py-12 text-center dark:border-[#252a35] dark:bg-[#1a1d23]">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f5f6f8] dark:bg-[#252a35]">
+          <IconTeams />
+        </div>
+        <p className="text-lg font-semibold text-[#1a1d23] dark:text-white">Nenhuma solicitação nos times</p>
+        <p className="mt-2 max-w-md text-base text-[#64748b] dark:text-slate-400">
+          {level === 2
+            ? "Seu time ainda não possui solicitações de férias."
+            : "Não há solicitações nos times sob sua visão no momento."}
+        </p>
+      </div>
+    );
+  }
+
+  // Coordenador: um único bloco "Meu time"
+  if (level === 2) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-white px-4 py-3 dark:border-[#252a35] dark:bg-[#1a1d23]">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+            T
+          </span>
+          <div>
+            <h2 className="text-lg font-semibold text-[#1a1d23] dark:text-white">Meu time</h2>
+            <p className="text-sm text-[#64748b] dark:text-slate-400">{requests.length} solicitação(ões)</p>
+          </div>
+        </div>
+        <div className="space-y-4">
+          {requests.map((r) => (
+            <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Gerente: agrupado por Coordenador (time)
+  if (level === 3) {
+    const byCoord = requests.reduce((acc: Record<string, any[]>, r) => {
+      const key = r.user?.manager?.id ?? "sem-coordenador";
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(r);
+      return acc;
+    }, {});
+
+    return (
+      <div className="space-y-6">
+        <p className="text-sm text-[#64748b] dark:text-slate-400">
+          Férias dos times sob sua gestão, organizadas por coordenador(a).
+        </p>
+        {Object.entries(byCoord).map(([coordId, reqs]) => {
+          const coordName = reqs[0]?.user?.manager?.name ?? "Sem coordenador definido";
+          return (
+            <section key={coordId} className="space-y-3">
+              <div className="flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 dark:border-[#252a35] dark:bg-[#141720]">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                  {coordName.charAt(0).toUpperCase()}
+                </span>
+                <div className="flex-1">
+                  <h3 className="text-base font-semibold text-[#1a1d23] dark:text-white">Time de {coordName}</h3>
+                  <p className="text-sm text-[#64748b] dark:text-slate-400">Coordenador(a) · {reqs.length} solicitação(ões)</p>
+                </div>
+              </div>
+              <div className="space-y-4 pl-1">
+                {reqs.map((r: any) => (
+                  <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // RH: agrupado por Gerente, depois por Coordenador (time)
+  const byGerente = requests.reduce((acc: Record<string, any[]>, r) => {
+    const gerenteId = r.user?.manager?.manager?.id ?? "sem-gerente";
+    if (!acc[gerenteId]) acc[gerenteId] = [];
+    acc[gerenteId].push(r);
+    return acc;
+  }, {});
+
+  return (
+    <div className="space-y-8">
+      <p className="text-sm text-[#64748b] dark:text-slate-400">
+        Todos os times, organizados por gerente e depois por coordenador(a).
+      </p>
+      {Object.entries(byGerente).map(([gerenteId, gerenteReqs]) => {
+        const gerenteName = gerenteReqs[0]?.user?.manager?.manager?.name ?? "Sem gerente definido";
+        const byCoord = gerenteReqs.reduce((acc: Record<string, any[]>, r) => {
+          const coordId = r.user?.manager?.id ?? "sem-coord";
+          if (!acc[coordId]) acc[coordId] = [];
+          acc[coordId].push(r);
+          return acc;
+        }, {});
+
+        return (
+          <div key={gerenteId} className="space-y-4">
+            <div className="flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-white px-4 py-3 dark:border-[#252a35] dark:bg-[#1a1d23]">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 text-sm font-bold text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                {gerenteName.charAt(0).toUpperCase()}
+              </span>
+              <div>
+                <h2 className="text-lg font-semibold text-[#1a1d23] dark:text-white">Gerente: {gerenteName}</h2>
+                <p className="text-sm text-[#64748b] dark:text-slate-400">{gerenteReqs.length} solicitação(ões) no total</p>
+              </div>
+            </div>
+
+            <div className="space-y-5 pl-4 border-l-2 border-[#e2e8f0] dark:border-[#252a35]">
+              {Object.entries(byCoord).map(([coordId, coordReqs]) => {
+                const coordName = coordReqs[0]?.user?.manager?.name ?? "Sem coordenador definido";
+                return (
+                  <section key={coordId} className="space-y-3">
+                    <div className="flex items-center gap-2 rounded-md bg-[#f5f6f8] px-3 py-2.5 dark:bg-[#1e2330]">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                        {coordName.charAt(0).toUpperCase()}
+                      </span>
+                      <h3 className="text-sm font-semibold text-[#1a1d23] dark:text-white">Time de {coordName}</h3>
+                      <span className="ml-auto text-xs text-[#64748b]">{coordReqs.length} solicitação(ões)</span>
+                    </div>
+                    <div className="space-y-4 pl-1">
+                      {coordReqs.map((r: any) => (
+                        <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />
+                      ))}
+                    </div>
+                  </section>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -1069,6 +1208,9 @@ function IconInbox() {
 }
 function IconHistory() {
   return <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+}
+function IconTeams() {
+  return <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
 }
 function IconSettings() {
   return <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;

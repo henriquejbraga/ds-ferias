@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { Analytics } from "@vercel/analytics/next";
+import { DashboardNavProvider } from "@/components/dashboard-nav-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,9 +25,11 @@ export default function RootLayout({
       <body
         className={`antialiased bg-background text-foreground`}
       >
-        <Toaster richColors position="top-center" />
-        {children}
-        <Analytics />
+        <DashboardNavProvider>
+          <Toaster richColors position="top-center" />
+          {children}
+          <Analytics />
+        </DashboardNavProvider>
       </body>
     </html>
   );
