@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
+import { buildManagedRequestsWhere } from "@/lib/requestVisibility";
 import { type VacationStatus } from "../../../generated/prisma/enums";
 import {
   validateCltPeriods,
@@ -30,20 +31,23 @@ export async function GET(request: Request) {
   const q = searchParams.get("q") ?? undefined;
   const statusParam = searchParams.get("status") ?? undefined;
 
-  const where: any = {};
-
-  if (user.role === "COLABORADOR" || user.role === "FUNCIONARIO") {
-    where.userId = user.id;
-  }
+  const where: Record<string, unknown> =
+    user.role === "COLABORADOR" || user.role === "FUNCIONARIO"
+      ? { userId: user.id }
+      : buildManagedRequestsWhere(user.id, user.role, {
+          query: q,
+          status: statusParam && statusParam !== "TODOS" ? statusParam : undefined,
+        });
 
   if (statusParam && statusParam !== "TODOS") {
     where.status = statusParam as VacationStatus;
   }
-
-  if (q) where.user = { name: { contains: q, mode: "insensitive" } };
+  if (q && (user.role === "COLABORADOR" || user.role === "FUNCIONARIO")) {
+    where.user = { name: { contains: q, mode: "insensitive" as const } };
+  }
 
   const requests = await prisma.vacationRequest.findMany({
-    where,
+    where: where as Record<string, unknown>,
     include: { user: { select: { name: true, email: true } } },
     orderBy: { startDate: "desc" },
   });

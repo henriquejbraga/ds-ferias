@@ -98,7 +98,7 @@ export async function GET(request: Request) {
       }
       if (view === "historico") {
         if (isCoord) {
-          if (!["APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE", "APROVADO_RH", "REPROVADO"].includes(r.status)) return false;
+          if (!["APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE", "APROVADO_RH", "REPROVADO", "CANCELADO"].includes(r.status)) return false;
         }
         if (isGerente) {
           if (!["APROVADO_GERENTE", "APROVADO_RH", "REPROVADO"].includes(r.status)) return false;

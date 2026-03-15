@@ -29,12 +29,12 @@ export function FilterForm({
             name="q"
             placeholder="Buscar colaborador..."
             defaultValue={filters.query}
-            className="h-10 min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] placeholder:text-[#94a3b8] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:min-w-[180px]"
+            className="min-h-[44px] min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] placeholder:text-[#94a3b8] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:min-w-[180px]"
           />
           <select
             name="status"
             defaultValue={filters.status}
-            className="h-10 min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
+            className="min-h-[44px] min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
           >
             <option value="TODOS">Todos os status</option>
             <option value="PENDENTE">Pendente aprovação</option>
@@ -48,7 +48,7 @@ export function FilterForm({
             <select
               name="managerId"
               defaultValue={filters.managerId}
-              className="h-10 min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
+              className="min-h-[44px] min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
             >
               <option value="ALL">Todos os coordenadores</option>
               {managerOptions.map((m) => (
@@ -61,7 +61,7 @@ export function FilterForm({
             <select
               name="department"
               defaultValue={filters.department}
-              className="h-10 min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
+              className="min-h-[44px] min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
             >
               <option value="">Todos os departamentos</option>
               {deptOptions.map((d) => (
@@ -79,7 +79,7 @@ export function FilterForm({
                 type="date"
                 name="from"
                 defaultValue={filters.from}
-                className="h-10 w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+                className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
               />
             </div>
             <div className="min-w-0 flex-1 sm:min-w-[140px]">
@@ -88,14 +88,14 @@ export function FilterForm({
                 type="date"
                 name="to"
                 defaultValue={filters.to}
-                className="h-10 w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+                className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
               />
             </div>
           </div>
         )}
 
         <div className="flex justify-end">
-          <Button type="submit" size="sm" className="bg-blue-600 px-4 text-base font-medium text-white hover:bg-blue-700">
+          <Button type="submit" size="sm" className="min-h-[44px] bg-blue-600 px-4 text-base font-medium text-white hover:bg-blue-700">
             Filtrar
           </Button>
         </div>

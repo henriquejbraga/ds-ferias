@@ -2,12 +2,20 @@
 
 import { useState } from "react";
 
+// Período de férias (datas podem vir como string do server)
+export type VacationRequestSummary = {
+  id?: string;
+  status: string;
+  startDate: Date | string;
+  endDate: Date | string;
+};
+
 // Tipos serializáveis (datas vêm como string do server)
 export type TeamMemberInfoSerialized = {
   user: { id: string; name: string; department?: string | null; hireDate?: string | null; role: string };
   balance: { availableDays: number; pendingDays: number; isOnVacationNow?: boolean };
   isOnVacationNow: boolean;
-  requests: any[];
+  requests: VacationRequestSummary[];
 };
 
 type TeamDataCoord = {
@@ -131,7 +139,7 @@ function TeamMemberRow({
               Solicitações
             </p>
             <ul className="space-y-1.5">
-              {requestsSummary.map((r: any, i: number) => (
+              {requestsSummary.map((r: VacationRequestSummary, i: number) => (
                 <li
                   key={i}
                   className="flex flex-wrap items-center gap-2 rounded-md bg-[#f5f6f8] px-3 py-2 text-sm dark:bg-[#0f1117]"
@@ -253,7 +261,7 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
                       <TeamMemberRow
                         key={member.user.id}
                         member={member}
-                        requestsSummary={member.requests.map((r: any) => ({
+                        requestsSummary={member.requests.map((r: VacationRequestSummary) => ({
                           startDate: r.startDate,
                           endDate: r.endDate,
                           status: r.status,
@@ -368,7 +376,7 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
                                 <TeamMemberRow
                                   key={member.user.id}
                                   member={member}
-                                  requestsSummary={member.requests.map((r: any) => ({
+                                  requestsSummary={member.requests.map((r: VacationRequestSummary) => ({
                                     startDate: r.startDate,
                                     endDate: r.endDate,
                                     status: r.status,

@@ -57,7 +57,7 @@ function EditPeriodForm({ request }: { request: RequestLike }) {
 
   return (
     <details className="w-full">
-      <summary className="flex cursor-pointer items-center justify-between rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 py-2 text-sm font-semibold text-[#475569] hover:bg-[#e2e8f0] dark:border-[#252a35] dark:bg-[#1e2330] dark:text-slate-300">
+      <summary className="flex min-h-[44px] cursor-pointer items-center justify-between rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 py-2 text-sm font-semibold text-[#475569] hover:bg-[#e2e8f0] dark:border-[#252a35] dark:bg-[#1e2330] dark:text-slate-300">
         <span className="flex items-center gap-1.5">
           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -81,7 +81,7 @@ function EditPeriodForm({ request }: { request: RequestLike }) {
               name="startDate"
               required
               defaultValue={startDefault}
-              className="h-9 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
+              className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
             />
           </div>
           <div>
@@ -91,11 +91,11 @@ function EditPeriodForm({ request }: { request: RequestLike }) {
               name="endDate"
               required
               defaultValue={endDefault}
-              className="h-9 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
+              className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base focus:border-blue-500 focus:outline-none dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
             />
           </div>
         </div>
-        <Button type="submit" size="sm" className="w-full bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700">
+        <Button type="submit" size="sm" className="min-h-[44px] w-full bg-blue-600 text-sm font-semibold text-white hover:bg-blue-700">
           Salvar
         </Button>
       </form>

@@ -55,6 +55,12 @@ export function AppSidebar({
         )}
       </nav>
 
+      {/* Saldo visível no mobile (no desktop fica na nav lateral) */}
+      <div className="border-t border-[#e2e8f0] px-3 py-3 lg:hidden dark:border-[#252a35]">
+        <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wider text-[#64748b] dark:text-slate-400">Saldo de Férias</p>
+        <SidebarBalance balance={balance} />
+      </div>
+
       <nav className="hidden flex-1 flex-col gap-1 px-3 py-4 lg:flex">
         <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#94a3b8]">Menu</p>
         <DashboardSidebarItem href="/dashboard?view=minhas" icon={<IconCalendar />} label="Minhas Férias" active={activeView === "minhas"} />

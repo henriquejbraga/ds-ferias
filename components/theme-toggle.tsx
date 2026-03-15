@@ -32,7 +32,7 @@ export function ThemeToggle() {
       type="button"
       size="icon-sm"
       variant="outline"
-      className="border-white/30 bg-black/10 backdrop-blur hover:bg-black/20"
+      className="min-h-[44px] min-w-[44px] border-white/30 bg-black/10 backdrop-blur hover:bg-black/20"
       onClick={toggle}
       aria-label={isDark ? "Ativar modo claro" : "Ativar modo escuro"}
     >

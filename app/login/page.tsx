@@ -108,7 +108,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="seu.nome@empresa.com"
                   disabled={loading}
-                  className="h-10 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] placeholder:text-[#94a3b8] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-70 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white dark:placeholder:text-slate-500"
+                  className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] placeholder:text-[#94a3b8] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-70 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white dark:placeholder:text-slate-500"
                 />
               </div>
 
@@ -126,7 +126,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   disabled={loading}
-                  className="h-10 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] placeholder:text-[#94a3b8] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-70 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white dark:placeholder:text-slate-500"
+                  className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] placeholder:text-[#94a3b8] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:cursor-not-allowed disabled:opacity-70 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white dark:placeholder:text-slate-500"
                 />
               </div>
 
@@ -134,7 +134,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="mt-2 flex h-10 w-full items-center justify-center rounded-md bg-blue-600 px-4 text-base font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-2 flex min-h-[44px] w-full items-center justify-center rounded-md bg-blue-600 px-4 text-base font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {loading ? (
                   <span className="flex items-center gap-2">
@@ -180,9 +180,9 @@ function TestUsersPanel() {
       </div>
       <div className="grid gap-1 text-base">
         {users.map((u) => (
-          <div key={u.email} className="flex items-baseline justify-between rounded-md px-2 py-1 hover:bg-[#f5f6f8] dark:hover:bg-[#0f1117]">
-            <span className="mr-3 text-sm font-medium text-[#475569] dark:text-slate-300">{u.role}</span>
-            <span className="font-mono text-base">{u.email}</span>
+          <div key={u.email} className="flex min-h-[44px] min-w-0 items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-[#f5f6f8] dark:hover:bg-[#0f1117]">
+            <span className="shrink-0 text-sm font-medium text-[#475569] dark:text-slate-300">{u.role}</span>
+            <span className="min-w-0 truncate font-mono text-sm sm:text-base" title={u.email}>{u.email}</span>
           </div>
         ))}
       </div>

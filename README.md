@@ -128,6 +128,8 @@ Testes em `tests/` cobrem `lib/`, `services/` e `repositories/` (papéis, aprova
 - **`refactor_analysis.md`** — Análise que motivou a refatoração (arquivos grandes, responsabilidades).
 - **`refactor_plan.md`** — Plano de estrutura (repositórios, services, componentes).
 - **`refactor_report.md`** — Relatório final: arquivos criados, arquitetura atual e recomendações.
+- **`mobile_usability.md`** — Usabilidade em mobile: viewport, saldo na sidebar, alvos de toque (≥44px), ajustes e recomendações.
+- **`project_state.md`**, **`code_review.md`**, **`product_improvements.md`**, **`next_engineering_roadmap.md`**, **`final_engineering_review.md`** — Estado do projeto, revisão de código, produto, roadmap e relatório final de engenharia.
 
 ---
 

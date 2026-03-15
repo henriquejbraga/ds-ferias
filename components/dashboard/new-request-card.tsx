@@ -233,7 +233,7 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
           needsPeriod14 ||
           !cycleTotalOk
         }
-        className="flex h-11 w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-lg font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 text-lg font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isPending || submitting ? (
           <>
@@ -285,7 +285,7 @@ function PeriodBlock({
             required={required}
             value={period.start}
             onChange={(e) => onChange("start", e.target.value)}
-            className="h-10 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
+            className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
           />
         </div>
         <div>
@@ -295,7 +295,7 @@ function PeriodBlock({
             required={required}
             value={period.end}
             onChange={(e) => onChange("end", e.target.value)}
-            className="h-10 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
+            className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
           />
         </div>
       </div>

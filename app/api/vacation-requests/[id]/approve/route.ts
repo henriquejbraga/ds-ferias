@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { canApproveRequest, getNextApprovalStatus, ROLE_LEVEL } from "@/lib/vacationRules";
 import { notifyApproved } from "@/lib/notifications";
+import type { VacationStatus } from "@/generated/prisma/enums";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -75,7 +76,7 @@ export async function POST(request: Request, { params }: Params) {
     }
   }
 
-  const nextStatus = getNextApprovalStatus(user.role) as any;
+  const nextStatus = getNextApprovalStatus(user.role) as VacationStatus;
   const noteField = ROLE_LEVEL[user.role] === 2 ? "managerNote" : "hrNote";
 
   const updated = await prisma.vacationRequest.update({
