@@ -19,6 +19,7 @@ import {
 } from "@/lib/vacationRules";
 import { buildManagedRequestsWhere } from "@/lib/requestVisibility";
 import { DashboardSidebarItem } from "@/components/dashboard-sidebar-item";
+import { TimesViewClient } from "@/components/times-view-client";
 
 // ============================================================================
 // DATA FETCHING
@@ -89,6 +90,134 @@ async function getData(userId: string, role: string, q?: string, status?: string
   return { myRequests, managedRequests, blackouts, teamRequests };
 }
 
+// Estrutura para a aba Times: todos os membros do time com status explícito
+export type TeamMemberInfo = {
+  user: { id: string; name: string; department?: string | null; hireDate?: Date | null; role: string };
+  balance: VacationBalance;
+  isOnVacationNow: boolean;
+  requests: any[];
+};
+
+function isOnVacationNow(requests: { status: string; startDate: Date; endDate: Date }[]): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return requests.some((r) => {
+    if (r.status !== "APROVADO_RH") return false;
+    const start = new Date(r.startDate);
+    const end = new Date(r.endDate);
+    start.setHours(0, 0, 0, 0);
+    end.setHours(0, 0, 0, 0);
+    return today >= start && today <= end;
+  });
+}
+
+async function getTeamMembersForTimes(
+  userId: string,
+  role: string,
+): Promise<
+  | { kind: "coord"; teams: { coordinatorId: string; coordinatorName: string; members: TeamMemberInfo[] }[] }
+  | { kind: "rh"; gerentes: { gerenteId: string; gerenteName: string; teams: { coordinatorId: string; coordinatorName: string; members: TeamMemberInfo[] }[] }[] }
+> {
+  const level = getRoleLevel(role);
+  const baseInclude = {
+    manager: { select: { id: true, name: true, managerId: true, manager: { select: { id: true, name: true } } } },
+    vacationRequests: {
+      orderBy: { startDate: "asc" as const },
+      include: {
+        history: { orderBy: { changedAt: "asc" as const }, include: { changedByUser: { select: { name: true, role: true } } } },
+      },
+    },
+  };
+
+  if (level === 2) {
+    const users = await prisma.user.findMany({
+      where: { managerId: userId },
+      include: baseInclude,
+    });
+    const members: TeamMemberInfo[] = users.map((u) => ({
+      user: { id: u.id, name: u.name, department: u.department, hireDate: u.hireDate, role: u.role },
+      balance: calculateVacationBalance(u.hireDate ?? null, u.vacationRequests ?? []),
+      isOnVacationNow: isOnVacationNow(u.vacationRequests ?? []),
+      requests: u.vacationRequests ?? [],
+    }));
+    return {
+      kind: "coord",
+      teams: [{ coordinatorId: userId, coordinatorName: "Meu time", members }],
+    };
+  }
+
+  if (level === 3) {
+    const users = await prisma.user.findMany({
+      where: { manager: { managerId: userId } },
+      include: baseInclude,
+    });
+    const members: TeamMemberInfo[] = users.map((u) => ({
+      user: { id: u.id, name: u.name, department: u.department, hireDate: u.hireDate, role: u.role },
+      balance: calculateVacationBalance(u.hireDate ?? null, u.vacationRequests ?? []),
+      isOnVacationNow: isOnVacationNow(u.vacationRequests ?? []),
+      requests: u.vacationRequests ?? [],
+    }));
+    const byCoord = members.reduce((acc: Record<string, TeamMemberInfo[]>, m) => {
+      const coordId = (users.find((u) => u.id === m.user.id) as any)?.managerId ?? "sem-coord";
+      if (!acc[coordId]) acc[coordId] = [];
+      acc[coordId].push(m);
+      return acc;
+    }, {});
+    const coordNames = new Map<string, string>();
+    users.forEach((u) => {
+      if (u.managerId && u.manager) coordNames.set(u.managerId, u.manager.name);
+    });
+    const teams = Object.entries(byCoord).map(([coordId, mems]) => ({
+      coordinatorId: coordId,
+      coordinatorName: coordNames.get(coordId) ?? "Sem coordenador",
+      members: mems.sort((a, b) => a.user.name.localeCompare(b.user.name)),
+    }));
+    return { kind: "coord", teams };
+  }
+
+  // RH: todos os funcionários/colaboradores, agrupados por gerente e coordenador
+  const users = await prisma.user.findMany({
+    where: { role: { in: ["FUNCIONARIO", "COLABORADOR"] } },
+    include: baseInclude,
+  });
+  const members: TeamMemberInfo[] = users.map((u) => ({
+    user: { id: u.id, name: u.name, department: u.department, hireDate: u.hireDate, role: u.role },
+    balance: calculateVacationBalance(u.hireDate ?? null, u.vacationRequests ?? []),
+    isOnVacationNow: isOnVacationNow(u.vacationRequests ?? []),
+    requests: u.vacationRequests ?? [],
+  }));
+  const byGerente = new Map<string, Map<string, TeamMemberInfo[]>>();
+  for (let i = 0; i < users.length; i++) {
+    const u = users[i];
+    const m = members[i];
+    const gerenteId = (u as any).manager?.manager?.id ?? "sem-gerente";
+    const gerenteName = (u as any).manager?.manager?.name ?? "Sem gerente";
+    const coordId = (u as any).manager?.id ?? "sem-coord";
+    const coordName = (u as any).manager?.name ?? "Sem coordenador";
+    if (!byGerente.has(gerenteId)) byGerente.set(gerenteId, new Map());
+    const byCoord = byGerente.get(gerenteId)!;
+    if (!byCoord.has(coordId)) byCoord.set(coordId, []);
+    byCoord.get(coordId)!.push(m);
+  }
+  const gerentes: { gerenteId: string; gerenteName: string; teams: { coordinatorId: string; coordinatorName: string; members: TeamMemberInfo[] }[] }[] = [];
+  byGerente.forEach((byCoord, gerenteId) => {
+    const firstUser = users.find((u) => ((u as any).manager?.manager?.id ?? "sem-gerente") === gerenteId);
+    const gerenteName = (firstUser as any)?.manager?.manager?.name ?? "Sem gerente";
+    const teams = Array.from(byCoord.entries()).map(([coordId, mems]) => {
+      const firstInCoord = mems[0];
+      const u = users.find((x) => x.id === firstInCoord.user.id) as any;
+      return {
+        coordinatorId: coordId,
+        coordinatorName: u?.manager?.name ?? "Sem coordenador",
+        members: mems.sort((a, b) => a.user.name.localeCompare(b.user.name)),
+      };
+    });
+    gerentes.push({ gerenteId, gerenteName, teams });
+  });
+  gerentes.sort((a, b) => a.gerenteName.localeCompare(b.gerenteName));
+  return { kind: "rh", gerentes };
+}
+
 type DashboardSearchParams = { [key: string]: string | string[] | undefined };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<DashboardSearchParams> }) {
@@ -132,6 +261,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const isMyView = !isApprover || view === "minhas";
   const isTimesView = isApprover && view === "times";
+  const teamData = isTimesView ? await getTeamMembersForTimes(user.id, user.role) : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#f5f6f8] dark:bg-[#0f1117] lg:flex-row">
@@ -168,7 +298,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <StatCard label="Total" value={visibleRequests.length} sublabel="Solicitações (sua equipe)" />
               <StatCard label="Pendentes" value={pendingCount} sublabel="Aguardando você" alert={pendingCount > 0} />
               <StatCard label="Aprovadas" value={approvedCount} sublabel="Aprovadas pelo RH" />
-              <StatCard label="Períodos bloqueados" value={blackouts.filter(b => new Date(b.endDate) >= new Date()).length} sublabel="Datas em que a empresa não permite férias" />
             </div>
           )}
 
@@ -183,7 +312,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 <TimesView
                   userRole={user.role}
                   userId={user.id}
-                  requests={visibleRequests}
+                  teamData={teamData}
                 />
               ) : isApprover && (view === "inbox" || view === "historico") ? (
                 <ManagerView
@@ -626,149 +755,70 @@ function MyRequestsList({
 function TimesView({
   userRole,
   userId,
-  requests,
+  teamData,
 }: {
   userRole: string;
   userId: string;
-  requests: any[];
+  teamData: Awaited<ReturnType<typeof getTeamMembersForTimes>> | null;
 }) {
   const level = getRoleLevel(userRole);
 
-  if (requests.length === 0) {
+  if (!teamData) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#e2e8f0] bg-white px-8 py-12 text-center dark:border-[#252a35] dark:bg-[#1a1d23]">
         <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f5f6f8] dark:bg-[#252a35]">
           <IconTeams />
         </div>
-        <p className="text-lg font-semibold text-[#1a1d23] dark:text-white">Nenhuma solicitação nos times</p>
+        <p className="text-lg font-semibold text-[#1a1d23] dark:text-white">Carregando times...</p>
+      </div>
+    );
+  }
+
+  const totalMembers =
+    teamData.kind === "coord"
+      ? teamData.teams.reduce((s, t) => s + t.members.length, 0)
+      : teamData.gerentes.reduce((s, g) => s + g.teams.reduce((s2, t) => s2 + t.members.length, 0), 0);
+
+  if (totalMembers === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#e2e8f0] bg-white px-8 py-12 text-center dark:border-[#252a35] dark:bg-[#1a1d23]">
+        <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#f5f6f8] dark:bg-[#252a35]">
+          <IconTeams />
+        </div>
+        <p className="text-lg font-semibold text-[#1a1d23] dark:text-white">Nenhum colaborador no time</p>
         <p className="mt-2 max-w-md text-base text-[#64748b] dark:text-slate-400">
           {level === 2
-            ? "Seu time ainda não possui solicitações de férias."
-            : "Não há solicitações nos times sob sua visão no momento."}
+            ? "Você ainda não tem reportes diretos. Colaboradores aparecerão aqui quando estiverem vinculados a você no Backoffice."
+            : "Não há colaboradores nos times sob sua visão no momento."}
         </p>
       </div>
     );
   }
 
-  // Coordenador: um único bloco "Meu time"
-  if (level === 2) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-white px-4 py-3 dark:border-[#252a35] dark:bg-[#1a1d23]">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-            T
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold text-[#1a1d23] dark:text-white">Meu time</h2>
-            <p className="text-sm text-[#64748b] dark:text-slate-400">{requests.length} solicitação(ões)</p>
-          </div>
-        </div>
-        <div className="space-y-4">
-          {requests.map((r) => (
-            <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // Gerente: agrupado por Coordenador (time)
-  if (level === 3) {
-    const byCoord = requests.reduce((acc: Record<string, any[]>, r) => {
-      const key = r.user?.manager?.id ?? "sem-coordenador";
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(r);
-      return acc;
-    }, {});
-
-    return (
-      <div className="space-y-6">
-        <p className="text-sm text-[#64748b] dark:text-slate-400">
-          Férias dos times sob sua gestão, organizadas por coordenador(a).
-        </p>
-        {Object.entries(byCoord).map(([coordId, reqs]) => {
-          const coordName = reqs[0]?.user?.manager?.name ?? "Sem coordenador definido";
-          return (
-            <section key={coordId} className="space-y-3">
-              <div className="flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 dark:border-[#252a35] dark:bg-[#141720]">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                  {coordName.charAt(0).toUpperCase()}
-                </span>
-                <div className="flex-1">
-                  <h3 className="text-base font-semibold text-[#1a1d23] dark:text-white">Time de {coordName}</h3>
-                  <p className="text-sm text-[#64748b] dark:text-slate-400">Coordenador(a) · {reqs.length} solicitação(ões)</p>
-                </div>
-              </div>
-              <div className="space-y-4 pl-1">
-                {reqs.map((r: any) => (
-                  <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />
-                ))}
-              </div>
-            </section>
-          );
-        })}
-      </div>
-    );
-  }
-
-  // RH: agrupado por Gerente, depois por Coordenador (time)
-  const byGerente = requests.reduce((acc: Record<string, any[]>, r) => {
-    const gerenteId = r.user?.manager?.manager?.id ?? "sem-gerente";
-    if (!acc[gerenteId]) acc[gerenteId] = [];
-    acc[gerenteId].push(r);
-    return acc;
-  }, {});
-
+  // Coordenador, Gerente ou RH: lista com filtro e expandir/colapsar (client)
   return (
-    <div className="space-y-8">
-      <p className="text-sm text-[#64748b] dark:text-slate-400">
-        Todos os times, organizados por gerente e depois por coordenador(a).
-      </p>
-      {Object.entries(byGerente).map(([gerenteId, gerenteReqs]) => {
-        const gerenteName = gerenteReqs[0]?.user?.manager?.manager?.name ?? "Sem gerente definido";
-        const byCoord = gerenteReqs.reduce((acc: Record<string, any[]>, r) => {
-          const coordId = r.user?.manager?.id ?? "sem-coord";
-          if (!acc[coordId]) acc[coordId] = [];
-          acc[coordId].push(r);
-          return acc;
-        }, {});
-
-        return (
-          <div key={gerenteId} className="space-y-4">
-            <div className="flex items-center gap-2 rounded-lg border border-[#e2e8f0] bg-white px-4 py-3 dark:border-[#252a35] dark:bg-[#1a1d23]">
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-purple-100 text-sm font-bold text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
-                {gerenteName.charAt(0).toUpperCase()}
-              </span>
-              <div>
-                <h2 className="text-lg font-semibold text-[#1a1d23] dark:text-white">Gerente: {gerenteName}</h2>
-                <p className="text-sm text-[#64748b] dark:text-slate-400">{gerenteReqs.length} solicitação(ões) no total</p>
-              </div>
-            </div>
-
-            <div className="space-y-5 pl-4 border-l-2 border-[#e2e8f0] dark:border-[#252a35]">
-              {Object.entries(byCoord).map(([coordId, coordReqs]) => {
-                const coordName = coordReqs[0]?.user?.manager?.name ?? "Sem coordenador definido";
-                return (
-                  <section key={coordId} className="space-y-3">
-                    <div className="flex items-center gap-2 rounded-md bg-[#f5f6f8] px-3 py-2.5 dark:bg-[#1e2330]">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                        {coordName.charAt(0).toUpperCase()}
-                      </span>
-                      <h3 className="text-sm font-semibold text-[#1a1d23] dark:text-white">Time de {coordName}</h3>
-                      <span className="ml-auto text-xs text-[#64748b]">{coordReqs.length} solicitação(ões)</span>
-                    </div>
-                    <div className="space-y-4 pl-1">
-                      {coordReqs.map((r: any) => (
-                        <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />
-                      ))}
-                    </div>
-                  </section>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+    <div className="space-y-6">
+      {level === 2 && (
+        <p className="text-sm text-[#64748b] dark:text-slate-400">
+          Todos os colaboradores do seu time, com status de férias explícito. Use o filtro e expanda ou recolha cada time.
+        </p>
+      )}
+      {level === 3 && (
+        <p className="text-sm text-[#64748b] dark:text-slate-400">
+          Férias dos times sob sua gestão, organizadas por coordenador(a). Filtre por nome ou status e expanda os times para ver os colaboradores.
+        </p>
+      )}
+      {teamData.kind === "rh" && (
+        <p className="text-sm text-[#64748b] dark:text-slate-400">
+          Todos os times por gerente e coordenador(a). Filtre e expanda cada gerente ou time para facilitar a navegação.
+        </p>
+      )}
+      <TimesViewClient
+        teamData={teamData as any}
+        userId={userId}
+        userRole={userRole}
+        level={level}
+      />
     </div>
   );
 }
