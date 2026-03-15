@@ -77,7 +77,9 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   try {
     let payload: string;
-    if (raw.includes(".")) {
+    // Só tenta verificar assinatura quando SESSION_SECRET está definido; caso contrário o cookie
+    // é JSON legado (e pode conter "." no email, ex.: user@empresa.com).
+    if (getSessionSecret() && raw.includes(".")) {
       payload = verifyPayload(raw) ?? "";
       if (!payload) return null;
     } else {
