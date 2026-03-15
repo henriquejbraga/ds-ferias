@@ -40,6 +40,22 @@ describe("buildManagedRequestsWhere", () => {
     expect(where.user).toMatchObject({ managerId: "coord-1", name: { contains: "Maria", mode: "insensitive" } });
   });
 
+  it("level 2 with query and department: merges all into user", () => {
+    const where = buildManagedRequestsWhere("coord-1", "COORDENADOR", { query: "Maria", department: "TI" });
+    expect(where.user).toMatchObject({
+      managerId: "coord-1",
+      name: { contains: "Maria", mode: "insensitive" },
+      department: "TI",
+    });
+  });
+
+  it("level 3 (gerente) with existing user filter: uses AND with base", () => {
+    const where = buildManagedRequestsWhere("ger-1", "GERENTE", { department: "TI" });
+    expect(where.AND).toBeDefined();
+    expect(where.AND).toHaveLength(2);
+    expect((where.AND as unknown[])[1]).toMatchObject({ user: { department: "TI" } });
+  });
+
   it("level 3 (gerente): uses OR for direct and indirect reports", () => {
     const where = buildManagedRequestsWhere("ger-1", "GERENTE", {});
     expect(where.AND).toBeDefined();

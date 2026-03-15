@@ -112,6 +112,36 @@ describe("filterRequests", () => {
     });
     expect(out).toHaveLength(0);
   });
+
+  it("RH with managerId filter excludes other managers", () => {
+    const reqWithManager = {
+      ...baseReq,
+      user: { ...baseReq.user!, manager: { id: "ger-2", managerId: null } },
+    };
+    const out = filterRequests("RH", "rh-1", [reqWithManager], {
+      view: "inbox",
+      query: "",
+      status: "TODOS",
+      managerId: "ger-1",
+      from: "",
+      to: "",
+      department: "",
+    });
+    expect(out).toHaveLength(0);
+  });
+
+  it("view historico filters by processed statuses only", () => {
+    const out = filterRequests("COORDENADOR", "coord-1", [{ ...baseReq, status: "REPROVADO" }], {
+      view: "historico",
+      query: "",
+      status: "TODOS",
+      managerId: "",
+      from: "",
+      to: "",
+      department: "",
+    });
+    expect(out).toHaveLength(1);
+  });
 });
 
 describe("buildExportQuery", () => {

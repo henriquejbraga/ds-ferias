@@ -97,11 +97,13 @@ Aplicação em `http://localhost:3000`.
 6. **Testes:**
 
 ```bash
-npm run test        # watch
-npm run test:run    # uma vez
+npm run test          # watch
+npm run test:run      # uma vez
+npm run test:coverage # cobertura (meta: ≥85%)
+npm run test:mutation # Stryker mutation testing (meta: ≥80%)
 ```
 
-Testes em `tests/vacationRules.test.ts` cobrem papéis, aprovação, visibilidade, CLT e saldo.
+Testes em `tests/` cobrem `lib/`, `services/` e `repositories/` (papéis, aprovação, visibilidade, CLT, auth, notificações, etc.). **Cobertura de testes:** meta ≥85%. **Mutation testing (Stryker):** o build de mutação falha se o mutation score ficar abaixo de 80% (`stryker.config.json` → `thresholds.break`).
 
 ---
 
@@ -114,6 +116,8 @@ Testes em `tests/vacationRules.test.ts` cobrem papéis, aprovação, visibilidad
 | `npm run start` | Servidor em produção |
 | `npm run test` | Testes Vitest (watch) |
 | `npm run test:run` | Testes Vitest (uma execução) |
+| `npm run test:coverage` | Cobertura de código (relatório em `coverage/`) |
+| `npm run test:mutation` | Stryker: mutation testing (≥80% para passar) |
 | `npm run db:seed` | Popula/atualiza usuários de teste |
 | `npm run db:check-visibility` | Diagnóstico de visibilidade de solicitações por usuário |
 

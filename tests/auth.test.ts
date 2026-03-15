@@ -92,6 +92,7 @@ describe("verifyCredentials", () => {
 describe("getSessionUser", () => {
   beforeEach(() => {
     mockGet.mockReset();
+    mockSet.mockReset();
     delete process.env.SESSION_SECRET;
   });
 
@@ -119,6 +120,25 @@ describe("getSessionUser", () => {
     const user = await getSessionUser();
     expect(user).toEqual(data);
   });
+
+  it("returns user when SESSION_SECRET set and cookie is signed (createSession + getSessionUser)", async () => {
+    process.env.SESSION_SECRET = "a".repeat(16);
+    const data: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "RH" };
+    await createSession(data);
+    const signedValue = mockSet.mock.calls[0][1];
+    expect(signedValue).toContain(".");
+    mockGet.mockReturnValue({ value: signedValue });
+    const user = await getSessionUser();
+    expect(user).toEqual(data);
+  });
+
+  it("returns null when SESSION_SECRET set but signature invalid", async () => {
+    process.env.SESSION_SECRET = "a".repeat(16);
+    const payload = JSON.stringify({ id: "u1", name: "U", email: "u@e.com", role: "FUNCIONARIO" });
+    mockGet.mockReturnValue({ value: payload + ".invalidsignature" });
+    const user = await getSessionUser();
+    expect(user).toBeNull();
+  });
 });
 
 describe("createSession", () => {
@@ -131,6 +151,16 @@ describe("createSession", () => {
       expect.any(String),
       expect.objectContaining({ httpOnly: true, maxAge: 60 * 60 * 8 })
     );
+  });
+
+  it("signs payload when SESSION_SECRET is set", async () => {
+    mockSet.mockReset();
+    process.env.SESSION_SECRET = "x".repeat(16);
+    const user: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "FUNCIONARIO" };
+    await createSession(user);
+    const signed = mockSet.mock.calls[0][1];
+    expect(signed).toContain(".");
+    expect(signed.startsWith("{\"id\":")).toBe(true);
   });
 });
 

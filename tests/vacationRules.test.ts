@@ -391,6 +391,23 @@ describe("validateCltPeriods (overlap and 14 days)", () => {
     const err = validateCltPeriods([p1, p2], { checkAdvanceNotice: false, existingDaysInCycle: 10, entitledDays: 30 });
     expect(err).toContain("30");
   });
+
+  it("rejects when start is 2 days before holiday (checkAdvanceNotice)", () => {
+    const dec30 = new Date(2026, 11, 30);
+    const jan13 = new Date(2027, 0, 13);
+    const err = validateCltPeriods(
+      [{ start: dec30, end: jan13 }],
+      { checkAdvanceNotice: true, existingDaysInCycle: 0 }
+    );
+    expect(err).toContain("feriado");
+  });
+
+  it("rejects invalid period (NaN dates)", () => {
+    const badStart = new Date("invalid");
+    const end = new Date(2026, 5, 14);
+    const err = validateCltPeriods([{ start: badStart, end }], { checkAdvanceNotice: false });
+    expect(err).toContain("inválido");
+  });
 });
 
 describe("calculateVacationBalance (null hireDate)", () => {
