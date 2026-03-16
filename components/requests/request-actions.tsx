@@ -16,6 +16,14 @@ export function RequestActions({
   const isPendingRH =
     request.status === "APROVADO_COORDENADOR" || request.status === "APROVADO_GESTOR";
 
+  const deleteLabel = isOwner
+    ? "Cancelar solicitação"
+    : isPendingRH
+      ? "Excluir solicitação (pend. Gerente)"
+      : "Excluir solicitação";
+
+  const deleteSuccessMessage = isOwner ? "Solicitação cancelada." : "Solicitação excluída.";
+
   return (
     <div className="mt-4 flex flex-wrap gap-2 border-t border-[#e2e8f0] pt-4 dark:border-[#252a35] [&_button]:min-h-[44px] [&_a]:inline-flex [&_a]:min-h-[44px] [&_a]:items-center">
       {hasApprovePermission && (
@@ -38,16 +46,23 @@ export function RequestActions({
             successMessage="Solicitação reprovada."
             className="border-red-200 bg-red-50 text-sm font-semibold text-red-700 hover:bg-red-100 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400"
           />
+          {isPending && (
+            <EditPeriodFormClient request={request} />
+          )}
         </>
       )}
-      {isOwner && isPending && <EditPeriodFormClient request={request} />}
       <ActionButtonForm
         action={`/api/vacation-requests/${request.id}/delete`}
         variant="outline"
         size="sm"
-        label={isPendingRH ? "Excluir solicitação (pend. Gerente)" : "Excluir solicitação"}
-        loadingLabel="Excluindo..."
-        successMessage="Solicitação excluída."
+        label={deleteLabel}
+        loadingLabel={isOwner ? "Cancelando..." : "Excluindo..."}
+        successMessage={deleteSuccessMessage}
+        confirmMessage={
+          isOwner
+            ? "Tem certeza de que deseja cancelar esta solicitação de férias?"
+            : "Tem certeza de que deseja excluir esta solicitação de férias?"
+        }
         className="ml-auto border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400"
       />
     </div>

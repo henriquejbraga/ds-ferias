@@ -20,6 +20,7 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [submitting, setSubmitting] = useState(false);
+   const [notes, setNotes] = useState("");
 
   const [periods, setPeriods] = useState<Period[]>([
     { start: "", end: "" },
@@ -63,7 +64,7 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
       const res = await fetch("/api/vacation-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periods: validPeriods }),
+        body: JSON.stringify({ periods: validPeriods, notes: notes.trim() || undefined }),
       });
 
       const data = await res.json().catch(() => null);
@@ -76,6 +77,7 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
 
       toast.success("Solicitação enviada!", { description: "Aguardando aprovação do gestor", duration: 5000 });
       setPeriods([{ start: "", end: "" }, { start: "", end: "" }, { start: "", end: "" }]);
+      setNotes("");
       startTransition(() => {
         router.refresh();
         setSubmitting(false);
@@ -160,6 +162,28 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
           />
         </div>
       </details>
+
+      {/* Justificativa opcional */}
+      <div className="space-y-1">
+        <label
+          htmlFor="new-request-notes"
+          className="block text-base font-medium text-[#475569] dark:text-slate-300"
+        >
+          Justificativa (opcional)
+        </label>
+        <textarea
+          id="new-request-notes"
+          name="notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+          placeholder="Ex.: Ajuste de férias por demanda do projeto, alinhado com o gestor."
+          className="w-full rounded-md border border-[#e2e8f0] bg-white px-3 py-2 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
+        />
+        <p className="text-sm text-[#64748b] dark:text-slate-400">
+          Campo opcional, visível para o gestor e RH junto com a solicitação.
+        </p>
+      </div>
 
       {/* Resumo */}
       {stats.totalDays > 0 && (

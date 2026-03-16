@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
-import { getRoleLevel, validateCltPeriod } from "@/lib/vacationRules";
+import { getRoleLevel, hasTeamVisibility, validateCltPeriod } from "@/lib/vacationRules";
 import { isCuid } from "@/lib/validation";
 
 type Params = {
@@ -16,21 +16,58 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.json({ error: "ID inválido" }, { status: 400 });
   }
   const user = await getSessionUser();
-  if (!user || getRoleLevel(user.role) !== 1) {
-    return NextResponse.json({ error: "Somente colaboradores podem alterar pedidos" }, { status: 403 });
+  if (!user || getRoleLevel(user.role) < 2) {
+    return NextResponse.json(
+      { error: "Somente coordenadores, gerentes ou RH podem alterar pedidos de férias." },
+      { status: 403 },
+    );
   }
 
   const existing = await prisma.vacationRequest.findUnique({
     where: { id },
+    include: {
+      user: {
+        select: {
+          id: true,
+          managerId: true,
+          manager: { select: { managerId: true } },
+        },
+      },
+    },
   });
 
-  if (!existing || existing.userId !== user.id) {
+  if (!existing) {
     return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+  }
+
+  // Colaborador nunca pode editar o próprio pedido, mesmo pendente.
+  if (existing.userId === user.id) {
+    return NextResponse.json(
+      { error: "O colaborador não pode editar as próprias férias. Peça ao gestor ou RH para ajustar o período." },
+      { status: 403 },
+    );
+  }
+
+  // Coordenador / Gerente só podem editar pedidos da sua cadeia de equipe; RH vê todos.
+  if (getRoleLevel(user.role) < 4) {
+    const visible = hasTeamVisibility(user.role, user.id, {
+      userId: existing.userId,
+      user: {
+        managerId: existing.user?.managerId ?? null,
+        manager: existing.user?.manager ?? null,
+      },
+    });
+    if (!visible) {
+      return NextResponse.json(
+        { error: "Você não tem permissão para alterar este pedido." },
+        { status: 403 },
+      );
+    }
   }
 
   if (existing.status !== "PENDENTE") {
     return NextResponse.json(
-      { error: "Somente pedidos pendentes podem ser alterados pelo colaborador" },
+      { error: "Somente pedidos pendentes podem ter o período alterado." },
       { status: 400 },
     );
   }

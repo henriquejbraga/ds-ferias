@@ -14,6 +14,8 @@ type Props = {
   loadingLabel?: string;
   /** Mensagem de sucesso no toast (ex.: "Solicitação aprovada") */
   successMessage?: string;
+  /** Mensagem de confirmação antes de executar a ação (opcional) */
+  confirmMessage?: string;
   variant?: React.ComponentProps<typeof Button>["variant"];
   size?: React.ComponentProps<typeof Button>["size"];
   className?: string;
@@ -61,6 +63,7 @@ export function ActionButtonForm({
   label,
   loadingLabel,
   successMessage,
+  confirmMessage,
   variant = "outline",
   size = "xs",
   className,
@@ -70,6 +73,11 @@ export function ActionButtonForm({
 
   function handleClick() {
     if (isPending) return;
+
+    if (confirmMessage && typeof window !== "undefined") {
+      const ok = window.confirm(confirmMessage);
+      if (!ok) return;
+    }
 
     toggleGlobalLoading(true);
 
