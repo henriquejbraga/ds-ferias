@@ -47,19 +47,21 @@ export function RequestCard({
   const end = new Date(request.endDate);
   const startDay = start.getDate();
   const endDay = end.getDate();
-  const monthShort = start.toLocaleDateString("pt-BR", { month: "short" });
+  const startMonth = start.toLocaleDateString("pt-BR", { month: "short" });
+  const endMonth = end.toLocaleDateString("pt-BR", { month: "short" });
+  const monthLabel = startMonth === endMonth ? startMonth : `${startMonth}/${endMonth}`;
 
   return (
     <div className="rounded-lg border border-[#e2e8f0] bg-white transition-shadow hover:shadow-sm dark:border-[#252a35] dark:bg-[#1a1d23]">
       <div className="p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap">
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg bg-blue-50 text-[11px] leading-tight dark:bg-blue-900/20">
-              <span className="font-bold text-blue-700 dark:text-blue-400">
+            <div className="flex h-14 w-14 shrink-0 flex-col items-center justify-center rounded-lg bg-blue-50 text-xs leading-tight dark:bg-blue-900/20">
+              <span className="text-base font-bold text-blue-700 dark:text-blue-400">
                 {startDay}-{endDay}
               </span>
-              <span className="uppercase text-blue-500 dark:text-blue-400">
-                {monthShort}
+              <span className="uppercase font-semibold text-blue-500 dark:text-blue-400">
+                {monthLabel}
               </span>
             </div>
             <div className="min-w-0 flex-1">

@@ -36,7 +36,7 @@ export function ApprovalProgressBar({ request }: { request: RequestLike }) {
           {steps.map((step, i) => (
             <span
               key={i}
-              className={`text-[10px] ${
+              className={`text-xs ${
                 i < progress
                   ? "text-blue-600 dark:text-blue-400"
                   : i === progress && !isCompleted
@@ -50,7 +50,9 @@ export function ApprovalProgressBar({ request }: { request: RequestLike }) {
         </div>
       </div>
       {nextApprover && !isCompleted && !isRejected && (
-        <p className="mt-1 text-[10px] text-[#94a3b8]">Aguardando: {nextApprover}</p>
+        <p className="mt-1 text-xs font-medium text-[#64748b] dark:text-slate-400">
+          Aguardando: {nextApprover}
+        </p>
       )}
     </div>
   );
