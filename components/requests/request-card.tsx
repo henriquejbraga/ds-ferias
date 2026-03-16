@@ -53,8 +53,8 @@ export function RequestCard({
     .toUpperCase();
 
   return (
-    <div className="rounded-lg border border-[#e2e8f0] bg-white transition-shadow hover:shadow-sm dark:border-[#252a35] dark:bg-[#1a1d23]">
-      <div className="p-4 sm:p-5">
+    <div className="rounded-xl border border-[#e2e8f0] bg-white shadow-sm transition-shadow hover:shadow-md dark:border-[#252a35] dark:bg-[#1a1d23]">
+      <div className="p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3 sm:flex-nowrap">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <div className="flex h-14 w-16 shrink-0 flex-col items-center justify-center rounded-lg bg-blue-50 text-[11px] leading-tight dark:bg-blue-900/20">

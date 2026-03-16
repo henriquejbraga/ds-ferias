@@ -73,7 +73,7 @@ export function ManagerView({
       ) : userLevel >= 4 ? (
         <RequestsGroupedByManager requests={filteredRequests} userId={userId} userRole={userRole} />
       ) : (
-        <div className="space-y-4">
+        <div className="mx-auto max-w-4xl space-y-5">
           {filteredRequests.map((r) => (
             <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />
           ))}
