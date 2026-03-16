@@ -21,6 +21,8 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
   const [isPending, startTransition] = useTransition();
   const [submitting, setSubmitting] = useState(false);
    const [notes, setNotes] = useState("");
+  const [abono, setAbono] = useState(false);
+  const [thirteenth, setThirteenth] = useState(false);
 
   const [periods, setPeriods] = useState<Period[]>([
     { start: "", end: "" },
@@ -64,7 +66,12 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
       const res = await fetch("/api/vacation-requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ periods: validPeriods, notes: notes.trim() || undefined }),
+        body: JSON.stringify({
+          periods: validPeriods,
+          notes: notes.trim() || undefined,
+          abono,
+          thirteenth,
+        }),
       });
 
       const data = await res.json().catch(() => null);
@@ -78,6 +85,8 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
       toast.success("Solicitação enviada!", { description: "Aguardando aprovação do gestor", duration: 5000 });
       setPeriods([{ start: "", end: "" }, { start: "", end: "" }, { start: "", end: "" }]);
       setNotes("");
+      setAbono(false);
+      setThirteenth(false);
       startTransition(() => {
         router.refresh();
         setSubmitting(false);
@@ -183,6 +192,35 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
         <p className="text-sm text-[#64748b] dark:text-slate-400">
           Campo opcional, visível para o gestor e RH junto com a solicitação.
         </p>
+      </div>
+
+      {/* Opções de abono e 13º */}
+      <div className="space-y-2 rounded-md border border-[#e2e8f0] bg-white p-3 dark:border-[#252a35] dark:bg-[#1a1d23]">
+        <p className="text-base font-semibold text-[#1a1d23] dark:text-white">Opções financeiras</p>
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-[#475569] dark:text-slate-300">
+          <input
+            type="checkbox"
+            className="mt-1 h-4 w-4 rounded border-[#cbd5e1] text-blue-600 focus:ring-blue-500 dark:border-[#334155]"
+            checked={abono}
+            onChange={(e) => setAbono(e.target.checked)}
+          />
+          <span className="min-w-0">
+            Solicitar conversão de <span className="font-semibold">1/3 das férias em abono</span> (venda de férias),
+            conforme permitido pela CLT.
+          </span>
+        </label>
+        <label className="flex cursor-pointer items-start gap-2 text-sm text-[#475569] dark:text-slate-300">
+          <input
+            type="checkbox"
+            className="mt-1 h-4 w-4 rounded border-[#cbd5e1] text-blue-600 focus:ring-blue-500 dark:border-[#334155]"
+            checked={thirteenth}
+            onChange={(e) => setThirteenth(e.target.checked)}
+          />
+          <span className="min-w-0">
+            Solicitar <span className="font-semibold">adiantamento de 13º salário</span> junto com estas férias
+            (sujeito à política interna da empresa).
+          </span>
+        </label>
       </div>
 
       {/* Resumo */}

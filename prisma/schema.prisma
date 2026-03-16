@@ -51,6 +51,9 @@ model User {
   passwordHash String
   role         Role
 
+  /// Matrícula corporativa (obrigatória e única)
+  registration String   @unique
+
   department   String?   // Ex: "Engenharia", "Comercial", "Financeiro"
   hireDate     DateTime? // Data de admissão para cálculo de saldo
 
@@ -73,6 +76,11 @@ model VacationRequest {
 
   startDate DateTime
   endDate   DateTime
+
+  /// Indica se o colaborador está solicitando conversão de 1/3 em abono (venda de férias)
+  abono      Boolean        @default(false)
+  /// Indica se o colaborador está solicitando adiantamento de 13º salário junto com estas férias
+  thirteenth Boolean        @default(false)
 
   status      VacationStatus @default(PENDENTE)
   notes       String?        @db.Text  // nota do solicitante

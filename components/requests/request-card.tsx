@@ -15,6 +15,8 @@ export type RequestWithUser = {
   startDate: Date | string;
   endDate: Date | string;
   notes?: string | null;
+  abono?: boolean;
+  thirteenth?: boolean;
   user?: {
     name?: string;
     role?: string;
@@ -77,6 +79,12 @@ export function RequestCard({
               <p className="truncate text-base font-medium text-[#475569] dark:text-slate-300">
                 {formatDateRange(request.startDate, request.endDate)}
               </p>
+              {(request.abono || request.thirteenth) && (
+                <p className="mt-1 text-sm text-[#0f172a] dark:text-slate-200">
+                  {request.abono && <span className="mr-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">Abono 1/3</span>}
+                  {request.thirteenth && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">Adiantamento 13º</span>}
+                </p>
+              )}
               {request.user?.department && (
                 <p className="truncate text-sm text-[#94a3b8]">{request.user.department}</p>
               )}

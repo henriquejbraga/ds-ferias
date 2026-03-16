@@ -74,6 +74,8 @@ export async function POST(request: Request) {
   let endDateRaw: string | null = null;
   let periodsRaw: { startDate: string; endDate: string }[] | null = null;
   let notes: string | null = null;
+  let abono: boolean = false;
+  let thirteenth: boolean = false;
 
   if (contentType.includes("application/json")) {
     const body = await request.json().catch(() => null);
@@ -81,6 +83,8 @@ export async function POST(request: Request) {
     startDateRaw = body?.startDate ?? null;
     endDateRaw = body?.endDate ?? null;
     notes = body?.notes ?? null;
+    abono = Boolean(body?.abono);
+    thirteenth = Boolean(body?.thirteenth);
   } else {
     const form = await request.formData().catch(() => null);
     if (form) {
@@ -197,7 +201,14 @@ export async function POST(request: Request) {
   const created = await prisma.$transaction(
     periods.map((p) =>
       prisma.vacationRequest.create({
-        data: { userId: user.id, startDate: p.start, endDate: p.end, notes },
+        data: {
+          userId: user.id,
+          startDate: p.start,
+          endDate: p.end,
+          notes,
+          abono,
+          thirteenth,
+        },
       }),
     ),
   );

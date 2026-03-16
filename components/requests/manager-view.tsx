@@ -14,6 +14,8 @@ type RequestLike = {
   startDate: Date | string;
   endDate: Date | string;
   notes?: string | null;
+  abono?: boolean;
+  thirteenth?: boolean;
   user?: { name?: string; role?: string; department?: string | null; manager?: { id: string; name: string } | null };
   history?: unknown[];
 };
@@ -74,6 +76,11 @@ export function ManagerView({
         <RequestsGroupedByManager requests={filteredRequests} userId={userId} userRole={userRole} />
       ) : (
         <div className="mx-auto max-w-4xl space-y-5">
+          <p className="text-xs text-[#64748b] dark:text-slate-400">
+            Ao aprovar solicitações marcadas com <span className="font-semibold">Abono 1/3</span> e/ou{" "}
+            <span className="font-semibold">Adiantamento 13º</span>, você também estará aprovando esses pedidos
+            financeiros vinculados às férias.
+          </p>
           {filteredRequests.map((r) => (
             <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />
           ))}

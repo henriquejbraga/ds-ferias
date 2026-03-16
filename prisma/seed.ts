@@ -27,20 +27,21 @@ async function main() {
   // ---- RH (topo da hierarquia para aprovação; sem manager ou reporta a gerente) ----
   const rh1 = await prisma.user.upsert({
     where: { email: "rh1@empresa.com" },
-    update: { name: "RH Um", role: "RH", passwordHash: senhaHash },
+    update: { name: "RH Um", role: "RH", passwordHash: senhaHash, registration: "REG-RH1" },
     create: {
       id: "rh1",
       name: "RH Um",
       email: "rh1@empresa.com",
       passwordHash: senhaHash,
       role: "RH",
+      registration: "REG-RH1",
     },
   });
 
   // ---- GERENTES (reportam ao RH) ----
   const gerente1 = await prisma.user.upsert({
     where: { email: "gerente1@empresa.com" },
-    update: { name: "Gerente Um", role: "GERENTE", passwordHash: senhaHash, managerId: rh1.id },
+    update: { name: "Gerente Um", role: "GERENTE", passwordHash: senhaHash, managerId: rh1.id, registration: "REG-GER1" },
     create: {
       id: "gerente1",
       name: "Gerente Um",
@@ -48,12 +49,13 @@ async function main() {
       passwordHash: senhaHash,
       role: "GERENTE",
       managerId: rh1.id,
+      registration: "REG-GER1",
     },
   });
 
   const gerente2 = await prisma.user.upsert({
     where: { email: "gerente2@empresa.com" },
-    update: { name: "Gerente Dois", role: "GERENTE", passwordHash: senhaHash, managerId: rh1.id },
+    update: { name: "Gerente Dois", role: "GERENTE", passwordHash: senhaHash, managerId: rh1.id, registration: "REG-GER2" },
     create: {
       id: "gerente2",
       name: "Gerente Dois",
@@ -61,13 +63,14 @@ async function main() {
       passwordHash: senhaHash,
       role: "GERENTE",
       managerId: rh1.id,
+      registration: "REG-GER2",
     },
   });
 
   // ---- COORDENADORES (reportam ao Gerente) ----
   const gestor1 = await prisma.user.upsert({
     where: { email: "gestor1@empresa.com" },
-    update: { name: "Gestor Um", role: "COORDENADOR", passwordHash: senhaHash, managerId: gerente1.id },
+    update: { name: "Gestor Um", role: "COORDENADOR", passwordHash: senhaHash, managerId: gerente1.id, registration: "REG-GES1" },
     create: {
       id: "gestor1",
       name: "Gestor Um",
@@ -75,12 +78,13 @@ async function main() {
       passwordHash: senhaHash,
       role: "COORDENADOR",
       managerId: gerente1.id,
+      registration: "REG-GES1",
     },
   });
 
   const gestor2 = await prisma.user.upsert({
     where: { email: "gestor2@empresa.com" },
-    update: { name: "Gestor Dois", role: "COORDENADOR", passwordHash: senhaHash, managerId: gerente1.id },
+    update: { name: "Gestor Dois", role: "COORDENADOR", passwordHash: senhaHash, managerId: gerente1.id, registration: "REG-GES2" },
     create: {
       id: "gestor2",
       name: "Gestor Dois",
@@ -88,13 +92,21 @@ async function main() {
       passwordHash: senhaHash,
       role: "COORDENADOR",
       managerId: gerente1.id,
+      registration: "REG-GES2",
     },
   });
 
   // ---- COLABORADORES / FUNCIONÁRIOS (reportam ao Coordenador) ----
   await prisma.user.upsert({
     where: { email: "colaborador1@empresa.com" },
-    update: { name: "Colaborador Um", role: "FUNCIONARIO", passwordHash: senhaHash, managerId: gestor1.id, department: "Engenharia" },
+    update: {
+      name: "Colaborador Um",
+      role: "FUNCIONARIO",
+      passwordHash: senhaHash,
+      managerId: gestor1.id,
+      department: "Engenharia",
+      registration: "REG-COL1",
+    },
     create: {
       id: "colab1",
       name: "Colaborador Um",
@@ -104,6 +116,7 @@ async function main() {
       managerId: gestor1.id,
       department: "Engenharia",
       hireDate: new Date("2023-06-01"),
+      registration: "REG-COL1",
     },
   });
 
@@ -117,6 +130,7 @@ async function main() {
       managerId: gestor2.id,
       department: "Comercial",
       hireDate: hireDateColab2,
+      registration: "REG-COL2",
     },
     create: {
       id: "colab2",
@@ -127,13 +141,21 @@ async function main() {
       managerId: gestor2.id,
       department: "Comercial",
       hireDate: hireDateColab2,
+      registration: "REG-COL2",
     },
   });
 
   // Colaborador 3 no time do Gestor 1 (para ter mais de um no time)
   await prisma.user.upsert({
     where: { email: "colaborador3@empresa.com" },
-    update: { name: "Colaboradora Três", role: "FUNCIONARIO", passwordHash: senhaHash, managerId: gestor1.id, department: "Engenharia" },
+    update: {
+      name: "Colaboradora Três",
+      role: "FUNCIONARIO",
+      passwordHash: senhaHash,
+      managerId: gestor1.id,
+      department: "Engenharia",
+      registration: "REG-COL3",
+    },
     create: {
       id: "colab3",
       name: "Colaboradora Três",
@@ -143,19 +165,21 @@ async function main() {
       managerId: gestor1.id,
       department: "Engenharia",
       hireDate: new Date("2024-01-10"),
+      registration: "REG-COL3",
     },
   });
 
   // RH Dois (opcional, para testes)
   await prisma.user.upsert({
     where: { email: "rh2@empresa.com" },
-    update: { name: "RH Dois", role: "RH", passwordHash: senhaHash },
+    update: { name: "RH Dois", role: "RH", passwordHash: senhaHash, registration: "REG-RH2" },
     create: {
       id: "rh2",
       name: "RH Dois",
       email: "rh2@empresa.com",
       passwordHash: senhaHash,
       role: "RH",
+      registration: "REG-RH2",
     },
   });
 

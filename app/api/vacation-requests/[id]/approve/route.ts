@@ -43,6 +43,14 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.json({ error: "Solicitação não encontrada." }, { status: 404 });
   }
 
+  // Regra extra: pedidos com adiantamento de 13º só podem ser aprovados por RH
+  if (existing.thirteenth && user.role !== "RH") {
+    return NextResponse.json(
+      { error: "Somente o RH pode aprovar solicitações com adiantamento de 13º salário." },
+      { status: 403 },
+    );
+  }
+
   // Verifica se pode aprovar (lógica de hierarquia)
   const canApprove = canApproveRequest(user.role, user.id, {
     userId: existing.userId,

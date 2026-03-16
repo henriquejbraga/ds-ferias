@@ -4,6 +4,8 @@ type CalendarEntry = {
   startDate: Date | string;
   endDate: Date | string;
   status: string;
+  abono?: boolean;
+  thirteenth?: boolean;
 };
 
 type Props = {
@@ -34,19 +36,20 @@ export function MonthlyCalendar({ entries }: Props) {
 
   const firstWeekday = firstDay.getDay(); // 0 (dom) - 6 (sáb)
 
-  const days: { day: number; statuses: string[] }[] = [];
+  const days: { day: number; statuses: string[]; hasAbono: boolean; hasThirteenth: boolean }[] = [];
   for (let d = 1; d <= daysInMonth; d++) {
     const current = new Date(year, month, d);
-    const statuses = entries
-      .filter((e) => {
-        const start = new Date(e.startDate);
-        const end = new Date(e.endDate);
-        start.setHours(0, 0, 0, 0);
-        end.setHours(0, 0, 0, 0);
-        return current >= start && current <= end;
-      })
-      .map((e) => e.status);
-    days.push({ day: d, statuses });
+    const matching = entries.filter((e) => {
+      const start = new Date(e.startDate);
+      const end = new Date(e.endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(0, 0, 0, 0);
+      return current >= start && current <= end;
+    });
+    const statuses = matching.map((e) => e.status);
+    const hasAbono = matching.some((e) => e.abono);
+    const hasThirteenth = matching.some((e) => e.thirteenth);
+    days.push({ day: d, statuses, hasAbono, hasThirteenth });
   }
 
   const blanks = (firstWeekday + 6) % 7; // alinhar para semana começando em segunda
@@ -75,7 +78,7 @@ export function MonthlyCalendar({ entries }: Props) {
         {Array.from({ length: blanks }).map((_, i) => (
           <div key={`blank-${i}`} />
         ))}
-        {days.map(({ day, statuses }) => {
+        {days.map(({ day, statuses, hasAbono, hasThirteenth }) => {
           const isToday = day === today.getDate();
           const hasStatus = statuses.length > 0;
           const mainStatus = hasStatus ? statuses[0] : "";
@@ -83,13 +86,19 @@ export function MonthlyCalendar({ entries }: Props) {
             <div
               key={day}
               className={[
-                "flex h-10 flex-col items-center justify-center rounded-md border text-xs",
+                "flex h-10 flex-col items-center justify-center rounded-md border text-[10px]",
                 "border-transparent",
                 isToday ? "border-blue-500" : "border-transparent",
                 hasStatus ? getStatusColor(mainStatus) : "bg-[#f5f6f8] dark:bg-[#0f1117] text-[#475569] dark:text-slate-300",
               ].join(" ")}
             >
-              <span className="font-semibold">{day}</span>
+              <span className="font-semibold leading-none">{day}</span>
+              {(hasAbono || hasThirteenth) && (
+                <span className="mt-0.5 flex gap-0.5">
+                  {hasAbono && <span className="rounded-sm bg-emerald-600 px-0.5 text-[8px] font-semibold text-white">A</span>}
+                  {hasThirteenth && <span className="rounded-sm bg-amber-600 px-0.5 text-[8px] font-semibold text-white">13</span>}
+                </span>
+              )}
             </div>
           );
         })}
@@ -101,6 +110,12 @@ export function MonthlyCalendar({ entries }: Props) {
         </span>
         <span className={["inline-flex items-center gap-1 rounded-full px-2 py-0.5", getStatusColor("APROVADO_RH")].join(" ")}>
           <span className="h-1.5 w-1.5 rounded-full bg-current/80" /> Aprovado RH
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+          <span className="rounded-sm bg-white/20 px-1 text-[9px]">A</span> Dia com pedido de abono 1/3
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+          <span className="rounded-sm bg-white/20 px-1 text-[9px]">13</span> Dia com pedido de adiantamento de 13º
         </span>
       </div>
     </section>

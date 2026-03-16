@@ -11,6 +11,8 @@ type RequestLike = {
   startDate: Date | string;
   endDate: Date | string;
   notes?: string | null;
+  abono?: boolean;
+  thirteenth?: boolean;
   user?: { name?: string; role?: string; department?: string | null };
   history?: unknown[];
 };
@@ -49,6 +51,8 @@ export function MyRequestsList({
           startDate: r.startDate,
           endDate: r.endDate,
           status: r.status,
+          abono: r.abono,
+          thirteenth: r.thirteenth,
         }))}
       />
 
