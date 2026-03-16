@@ -35,13 +35,13 @@ export function RequestActions({
     <div className="mt-4 space-y-2 border-t border-[#e2e8f0] pt-4 dark:border-[#252a35]">
       {hasApprovePermission && (request.abono || request.thirteenth) && (
         <p className="text-xs text-[#0f172a] dark:text-slate-200">
-          Ao aprovar esta solicitação, você também estará aprovando{" "}
+          Esta solicitação inclui{" "}
           {request.abono && request.thirteenth
-            ? "a conversão de 1/3 das férias em abono e o adiantamento de 13º salário"
+            ? "pedido de conversão de 1/3 das férias em abono e pedido de adiantamento de 13º salário"
             : request.abono
-              ? "a conversão de 1/3 das férias em abono"
-              : "o adiantamento de 13º salário"}
-          . Caso não concorde, utilize a opção de reprovar ou ajuste o período com o colaborador.
+              ? "pedido de conversão de 1/3 das férias em abono"
+              : "pedido de adiantamento de 13º salário"}
+          . A decisão financeira final é de responsabilidade do RH.
         </p>
       )}
       <div className="flex flex-wrap gap-2 [&_button]:min-h-[44px] [&_a]:inline-flex [&_a]:min-h-[44px] [&_a]:items-center">
