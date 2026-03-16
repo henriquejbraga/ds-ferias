@@ -166,4 +166,19 @@ describe("filterRequestsByVisibilityAndView", () => {
     );
     expect(list).toHaveLength(0);
   });
+
+  it("RH inbox sees approvals pendentes para RH (APROVADO_COORDENADOR / GERENTE)", () => {
+    const requests = [
+      { ...baseRequest, status: "APROVADO_COORDENADOR" as const },
+      { ...baseRequest, status: "APROVADO_GERENTE" as const },
+      { ...baseRequest, status: "PENDENTE" as const },
+    ];
+
+    const list = filterRequestsByVisibilityAndView("RH", "rh-1", requests, { view: "inbox" });
+    const statuses = list.map((r) => r.status);
+
+    expect(statuses).toContain("APROVADO_COORDENADOR");
+    expect(statuses).toContain("APROVADO_GERENTE");
+    expect(statuses).not.toContain("PENDENTE");
+  });
 });
