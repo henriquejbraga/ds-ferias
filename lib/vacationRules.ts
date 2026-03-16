@@ -5,6 +5,21 @@
 
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+function toUtcMidnight(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function daysBetweenInclusive(start: Date, end: Date): number {
+  const s = toUtcMidnight(start);
+  const e = toUtcMidnight(end);
+  return Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
+}
+
+function getUtcWeekDay(date: Date): number {
+  const d = toUtcMidnight(date);
+  return d.getUTCDay(); // 0..6
+}
+
 export type VacationPeriod = {
   start: Date;
   end: Date;
@@ -250,7 +265,7 @@ export function calculateVacationBalance(
     };
   }
 
-  const hire = new Date(hireDate);
+  const hire = toUtcMidnight(new Date(hireDate));
   // Meses corridos (calendário): 12 meses = 1 período, 24 meses = 2 períodos (60 dias)
   let monthsWorked =
     (today.getFullYear() - hire.getFullYear()) * 12 +
@@ -301,12 +316,7 @@ export function calculateVacationBalance(
 }
 
 function calcDays(start: Date, end: Date): number {
-  const s = new Date(start);
-  const e = new Date(end);
-  // Normaliza para meia-noite para evitar desvios de fuso/horário de verão
-  s.setHours(0, 0, 0, 0);
-  e.setHours(0, 0, 0, 0);
-  const raw = Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
+  const raw = daysBetweenInclusive(start, end);
   // CLT: um período de férias não pode exceder 30 dias; evita 31 por arredondamento/fuso
   return Math.min(Math.max(1, raw), 30);
 }
@@ -317,7 +327,7 @@ function calcUsedDays(
   year: number,
 ): number {
   return requests
-    .filter((r) => r.status === status && new Date(r.startDate).getFullYear() === year)
+    .filter((r) => r.status === status && new Date(r.startDate).getUTCFullYear() === year)
     .reduce((sum, r) => sum + calcDays(r.startDate, r.endDate), 0);
 }
 
@@ -326,11 +336,10 @@ function calcUsedDays(
 // ============================================================
 
 function isSaoPauloHoliday(date: Date): boolean {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const year = d.getFullYear();
-  const month = d.getMonth() + 1; // 1-12
-  const day = d.getDate();
+  const d = toUtcMidnight(date);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + 1; // 1-12
+  const day = d.getUTCDate();
 
   // Fixos nacionais
   const fixed = [
@@ -449,23 +458,23 @@ export function detectTeamConflicts(
  * Validação CLT para UM bloco de férias.
  */
 export function validateCltPeriod(startDate: Date, endDate: Date): string | null {
-  const days = Math.round((endDate.getTime() - startDate.getTime()) / ONE_DAY_MS) + 1;
+  const days = daysBetweenInclusive(startDate, endDate);
 
   if (days < 5) return "Período mínimo de férias é de 5 dias corridos (CLT).";
   if (days > 30) return "Período máximo em um único bloco é de 30 dias.";
 
-  const startWeekDay = new Date(startDate).getDay();
+  const startWeekDay = getUtcWeekDay(startDate);
   if (startWeekDay === 5 || startWeekDay === 6) {
     return "O início das férias não pode ocorrer na sexta ou no sábado (art. 134, §3º, CLT).";
   }
-  const endWeekDay = new Date(endDate).getDay();
+  const endWeekDay = getUtcWeekDay(endDate);
   if (endWeekDay === 0 || endWeekDay === 6) {
     return "O término das férias não pode ocorrer no sábado ou no domingo (repouso semanal remunerado).";
   }
 
-  const today = new Date();
+  const today = toUtcMidnight(new Date());
   const diffDays = Math.floor(
-    (new Date(startDate).setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0)) / ONE_DAY_MS,
+    (toUtcMidnight(startDate).getTime() - today.getTime()) / ONE_DAY_MS,
   );
 
   if (diffDays < 30) return "Aviso prévio mínimo de 30 dias não respeitado.";
@@ -503,12 +512,12 @@ export function validateCltPeriods(
       return "Período de férias inválido.";
     }
 
-    const days = Math.round((end.getTime() - start.getTime()) / ONE_DAY_MS) + 1;
+    const days = daysBetweenInclusive(start, end);
     if (days < 5) return "Cada período deve ter no mínimo 5 dias corridos.";
     if (days >= 14) hasPeriodWith14OrMore = true;
 
     // CLT (art. 134, §3º e interpretação): término não pode ser no sábado ou domingo (DSR)
-    const endWeekDay = end.getDay(); // 0 = domingo, 6 = sábado
+    const endWeekDay = getUtcWeekDay(end); // 0 = domingo, 6 = sábado
     if (endWeekDay === 0 || endWeekDay === 6) {
       return "O término das férias não pode ocorrer no sábado ou no domingo (repouso semanal remunerado).";
     }
@@ -523,9 +532,7 @@ export function validateCltPeriods(
     return "Pelo menos um período deve ter 14 dias ou mais (CLT).";
   }
 
-  const totalDays = sorted.reduce((acc, p) => {
-    return acc + Math.round((p.end.getTime() - p.start.getTime()) / ONE_DAY_MS) + 1;
-  }, 0);
+  const totalDays = sorted.reduce((acc, p) => acc + daysBetweenInclusive(p.start, p.end), 0);
 
   const entitled = options.entitledDays ?? 30;
   const totalInCycle = existingDays + totalDays;
@@ -537,16 +544,16 @@ export function validateCltPeriods(
 
   if (options.checkAdvanceNotice) {
     const firstStart = sorted[0].start;
-    const today = new Date();
+    const today = toUtcMidnight(new Date());
     const diffDays = Math.floor(
-      (firstStart.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0)) / ONE_DAY_MS,
+      (toUtcMidnight(firstStart).getTime() - today.getTime()) / ONE_DAY_MS,
     );
     if (diffDays < 30) return "O primeiro período deve respeitar aviso prévio mínimo de 30 dias.";
 
     // Lei 13.467/2017, art. 134, §3º: é vedado o início das férias
     // no período de 2 dias que antecede feriado ou repouso semanal remunerado.
     // DSR: assumimos domingo → não permitir início na sexta (5) ou sábado (6).
-    const weekDay = firstStart.getDay(); // 0 = domingo, 6 = sábado
+    const weekDay = getUtcWeekDay(firstStart); // 0 = domingo, 6 = sábado
     if (weekDay === 5 || weekDay === 6) {
       return "O início das férias não pode ocorrer na sexta ou no sábado, conforme art. 134, §3º, da CLT.";
     }
@@ -554,7 +561,7 @@ export function validateCltPeriods(
     // Feriados (São Paulo capital + nacionais): não pode iniciar nos 2 dias que antecedem
     for (let offset = 1; offset <= 2; offset++) {
       const check = new Date(firstStart);
-      check.setDate(check.getDate() + offset);
+      check.setUTCDate(check.getUTCDate() + offset);
       if (isSaoPauloHoliday(check)) {
         return "O início das férias não pode ocorrer nos 2 dias que antecedem feriado, conforme art. 134, §3º, da CLT.";
       }
