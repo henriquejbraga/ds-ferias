@@ -75,11 +75,11 @@ export function ManagerView({
       ) : userLevel >= 4 ? (
         <RequestsGroupedByManager requests={filteredRequests} userId={userId} userRole={userRole} />
       ) : (
-        <div className="mx-auto max-w-4xl space-y-5">
+        <div className="space-y-5">
           <p className="text-xs text-[#64748b] dark:text-slate-400">
-            Ao aprovar solicitações marcadas com <span className="font-semibold">Abono 1/3</span> e/ou{" "}
-            <span className="font-semibold">Adiantamento 13º</span>, você também estará aprovando esses pedidos
-            financeiros vinculados às férias.
+            Esta visão mostra as solicitações da sua equipe, incluindo marcações de{" "}
+            <span className="font-semibold">Abono 1/3</span> e{" "}
+            <span className="font-semibold">Adiantamento 13º</span>, quando houver.
           </p>
           {filteredRequests.map((r) => (
             <RequestCard key={r.id} request={r} userId={userId} userRole={userRole} />

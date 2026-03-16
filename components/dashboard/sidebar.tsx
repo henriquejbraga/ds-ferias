@@ -29,16 +29,16 @@ export function AppSidebar({
   const level = getRoleLevel(user.role);
 
   return (
-    <aside className="flex w-full flex-col border-b border-[#e2e8f0] bg-white lg:w-72 lg:border-b-0 lg:border-r dark:border-[#252a35] dark:bg-[#141720]">
+    <aside className="flex w-full flex-col border-b border-[#e2e8f0] bg-white lg:w-60 lg:border-b-0 lg:border-r dark:border-[#252a35] dark:bg-[#141720]">
       <div className="border-b border-[#e2e8f0] px-3 py-2 dark:border-[#252a35] sm:px-5 sm:py-3">
         {/* Linha 1: logo */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600">
             <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
-          <span className="text-sm font-bold leading-tight text-[#1a1d23] dark:text-white sm:text-lg">
+          <span className="text-sm font-bold leading-tight text-[#1a1d23] dark:text-white sm:text-base">
             Editora Globo - Férias
           </span>
         </div>
@@ -61,9 +61,10 @@ export function AppSidebar({
             <button
               type="submit"
               aria-label="Sair da conta"
-              className="rounded-md px-3 py-1 text-[11px] font-medium text-[#64748b] transition hover:bg-[#f5f6f8] hover:text-[#1a1d23] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset dark:hover:bg-[#1e2330] dark:hover:text-white"
+              className="inline-flex items-center gap-1.5 rounded-md border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-100 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-inset dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40"
             >
-              Sair
+              <IconLogout className="h-3.5 w-3.5" />
+              <span>Sair</span>
             </button>
           </form>
         </div>
