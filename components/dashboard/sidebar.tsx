@@ -2,14 +2,8 @@ import type { VacationBalance } from "@/lib/vacationRules";
 import { getRoleLevel, getRoleLabel } from "@/lib/vacationRules";
 import { DashboardSidebarItem } from "@/components/dashboard-sidebar-item";
 import { SidebarBalance } from "@/components/dashboard/sidebar-balance";
-import {
-  IconCalendar,
-  IconInbox,
-  IconHistory,
-  IconTeams,
-  IconSettings,
-  IconLogout,
-} from "@/components/layout/icons";
+import { IconCalendar, IconInbox, IconHistory, IconTeams, IconSettings } from "@/components/layout/icons";
+import { SidebarLogoutButton } from "@/components/dashboard/sidebar-logout-button";
 
 type UserLike = { id: string; name: string; role: string };
 
@@ -57,18 +51,7 @@ export function AppSidebar({
               </p>
             </div>
           </div>
-          <form action="/api/logout" method="post">
-            <button
-              type="submit"
-              aria-label="Sair da conta"
-              className="inline-flex items-center gap-1.5 rounded-md border border-red-100 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm transition hover:bg-red-100 hover:text-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-inset dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-900/40"
-            >
-              <span className="inline-flex h-3.5 w-3.5 items-center justify-center">
-                <IconLogout />
-              </span>
-              <span>Sair</span>
-            </button>
-          </form>
+          <SidebarLogoutButton />
         </div>
       </div>
 
