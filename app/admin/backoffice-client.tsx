@@ -66,10 +66,11 @@ export function BackofficeClient({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(data?.error ?? "Erro ao salvar");
+        const message = typeof data?.error === "string" ? data.error : "Erro ao salvar usuário.";
+        toast.error(message);
         return;
       }
-      toast.success("Usuário atualizado");
+      toast.success("Usuário atualizado com sucesso.");
       setEditingId(null);
       window.location.reload();
     } finally {
@@ -209,10 +210,11 @@ export function BackofficeClient({
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
-                  toast.error(data?.error ?? "Erro ao criar usuário");
+                  const message = typeof data?.error === "string" ? data.error : "Erro ao criar usuário.";
+                  toast.error(message);
                   return;
                 }
-                toast.success("Usuário criado");
+                toast.success("Usuário criado com sucesso. Senha padrão: senha123");
                 setCreateForm({
                   name: "",
                   email: "",

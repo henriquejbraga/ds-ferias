@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, hashNewUserPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRoleLevel } from "@/lib/vacationRules";
 
@@ -25,6 +25,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    const defaultPasswordHash = hashNewUserPassword("senha123");
+
     const created = await prisma.user.create({
       data: {
         name,
@@ -33,8 +35,7 @@ export async function POST(request: Request) {
         role,
         department,
         managerId,
-        // usuário novo precisa definir a senha pelo fluxo normal; aqui criamos sem senha ativa
-        passwordHash: "PENDING_RESET",
+        passwordHash: defaultPasswordHash,
       },
       select: { id: true, name: true, email: true, role: true, department: true, registration: true, managerId: true },
     });
