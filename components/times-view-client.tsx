@@ -356,7 +356,6 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
             const gerenteKey = `gerente-${g.gerenteId}`;
             const gerenteOpen = expanded[gerenteKey] !== false;
             const totalMembers = g.teams.reduce((s, t) => s + t.members.length, 0);
-            const membersForGerente = g.teams.flatMap((t) => t.members);
 
             return (
               <div key={g.gerenteId} className="space-y-0">
@@ -380,8 +379,7 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
                 </button>
 
                 {gerenteOpen && (
-                  <div className="space-y-3 border-l-2 border-[#e2e8f0] pl-4 pt-3 dark:border-[#252a35]">
-                    {membersForGerente.length > 0 && <TeamCalendar members={membersForGerente} />}
+                  <div className="space-y-4 border-l-2 border-[#e2e8f0] pl-4 pt-3 dark:border-[#252a35]">
                     {g.teams.map((team) => {
                       const teamKey = `${gerenteKey}-team-${team.coordinatorId}`;
                       const teamOpen = expanded[teamKey] !== false;
@@ -408,6 +406,7 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
                           </button>
                           {teamOpen && (
                             <div className="space-y-3 pl-4 pt-2">
+                              {team.members.length > 0 && <TeamCalendar members={team.members} />}
                               {team.members.map((member) => (
                                 <TeamMemberRow
                                   key={member.user.id}
