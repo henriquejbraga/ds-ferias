@@ -349,14 +349,12 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
               to: period.end ? new Date(period.end) : undefined,
             } as DateRange}
             onChange={(range) => {
-              onChange(
-                "start",
-                range.from ? range.from.toISOString().split("T")[0] : "",
-              );
-              onChange(
-                "end",
-                range.to ? range.toISOString().split("T")[0] : "",
-              );
+              const fromStr =
+                range.from instanceof Date ? range.from.toISOString().split("T")[0] : "";
+              const toStr =
+                range.to instanceof Date ? range.to.toISOString().split("T")[0] : "";
+              onChange("start", fromStr);
+              onChange("end", toStr);
             }}
             placeholder={
               label
