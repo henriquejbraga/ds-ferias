@@ -8,6 +8,7 @@ export type VacationRequestSummary = {
   status: string;
   startDate: Date | string;
   endDate: Date | string;
+  abono?: boolean;
 };
 
 // Tipos serializáveis (datas vêm como string do server)
@@ -112,7 +113,7 @@ function TeamMemberRow({
   requestsSummary,
 }: {
   member: TeamMemberInfoSerialized;
-  requestsSummary: { startDate: string | Date; endDate: string | Date; status: string }[];
+  requestsSummary: VacationRequestSummary[];
 }) {
   const { user } = member;
 
@@ -138,21 +139,38 @@ function TeamMemberRow({
             <p className="text-xs font-semibold uppercase tracking-wide text-[#94a3b8] dark:text-slate-500">
               Solicitações
             </p>
-            <ul className="space-y-1.5">
-              {requestsSummary.map((r: VacationRequestSummary, i: number) => (
-                <li
-                  key={i}
-                  className="flex flex-wrap items-center gap-2 rounded-md bg-[#f5f6f8] px-3 py-2 text-sm dark:bg-[#0f1117]"
-                >
-                  <span className="text-[#475569] dark:text-slate-400">
-                    {formatDateRange(r.startDate, r.endDate)}
-                  </span>
-                  <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
-                    {statusLabel(r.status)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+              <ul className="space-y-1.5">
+                {requestsSummary.map((r, i) => {
+                  const end = new Date(r.endDate);
+                  const backWithAbono =
+                    r.abono && !Number.isNaN(end.getTime())
+                      ? new Date(end.getTime() - 10 * 24 * 60 * 60 * 1000)
+                      : null;
+
+                  return (
+                    <li
+                      key={i}
+                      className="flex flex-wrap items-center gap-2 rounded-md bg-[#f5f6f8] px-3 py-2 text-sm dark:bg-[#0f1117]"
+                    >
+                      <div className="flex flex-1 flex-col gap-0.5 text-[#475569] dark:text-slate-400">
+                        <span>{formatDateRange(r.startDate, r.endDate)}</span>
+                        {backWithAbono && (
+                          <span className="text-xs text-[#64748b] dark:text-slate-400">
+                            Retorno estimado em{" "}
+                            <span className="font-semibold text-[#0f172a] dark:text-slate-100">
+                              {backWithAbono.toLocaleDateString("pt-BR")}
+                            </span>{" "}
+                            (10 dias antes do fim corrido, por abono 1/3).
+                          </span>
+                        )}
+                      </div>
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                        {statusLabel(r.status)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
           </div>
         </div>
       )}
@@ -259,15 +277,16 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
                 {isOpen && (
                   <div className="space-y-3 border-l-2 border-[#e2e8f0] pl-4 pt-3 dark:border-[#252a35]">
                     {team.members.map((member) => (
-                      <TeamMemberRow
-                        key={member.user.id}
-                        member={member}
-                        requestsSummary={member.requests.map((r: VacationRequestSummary) => ({
-                          startDate: r.startDate,
-                          endDate: r.endDate,
-                          status: r.status,
-                        }))}
-                      />
+                        <TeamMemberRow
+                          key={member.user.id}
+                          member={member}
+                          requestsSummary={member.requests.map((r) => ({
+                            startDate: r.startDate,
+                            endDate: r.endDate,
+                            status: r.status,
+                            abono: (r as VacationRequestSummary).abono,
+                          }))}
+                        />
                     ))}
                   </div>
                 )}
@@ -379,10 +398,11 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
                                 <TeamMemberRow
                                   key={member.user.id}
                                   member={member}
-                                  requestsSummary={member.requests.map((r: VacationRequestSummary) => ({
+                                  requestsSummary={member.requests.map((r) => ({
                                     startDate: r.startDate,
                                     endDate: r.endDate,
                                     status: r.status,
+                                    abono: (r as VacationRequestSummary).abono,
                                   }))}
                                 />
                               ))}

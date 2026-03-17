@@ -1,20 +1,20 @@
 import { getRoleLevel, calculateVacationBalance } from "@/lib/vacationRules";
-import {
-  findTeamMembersByManager,
-  findTeamMembersByGerente,
-  findAllEmployees,
-} from "@/repositories/userRepository";
+import { findTeamMembersByManager, findTeamMembersByGerente, findAllEmployees } from "@/repositories/userRepository";
 import type { TeamMemberInfo, TeamDataCoord, TeamDataRH } from "@/types/dashboard";
 
 function isOnVacationNow(
-  requests: Array<{ status: string; startDate: Date; endDate: Date }>
+  requests: Array<{ status: string; startDate: Date; endDate: Date; abono?: boolean }>
 ): boolean {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return requests.some((r) => {
     if (r.status !== "APROVADO_RH") return false;
     const start = new Date(r.startDate);
-    const end = new Date(r.endDate);
+    const rawEnd = new Date(r.endDate);
+    const end =
+      r.abono && !Number.isNaN(rawEnd.getTime())
+        ? new Date(rawEnd.getTime() - 10 * 24 * 60 * 60 * 1000)
+        : rawEnd;
     start.setHours(0, 0, 0, 0);
     end.setHours(0, 0, 0, 0);
     return today >= start && today <= end;

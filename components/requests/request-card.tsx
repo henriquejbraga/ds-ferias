@@ -110,8 +110,7 @@ export function RequestCard({
                   </p>
                   {request.abono && (
                     <p className="text-[11px] text-[#64748b] dark:text-slate-400 break-words">
-                      Com Abono 1/3, o colaborador pode converter até 10 dias em pagamento. Ex.: 30 dias solicitados
-                      podem resultar em ~20 dias de descanso + 10 dias em abono, conforme aprovação do RH.
+                      Com Abono 1/3, o colaborador pode converter até 10 dias em pagamento.
                       {backWithAbono && (
                         <> Retorno estimado em {backWithAbono.toLocaleDateString("pt-BR")} (10 dias antes do fim corrido).</>
                       )}

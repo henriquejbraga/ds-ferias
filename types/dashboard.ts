@@ -31,6 +31,8 @@ export type TeamMemberInfo = {
     startDate: Date;
     endDate: Date;
     status: string;
+    abono?: boolean;
+    thirteenth?: boolean;
     history?: unknown[];
   }>;
 };

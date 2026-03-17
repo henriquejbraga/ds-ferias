@@ -20,23 +20,27 @@ export function FilterForm({
   const userLevel = getRoleLevel(userRole);
 
   return (
-    <form method="get" className="rounded-lg border border-[#e2e8f0] bg-white p-4 dark:border-[#252a35] dark:bg-[#1a1d23]" aria-label="Filtros da listagem de solicitações">
+    <form
+      method="get"
+      className="rounded-lg border border-[#e2e8f0] bg-white p-4 dark:border-[#252a35] dark:bg-[#1a1d23]"
+      aria-label="Filtros da listagem de solicitações"
+    >
       <input type="hidden" name="view" value={view} />
       <div className="space-y-3">
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-2 sm:flex sm:flex-wrap">
           <input
             type="search"
             name="q"
             placeholder="Buscar colaborador..."
             defaultValue={filters.query}
             aria-label="Buscar por nome do colaborador"
-            className="min-h-[44px] min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] placeholder:text-[#94a3b8] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:min-w-[180px]"
+            className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] placeholder:text-[#94a3b8] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:w-auto sm:min-w-[180px]"
           />
           <select
             name="status"
             defaultValue={filters.status}
             aria-label="Filtrar por status"
-            className="min-h-[44px] min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
+            className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:w-auto"
           >
             <option value="TODOS">Todos os status</option>
             <option value="PENDENTE">Pendente aprovação</option>
@@ -51,7 +55,7 @@ export function FilterForm({
               name="managerId"
               defaultValue={filters.managerId}
               aria-label="Filtrar por coordenador"
-              className="min-h-[44px] min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
+              className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:w-auto"
             >
               <option value="ALL">Todos os coordenadores</option>
               {managerOptions.map((m) => (
@@ -65,7 +69,7 @@ export function FilterForm({
               name="department"
               defaultValue={filters.department}
               aria-label="Filtrar por departamento"
-              className="min-h-[44px] min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:flex-initial"
+              className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:w-auto"
             >
               <option value="">Todos os departamentos</option>
               {deptOptions.map((d) => (
