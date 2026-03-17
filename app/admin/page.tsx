@@ -22,7 +22,7 @@ export default async function AdminPage() {
           <div className="flex items-center gap-4">
             <Link
               href="/dashboard"
-              className="text-[#64748b] transition hover:text-[#1a1d23] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:hover:text-white"
+              className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center rounded-md border border-transparent px-2 py-1 text-sm font-medium text-[#64748b] transition hover:border-[#e2e8f0] hover:bg-[#f5f6f8] hover:text-[#1a1d23] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:text-slate-300 dark:hover:border-[#252a35] dark:hover:bg-[#111827] dark:hover:text-white"
               aria-label="Voltar ao dashboard"
             >
               ← Voltar

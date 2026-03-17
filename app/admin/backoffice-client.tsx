@@ -29,6 +29,8 @@ export function BackofficeClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<UserRow>>({});
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "RH">("");
 
   async function handleSave(id: string) {
     setSaving(true);
@@ -68,8 +70,55 @@ export function BackofficeClient({
     });
   }
 
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredUsers = users.filter((u) => {
+    if (normalizedSearch) {
+      const haystack = `${u.name} ${u.email} ${u.department ?? ""}`.toLowerCase();
+      if (!haystack.includes(normalizedSearch)) return false;
+    }
+    if (roleFilter && u.role !== roleFilter) return false;
+    return true;
+  });
+
   return (
     <div className="overflow-hidden rounded-lg border border-[#e2e8f0] bg-white dark:border-[#252a35] dark:bg-[#1a1d23]">
+      <div className="flex flex-col gap-3 border-b border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 dark:border-[#252a35] dark:bg-[#141720] sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1 text-sm text-[#475569] dark:text-slate-300">
+          <p className="font-medium">
+            {users.length} usuário(s) ·{" "}
+            {filteredUsers.length !== users.length ? `${filteredUsers.length} filtrado(s)` : "sem filtro aplicado"}
+          </p>
+          {roleFilter && (
+            <p className="text-xs text-[#64748b] dark:text-slate-400">
+              Filtro: papel = {getRoleLabel(roleFilter)}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar por nome, e-mail ou departamento..."
+            className="w-full max-w-xs rounded-md border border-[#e2e8f0] bg-white px-3 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+            aria-label="Buscar usuários"
+          />
+          <select
+            value={roleFilter}
+            onChange={(e) =>
+              setRoleFilter((e.target.value || "") as "" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "RH")
+            }
+            aria-label="Filtrar por papel"
+            className="w-40 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+          >
+            <option value="">Todos os papéis</option>
+            <option value="FUNCIONARIO">Funcionário(a)</option>
+            <option value="COORDENADOR">Coordenador(a)</option>
+            <option value="GERENTE">Gerente</option>
+            <option value="RH">RH</option>
+          </select>
+        </div>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
@@ -84,7 +133,7 @@ export function BackofficeClient({
             </tr>
           </thead>
           <tbody>
-            {users.map((u) => (
+            {filteredUsers.map((u) => (
               <tr key={u.id} className="border-b border-[#e2e8f0] dark:border-[#252a35]">
                 <td className="px-4 py-3">
                   {editingId === u.id ? (
