@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TeamCalendar } from "@/components/calendar/TeamCalendar";
 
 // Período de férias (datas podem vir como string do server)
 export type VacationRequestSummary = {
@@ -212,10 +213,12 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
     members.filter((m) => matchesFilter(m, query, statusFilter));
 
   if (teamData.kind === "coord") {
-    const teamsFiltered = teamData.teams.map((team) => ({
-      ...team,
-      members: filterMembers(team.members),
-    })).filter((t) => t.members.length > 0);
+    const teamsFiltered = teamData.teams
+      .map((team) => ({
+        ...team,
+        members: filterMembers(team.members),
+      }))
+      .filter((t) => t.members.length > 0);
 
     return (
       <div className="space-y-6">
@@ -238,7 +241,9 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
               aria-label="Filtrar por status"
             >
               {STATUS_FILTER_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
               ))}
             </select>
           </div>
@@ -246,7 +251,9 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
 
         {teamsFiltered.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[#e2e8f0] bg-white py-10 text-center dark:border-[#252a35] dark:bg-[#1a1d23]">
-            <p className="text-[#64748b] dark:text-slate-400">Nenhum colaborador encontrado com os filtros aplicados.</p>
+            <p className="text-[#64748b] dark:text-slate-400">
+              Nenhum colaborador encontrado com os filtros aplicados.
+            </p>
           </div>
         ) : (
           teamsFiltered.map((team) => {
@@ -259,7 +266,11 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
                   onClick={() => toggle(key)}
                   className="flex w-full items-center gap-2 rounded-lg border border-[#e2e8f0] bg-[#f8fafc] px-4 py-3 text-left transition-colors hover:bg-[#f1f5f9] dark:border-[#252a35] dark:bg-[#141720] dark:hover:bg-[#1e2330]"
                   aria-expanded={isOpen}
-                  aria-label={isOpen ? `Recolher time de ${team.coordinatorName}` : `Expandir time de ${team.coordinatorName}`}
+                  aria-label={
+                    isOpen
+                      ? `Recolher time de ${team.coordinatorName}`
+                      : `Expandir time de ${team.coordinatorName}`
+                  }
                 >
                   <Chevron open={isOpen} />
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
@@ -276,17 +287,18 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
                 </button>
                 {isOpen && (
                   <div className="space-y-3 border-l-2 border-[#e2e8f0] pl-4 pt-3 dark:border-[#252a35]">
+                    <TeamCalendar members={team.members} />
                     {team.members.map((member) => (
-                        <TeamMemberRow
-                          key={member.user.id}
-                          member={member}
-                          requestsSummary={member.requests.map((r) => ({
-                            startDate: r.startDate,
-                            endDate: r.endDate,
-                            status: r.status,
-                            abono: (r as VacationRequestSummary).abono,
-                          }))}
-                        />
+                      <TeamMemberRow
+                        key={member.user.id}
+                        member={member}
+                        requestsSummary={member.requests.map((r) => ({
+                          startDate: r.startDate,
+                          endDate: r.endDate,
+                          status: r.status,
+                          abono: (r as VacationRequestSummary).abono,
+                        }))}
+                      />
                     ))}
                   </div>
                 )}
@@ -344,6 +356,7 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
             const gerenteKey = `gerente-${g.gerenteId}`;
             const gerenteOpen = expanded[gerenteKey] !== false;
             const totalMembers = g.teams.reduce((s, t) => s + t.members.length, 0);
+            const membersForGerente = g.teams.flatMap((t) => t.members);
 
             return (
               <div key={g.gerenteId} className="space-y-0">
@@ -368,6 +381,7 @@ export function TimesViewClient({ teamData, userId, userRole, level }: Props) {
 
                 {gerenteOpen && (
                   <div className="space-y-3 border-l-2 border-[#e2e8f0] pl-4 pt-3 dark:border-[#252a35]">
+                    {membersForGerente.length > 0 && <TeamCalendar members={membersForGerente} />}
                     {g.teams.map((team) => {
                       const teamKey = `${gerenteKey}-team-${team.coordinatorId}`;
                       const teamOpen = expanded[teamKey] !== false;
