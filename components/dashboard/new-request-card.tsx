@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { VacationBalance } from "@/lib/vacationRules";
+import type { DateRange } from "react-day-picker";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
 
 type Props = {
   canRequest?: boolean;
@@ -340,31 +342,28 @@ export function NewRequestCardClient({ canRequest = true, balance }: Props) {
             {label} {required && <span className="text-red-500">*</span>}
           </p>
         )}
-        <div className="grid gap-2 sm:grid-cols-2">
-          <div>
-            <label htmlFor={`new-req-period-${index}-start`} className="mb-1 block text-base font-medium text-[#475569] dark:text-slate-300">Início</label>
-            <input
-              id={`new-req-period-${index}-start`}
-              type="date"
-              required={required}
-              value={period.start}
-              onChange={(e) => onChange("start", e.target.value)}
-              aria-label={label ? `Início do ${label}` : `Início do período ${index + 1}`}
-              className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
-            />
-          </div>
-          <div>
-            <label htmlFor={`new-req-period-${index}-end`} className="mb-1 block text-base font-medium text-[#475569] dark:text-slate-300">Término</label>
-            <input
-              id={`new-req-period-${index}-end`}
-              type="date"
-              required={required}
-              value={period.end}
-              onChange={(e) => onChange("end", e.target.value)}
-              aria-label={label ? `Término do ${label}` : `Término do período ${index + 1}`}
-              className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-base text-[#1a1d23] outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-white"
-            />
-          </div>
+        <div>
+          <DateRangePicker
+            value={{
+              from: period.start ? new Date(period.start) : undefined,
+              to: period.end ? new Date(period.end) : undefined,
+            } as DateRange}
+            onChange={(range) => {
+              onChange(
+                "start",
+                range.from ? range.from.toISOString().split("T")[0] : "",
+              );
+              onChange(
+                "end",
+                range.to ? range.toISOString().split("T")[0] : "",
+              );
+            }}
+            placeholder={
+              label
+                ? `${label} — selecione início e término`
+                : `Período ${index + 1} — selecione início e término`
+            }
+          />
         </div>
         {stat.days > 0 && (
           <div className="flex items-center justify-between rounded-md bg-[#f5f6f8] px-3 py-2 dark:bg-[#0f1117]">

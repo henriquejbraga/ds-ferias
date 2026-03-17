@@ -122,9 +122,9 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply text-sm sm:text-[15px] md:text-base bg-background text-foreground;
+    @apply text-[15px] sm:text-base md:text-[17px] bg-background text-foreground;
   }
   html {
-    @apply font-sans;
+    @apply font-sans antialiased;
   }
 }
