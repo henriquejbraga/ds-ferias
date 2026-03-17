@@ -28,7 +28,7 @@ describe("getVacationRequestsForExport", () => {
     vi.resetAllMocks();
   });
 
-  it("usa buildManagedRequestsWhere para aprovadores e retorna lista filtrada", async () => {
+  it("usa buildManagedRequestsWhere para aprovadores, ordena por startDate asc e repassa filtros completos", async () => {
     (prisma.vacationRequest.findMany as vi.Mock).mockResolvedValueOnce([
       {
         id: "req-1",
@@ -47,7 +47,14 @@ describe("getVacationRequestsForExport", () => {
     const result = await getVacationRequestsForExport(user, filters);
 
     expect(prisma.vacationRequest.findMany).toHaveBeenCalledTimes(1);
+    const args = (prisma.vacationRequest.findMany as vi.Mock).mock.calls[0][0];
+    expect(args.orderBy).toEqual({ startDate: "asc" });
+
     expect(filterRequestsByVisibilityAndView).toHaveBeenCalledTimes(1);
+    // O quarto argumento são os DashboardFilters aplicados após o findMany
+    const passedFilters = (filterRequestsByVisibilityAndView as vi.Mock).mock.calls[0][3];
+    expect(passedFilters).toEqual(filters);
+
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("req-1");
   });

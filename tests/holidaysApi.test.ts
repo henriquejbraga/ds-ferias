@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
-import { ensureNationalHolidaysLoaded } from "@/lib/holidaysApi";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
+import { ensureNationalHolidaysLoaded, isNationalHolidayCached } from "@/lib/holidaysApi";
 
 // isNationalHolidayCached é função internalizada via closure do módulo; testamos o comportamento
 // observable através do efeito colateral de ensureNationalHolidaysLoaded no modo de teste.
@@ -22,4 +22,64 @@ describe("ensureNationalHolidaysLoaded (NODE_ENV=test)", () => {
     process.env.NODE_ENV = ORIGINAL_NODE_ENV;
   });
 });
+
+describe("ensureNationalHolidaysLoaded (ambiente real, com fetch mockado)", () => {
+  const ORIGINAL_NODE_ENV = process.env.NODE_ENV;
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    process.env.NODE_ENV = "production";
+  });
+
+  afterAll(() => {
+    process.env.NODE_ENV = ORIGINAL_NODE_ENV;
+    if (originalFetch) {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("carrega feriados nacionais quando a API responde com sucesso", async () => {
+    const year = 2030;
+    const holidayDate = `${year}-01-01`;
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [
+        { date: holidayDate, name: "Confraternização Universal" },
+      ],
+    } as any);
+
+    await ensureNationalHolidaysLoaded(year);
+
+    const date = new Date(`${holidayDate}T12:00:00Z`);
+    expect(isNationalHolidayCached(date)).toBe(true);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("marca como carregado mesmo quando a API retorna erro (ok = false)", async () => {
+    const year = 2031;
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => [],
+    } as any);
+
+    await expect(ensureNationalHolidaysLoaded(year)).resolves.toBeUndefined();
+
+    // Chamar novamente não deve disparar novo fetch, pois o ano já foi marcado como loaded
+    await ensureNationalHolidaysLoaded(year);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("não lança erro quando o fetch dispara exceção", async () => {
+    const year = 2032;
+
+    global.fetch = vi.fn().mockRejectedValue(new Error("network error")) as any;
+
+    await expect(ensureNationalHolidaysLoaded(year)).resolves.toBeUndefined();
+    // Mesmo em caso de erro, a função deve ter tentado chamar a API uma vez
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
+
 

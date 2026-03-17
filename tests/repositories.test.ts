@@ -23,6 +23,8 @@ import {
   findTeamMembersByManager,
   findTeamMembersByGerente,
   findAllEmployees,
+  findAllUsersForAdmin,
+  findManagersForAdmin,
 } from "@/repositories/userRepository";
 
 describe("vacationRepository", () => {
@@ -94,6 +96,36 @@ describe("userRepository", () => {
     await findAllEmployees();
     expect(prisma.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { role: { in: ["FUNCIONARIO", "COLABORADOR"] } } })
+    );
+  });
+
+  it("findAllUsersForAdmin chama prisma com ordenação e seleção de campos esperados", async () => {
+    const { prisma } = await import("@/lib/prisma");
+    await findAllUsersForAdmin();
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ role: "asc" }, { name: "asc" }],
+        select: expect.objectContaining({
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          registration: true,
+          department: true,
+          manager: { select: { id: true, name: true } },
+        }),
+      })
+    );
+  });
+
+  it("findManagersForAdmin chama prisma filtrando apenas coordenadores/gerentes/gestores", async () => {
+    const { prisma } = await import("@/lib/prisma");
+    await findManagersForAdmin();
+    expect(prisma.user.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { role: { in: ["COORDENADOR", "GERENTE", "GESTOR"] } },
+        select: { id: true, name: true },
+      })
     );
   });
 });

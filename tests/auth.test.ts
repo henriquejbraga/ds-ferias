@@ -142,25 +142,30 @@ describe("getSessionUser", () => {
 });
 
 describe("createSession", () => {
-  it("sets cookie with user payload", async () => {
+  beforeEach(() => {
     mockSet.mockReset();
+    delete process.env.SESSION_SECRET;
+  });
+
+  it("não assina payload quando SESSION_SECRET não está definido", async () => {
     const user: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "RH" };
     await createSession(user);
     expect(mockSet).toHaveBeenCalledWith(
       "ds-ferias-session",
-      expect.any(String),
+      JSON.stringify(user),
       expect.objectContaining({ httpOnly: true, maxAge: 60 * 60 * 8 })
     );
   });
 
-  it("signs payload when SESSION_SECRET is set", async () => {
-    mockSet.mockReset();
+  it("assina payload quando SESSION_SECRET está definido (comprimento >= 16)", async () => {
     process.env.SESSION_SECRET = "x".repeat(16);
     const user: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "FUNCIONARIO" };
     await createSession(user);
     const signed = mockSet.mock.calls[0][1];
     expect(signed).toContain(".");
-    expect(signed.startsWith("{\"id\":")).toBe(true);
+    // O prefixo antes do primeiro ponto deve ser o JSON do usuário
+    const prefix = signed.split(".")[0];
+    expect(prefix.startsWith("{\"id\":\"u1\"")).toBe(true);
   });
 });
 
