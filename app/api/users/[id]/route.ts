@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRoleLevel } from "@/lib/vacationRules";
-import { isCuid } from "@/lib/validation";
 import type { UserUncheckedUpdateInput } from "@/generated/prisma/models/User";
 
 const ROLES = ["FUNCIONARIO", "COLABORADOR", "COORDENADOR", "GESTOR", "GERENTE", "RH"] as const;
@@ -19,13 +18,11 @@ export async function PATCH(
   }
 
   const { id } = await params;
-  if (!isCuid(id)) {
-    return NextResponse.json({ error: "ID inválido" }, { status: 400 });
-  }
   const body = await request.json().catch(() => ({}));
 
   const data: UserUncheckedUpdateInput = {};
   if (typeof body.name === "string" && body.name.trim()) data.name = body.name.trim();
+  if (typeof body.email === "string" && body.email.trim()) data.email = body.email.trim();
   if (typeof body.role === "string" && ROLES.includes(body.role as any)) data.role = body.role;
   if (body.department !== undefined) data.department = body.department === "" || body.department == null ? null : String(body.department);
   if (body.hireDate !== undefined) data.hireDate = body.hireDate === "" || body.hireDate == null ? null : new Date(body.hireDate);

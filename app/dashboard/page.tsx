@@ -123,7 +123,13 @@ export default async function DashboardPage({
           )}
 
           <div className="grid gap-6 lg:grid-cols-12">
-            <section className="min-w-0 lg:col-span-10 xl:col-span-11">
+            <section
+              className={
+                isMyView
+                  ? "min-w-0 lg:col-span-5 xl:col-span-6"
+                  : "min-w-0 lg:col-span-10 xl:col-span-11"
+              }
+            >
               {isTimesView ? (
                 <TimesView userRole={user.role} userId={user.id} teamData={teamData} />
               ) : isApprover && (view === "inbox" || view === "historico") ? (
@@ -140,7 +146,13 @@ export default async function DashboardPage({
               )}
             </section>
 
-            <aside className="min-w-0 space-y-4 lg:col-span-2 xl:col-span-1">
+            <aside
+              className={
+                isMyView
+                  ? "min-w-0 space-y-4 lg:col-span-7 xl:col-span-6"
+                  : "min-w-0 space-y-4 lg:col-span-2 xl:col-span-1"
+              }
+            >
               {isMyView && (
                 <div className="min-w-0 rounded-lg border-2 border-blue-200 bg-white dark:border-blue-800/50 dark:bg-[#1a1d23]">
                   <div className="border-b border-[#e2e8f0] bg-blue-50/80 px-5 py-4 dark:border-[#252a35] dark:bg-blue-950/20">

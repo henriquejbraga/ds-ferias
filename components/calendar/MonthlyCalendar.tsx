@@ -101,8 +101,8 @@ export function MonthlyCalendar({ entries }: Props) {
         </div>
       </div>
       <div className="mt-3 grid grid-cols-7 gap-1 text-center text-xs text-[#64748b] dark:text-slate-400">
-        {["S", "T", "Q", "Q", "S", "S", "D"].map((dow) => (
-          <div key={dow} className="py-1 font-medium">
+        {["S", "T", "Q", "Q", "S", "S", "D"].map((dow, index) => (
+          <div key={`dow-${index}`} className="py-1 font-medium">
             {dow}
           </div>
         ))}

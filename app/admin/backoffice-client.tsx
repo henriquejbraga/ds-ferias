@@ -29,6 +29,22 @@ export function BackofficeClient({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<UserRow>>({});
   const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState<{
+    name: string;
+    email: string;
+    registration: string;
+    role: "" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "RH";
+    department: string;
+    managerId: string;
+  }>({
+    name: "",
+    email: "",
+    registration: "",
+    role: "",
+    department: "",
+    managerId: "",
+  });
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<"" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "RH">("");
 
@@ -40,6 +56,7 @@ export function BackofficeClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: form.name,
+          email: form.email,
           role: form.role,
           department: form.department ?? "",
           hireDate: form.hireDate ? new Date(form.hireDate).toISOString().slice(0, 10) : null,
@@ -63,6 +80,7 @@ export function BackofficeClient({
     setEditingId(u.id);
     setForm({
       name: u.name,
+      email: u.email,
       role: u.role,
       department: u.department,
       hireDate: u.hireDate,
@@ -119,12 +137,106 @@ export function BackofficeClient({
           </select>
         </div>
       </div>
+      <div className="border-b border-[#e2e8f0] bg-white px-4 py-3 text-sm text-[#475569] dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-slate-300">
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[#94a3b8] dark:text-slate-500">
+              Novo usuário
+            </span>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="text"
+                placeholder="Nome completo"
+                value={createForm.name}
+                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                className="w-40 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              />
+              <input
+                type="email"
+                placeholder="email@empresa.com"
+                value={createForm.email}
+                onChange={(e) => setCreateForm((f) => ({ ...f, email: e.target.value }))}
+                className="w-52 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              />
+              <input
+                type="text"
+                placeholder="Matrícula"
+                value={createForm.registration}
+                onChange={(e) => setCreateForm((f) => ({ ...f, registration: e.target.value }))}
+                className="w-32 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              />
+              <select
+                value={createForm.role}
+                onChange={(e) => setCreateForm((f) => ({ ...f, role: e.target.value as any }))}
+                className="w-40 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              >
+                <option value="">Papel</option>
+                <option value="FUNCIONARIO">Funcionário(a)</option>
+                <option value="COORDENADOR">Coordenador(a)</option>
+                <option value="GERENTE">Gerente</option>
+                <option value="RH">RH</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Departamento (opcional)"
+                value={createForm.department}
+                onChange={(e) => setCreateForm((f) => ({ ...f, department: e.target.value }))}
+                className="w-40 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              />
+              <select
+                value={createForm.managerId}
+                onChange={(e) => setCreateForm((f) => ({ ...f, managerId: e.target.value }))}
+                className="w-48 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              >
+                <option value="">Coordenador/Gerente (opcional)</option>
+                {managers.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            disabled={creating}
+            onClick={async () => {
+              setCreating(true);
+              try {
+                const res = await fetch("/api/users", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(createForm),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                  toast.error(data?.error ?? "Erro ao criar usuário");
+                  return;
+                }
+                toast.success("Usuário criado");
+                setCreateForm({
+                  name: "",
+                  email: "",
+                  registration: "",
+                  role: "",
+                  department: "",
+                  managerId: "",
+                });
+                window.location.reload();
+              } finally {
+                setCreating(false);
+              }
+            }}
+          >
+            {creating ? "Criando…" : "Adicionar usuário"}
+          </Button>
+        </div>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b border-[#e2e8f0] bg-[#f8fafc] dark:border-[#252a35] dark:bg-[#141720]">
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Nome</th>
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">E-mail</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Matrícula</th>
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Papel</th>
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Departamento</th>
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Admissão</th>
@@ -147,7 +259,22 @@ export function BackofficeClient({
                     <span className="font-medium text-[#1a1d23] dark:text-white">{u.name}</span>
                   )}
                 </td>
-                <td className="px-4 py-3 text-[#64748b] dark:text-slate-400">{u.email}</td>
+                <td className="px-4 py-3 text-[#64748b] dark:text-slate-400">
+                  {editingId === u.id ? (
+                    <input
+                      type="email"
+                      value={form.email ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                      aria-label="E-mail do usuário"
+                      className="w-full rounded border border-[#e2e8f0] bg-white px-2 py-1.5 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+                    />
+                  ) : (
+                    u.email
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {u.registration ?? "—"}
+                </td>
                 <td className="px-4 py-3">
                   {editingId === u.id ? (
                     <select
