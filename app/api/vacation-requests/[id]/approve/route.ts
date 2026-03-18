@@ -2,13 +2,24 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { canApproveRequest, getNextApprovalStatus, ROLE_LEVEL, detectTeamConflicts } from "@/lib/vacationRules";
-import { addUsedDaysForRequest } from "@/repositories/acquisitionRepository";
 import { notifyApproved } from "@/lib/notifications";
 import { isCuid } from "@/lib/validation";
 import { logger } from "@/lib/logger";
 import type { VacationStatus } from "@/generated/prisma/enums";
 
 type Params = { params: Promise<{ id: string }> };
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+function toUtcMidnight(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function daysBetweenInclusive(start: Date, end: Date): number {
+  const s = toUtcMidnight(start);
+  const e = toUtcMidnight(end);
+  return Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
+}
 
 export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
@@ -144,42 +155,142 @@ export async function POST(request: Request, { params }: Params) {
     );
   }
 
-  let acquisitionPeriodId: string | null = null;
-  try {
-    if (nextStatus === "APROVADO_RH") {
-      const period = await addUsedDaysForRequest(
-        existing.userId,
-        new Date(existing.startDate),
-        new Date(existing.endDate),
-      );
-      acquisitionPeriodId = period?.id ?? null;
-    }
-  } catch (err) {
-    logger.warn("Falha ao atualizar usedDays de AcquisitionPeriod", { error: String(err) });
-  }
+  const approvalNote = body?.note ?? null;
+  let didCommit = false;
+  let updated: any = null;
 
-  const updated = await prisma.vacationRequest.update({
-    where: { id },
-    data: {
-      status: nextStatus,
-      acquisitionPeriodId: acquisitionPeriodId ?? undefined,
-      [noteField]: body?.note ?? null,
-      history: {
-        create: {
-          previousStatus: existing.status,
-          newStatus: nextStatus,
-          changedByUserId: user.id,
-          note: body?.note ?? null,
+  await prisma.$transaction(async (tx) => {
+    const current = await tx.vacationRequest.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            managerId: true,
+            manager: { select: { managerId: true } },
+          },
         },
       },
-    },
+    });
+
+    if (!current) {
+      throw new Error("Solicitação não encontrada durante transação de aprovação.");
+    }
+
+    // Se já aprovou para o mesmo status (idempotência contra retries/concorrrência),
+    // não consumimos usedDays nem criamos histórico novamente.
+    const isAlreadyTargetStatus = current.status === nextStatus;
+    if (isAlreadyTargetStatus) {
+      updated = current;
+      didCommit = false;
+      return;
+    }
+
+    let periodId: string | undefined;
+
+    if (nextStatus === "APROVADO_RH") {
+      const period = await tx.acquisitionPeriod.findFirst({
+        where: {
+          userId: current.userId,
+          startDate: { lte: current.startDate },
+          endDate: { gte: current.endDate },
+        },
+        orderBy: { startDate: "asc" },
+        select: { id: true },
+      });
+      periodId = period?.id;
+    }
+
+    const data: Record<string, unknown> = {
+      status: nextStatus,
+      [noteField]: approvalNote,
+    };
+    if (nextStatus === "APROVADO_RH" && periodId) {
+      data.acquisitionPeriodId = periodId;
+    }
+
+    // Condicao por status para evitar double-consumo em chamadas simultâneas.
+    const transitioned = await tx.vacationRequest.updateMany({
+      where: { id, status: { not: nextStatus } },
+      data,
+    });
+
+    if (transitioned.count !== 1) {
+      updated = await tx.vacationRequest.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              managerId: true,
+              manager: { select: { managerId: true } },
+            },
+          },
+        },
+      });
+      didCommit = false;
+      return;
+    }
+
+    if (nextStatus === "APROVADO_RH" && periodId) {
+      // Incremento atomicamente dentro da mesma transação.
+      const period = await tx.acquisitionPeriod.findUnique({
+        where: { id: periodId },
+        select: { usedDays: true },
+      });
+
+      if (period) {
+        const rawDays = daysBetweenInclusive(current.startDate, current.endDate);
+        const days = Math.min(Math.max(1, rawDays), 30);
+        await tx.acquisitionPeriod.update({
+          where: { id: periodId },
+          data: { usedDays: period.usedDays + days },
+        });
+      } else {
+        logger.warn("AcquisitionPeriod não encontrado para incrementar usedDays", { requestId: id, periodId });
+      }
+    }
+
+    await tx.vacationRequestHistory.create({
+      data: {
+        vacationRequestId: id,
+        previousStatus: current.status,
+        newStatus: nextStatus,
+        changedByUserId: user.id,
+        note: approvalNote,
+      },
+    });
+
+    updated = await tx.vacationRequest.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            managerId: true,
+            manager: { select: { managerId: true } },
+          },
+        },
+      },
+    });
+
+    didCommit = true;
   });
 
-  if (existing.user?.name && existing.user?.email && user.name) {
+  if (didCommit && updated?.user?.name && updated?.user?.email && user.name) {
     notifyApproved({
       requestId: id,
-      userName: existing.user.name,
-      userEmail: existing.user.email,
+      userName: updated.user.name,
+      userEmail: updated.user.email,
       approverName: user.name,
       status: nextStatus,
     }).catch(() => {});
@@ -190,5 +301,5 @@ export async function POST(request: Request, { params }: Params) {
     approverId: user.id,
     newStatus: nextStatus,
   });
-  return NextResponse.json({ request: updated, conflictWarning });
+  return NextResponse.json({ request: updated ?? existing, conflictWarning });
 }

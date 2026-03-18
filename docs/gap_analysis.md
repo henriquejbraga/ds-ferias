@@ -5,13 +5,14 @@ Esta lista foca o que falta para o sistema ser operavel em ambiente corporativo 
 ### CRITICAL (bloqueia uso seguro em producao)
 
 1. **Consistencia transacional ao consumir periodo aquisitivo**
-   - O consumo acontece em `approve` chamando `addUsedDaysForRequest` e depois atualizando `VacationRequest`, mas nao ha garantia transacional entre os dois efeitos.
-   - Impacto: falhas parciais podem divergenciar `usedDays` vs `VacationRequest.status`.
-   - Recomendacao: usar `$transaction` e idempotencia por request.
+   - O consumo passou a acontecer dentro de uma unica `prisma.$transaction` no endpoint `approve`.
+   - Impacto: evita divergencia entre `AcquisitionPeriod.usedDays` e `VacationRequest.status` em falhas parciais.
+   - Recomendacao (ainda valida): reforcar idempotencia com marcadores/persistencia explícita quando evoluir para políticas mais complexas.
 
 2. **Idempotencia do consumo**
-   - Reprocessamentos/retries/double-click podem somar `usedDays` mais de uma vez se nao houver condicao no update.
-   - Recomendacao: fazer update condicional (ex.: somar apenas se `status` ainda nao mudou) e/ou registrar um marcador unico de consumo.
+   - O consumo agora é condicionado por transição de status usando `updateMany` (apenas incrementa `usedDays` quando a transição efetivamente acontece).
+   - Impacto: reduz risco de double increment em retries e chamadas repetidas.
+   - Recomendacao (futura): implementar locks/estratégias de concorrência mais fortes caso seja exigido controle estrito sob alto volume.
 
 3. **Seguranca da sessao quando `SESSION_SECRET` nao esta definido**
    - O sistema aceita cookie nao assinado quando `SESSION_SECRET` nao existe.
