@@ -32,11 +32,8 @@ export function MyRequestsList({
     usedDays: number;
   }>;
 }) {
-  if (!requests.length) {
-    return <EmptyState message="Você ainda não criou nenhuma solicitação de férias." />;
-  }
-
   const today = new Date();
+  const hasRequests = requests.length > 0;
   const upcoming = requests
     .filter((r) => {
       const start = new Date(r.startDate);
@@ -60,14 +57,15 @@ export function MyRequestsList({
         <ExportButton href="/api/vacation-requests/export" />
       </div>
 
-      {periods.length > 0 && (
-        <section className="rounded-lg border border-[#e2e8f0] bg-white p-4 text-sm dark:border-[#252a35] dark:bg-[#1a1d23]">
-          <h4 className="text-base font-semibold text-[#1a1d23] dark:text-white">
-            Períodos aquisitivos
-          </h4>
-          <p className="mt-1 text-xs text-[#64748b] dark:text-slate-400">
-            Cada linha representa um ciclo de 12 meses trabalhados. Quando os dias usados atingem o direito do período, novas férias passam a consumir o próximo ciclo.
-          </p>
+      <section className="rounded-lg border border-[#e2e8f0] bg-white p-4 text-sm dark:border-[#252a35] dark:bg-[#1a1d23]">
+        <h4 className="text-base font-semibold text-[#1a1d23] dark:text-white">
+          Períodos aquisitivos
+        </h4>
+        <p className="mt-1 text-xs text-[#64748b] dark:text-slate-400">
+          Cada card mostra um ciclo de aquisição (12 meses). Quando os dias do ciclo acabarem (usados + pendentes), novas férias passam a consumir o próximo ciclo.
+        </p>
+
+        {periods.length > 0 ? (
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             {periods.slice(0, 4).map((p) => {
               const label = `${p.start.toLocaleDateString("pt-BR")} – ${p.end.toLocaleDateString("pt-BR")}`;
@@ -92,8 +90,12 @@ export function MyRequestsList({
               );
             })}
           </div>
-        </section>
-      )}
+        ) : (
+          <p className="mt-3 text-xs text-[#64748b] dark:text-slate-400">
+            Aguardando completar 12 meses para exibir os períodos aquisitivos.
+          </p>
+        )}
+      </section>
 
       <MonthlyCalendar
         entries={requests.map((r) => ({
@@ -162,9 +164,11 @@ export function MyRequestsList({
         </section>
       )}
 
-      {requests.map((r) => (
-        <RequestCard key={r.id} request={r} isOwner />
-      ))}
+      {hasRequests ? (
+        requests.map((r) => <RequestCard key={r.id} request={r} isOwner />)
+      ) : (
+        <EmptyState message="Você ainda não criou nenhuma solicitação de férias." />
+      )}
     </div>
   );
 }
