@@ -9,7 +9,7 @@ const VIEW_LABELS: Record<string, string> = {
 
 export function DashboardBreadcrumb({ currentView }: { currentView: string }) {
   const label = VIEW_LABELS[currentView] ?? "Dashboard";
-  if (currentView === "minhas") {
+  if (currentView === "minhas" || currentView === "inbox" || currentView === "historico" || currentView === "times") {
     return null;
   }
   return (

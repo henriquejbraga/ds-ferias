@@ -62,8 +62,15 @@ function matchesFilter(
   return true;
 }
 
-function TeamMemberStatusBadge({ member }: { member: TeamMemberInfoSerialized }) {
-  const { isOnVacationNow, balance } = member;
+export function TeamMemberStatusBadge({ member }: { member: TeamMemberInfoSerialized }) {
+  const { isOnVacationNow, balance, requests } = member;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const hasFutureVacation = requests.some((r) => {
+    const start = new Date(r.startDate);
+    start.setHours(0, 0, 0, 0);
+    return start > today;
+  });
   if (isOnVacationNow) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
@@ -72,13 +79,13 @@ function TeamMemberStatusBadge({ member }: { member: TeamMemberInfoSerialized })
       </span>
     );
   }
-  if (balance.availableDays > 0 || balance.pendingDays > 0) {
+  if (!isOnVacationNow && (hasFutureVacation || balance.availableDays > 0 || balance.pendingDays > 0)) {
     return (
       <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-800 dark:bg-blue-900/40 dark:text-blue-300">
         <span className="h-1.5 w-1.5 rounded-full bg-blue-500" aria-hidden />
-        Férias a tirar
-        {balance.availableDays > 0 && (
-          <span className="font-normal opacity-90">({balance.availableDays} dias)</span>
+        {hasFutureVacation ? "Férias marcadas" : "Férias a tirar"}
+        {!hasFutureVacation && balance.availableDays > 0 && (
+          <span className="font-normal opacity-90"> ({balance.availableDays} dias)</span>
         )}
       </span>
     );
