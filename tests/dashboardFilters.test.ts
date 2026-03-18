@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   getManagerOptions,
   getDepartmentOptions,
@@ -245,6 +245,50 @@ describe("filterRequests", () => {
       department: "",
     });
     expect(out).toHaveLength(1);
+  });
+
+  it("orders historico: upcoming first by startDate, ended at the end", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-12T12:00:00.000Z"));
+
+    const ended = {
+      ...baseReq,
+      status: "APROVADO_RH",
+      startDate: new Date("2026-01-01T00:00:00.000Z"),
+      endDate: new Date("2026-01-10T00:00:00.000Z"),
+    };
+    const upcomingLater = {
+      ...baseReq,
+      status: "APROVADO_RH",
+      startDate: new Date("2026-02-01T00:00:00.000Z"),
+      endDate: new Date("2026-02-10T00:00:00.000Z"),
+    };
+    const upcomingSoon = {
+      ...baseReq,
+      status: "APROVADO_RH",
+      startDate: new Date("2026-01-15T00:00:00.000Z"),
+      endDate: new Date("2026-01-20T00:00:00.000Z"),
+    };
+
+    const out = filterRequests("COORDENADOR", "coord-1", [ended, upcomingLater, upcomingSoon], {
+      view: "historico",
+      query: "",
+      status: "TODOS",
+      managerId: "",
+      from: "",
+      to: "",
+      department: "",
+    });
+
+    // upcomingSoon (start 15) deve vir antes de upcomingLater (start 1/2),
+    // e "ended" deve ficar no final.
+    expect(out.map((r) => r.startDate.toISOString())).toEqual([
+      upcomingSoon.startDate.toISOString(),
+      upcomingLater.startDate.toISOString(),
+      ended.startDate.toISOString(),
+    ]);
+
+    vi.useRealTimers();
   });
 });
 

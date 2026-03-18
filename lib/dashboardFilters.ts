@@ -44,7 +44,7 @@ export function filterRequests<T extends RequestForFilter>(
   requests: T[],
   filters: DashboardFilters
 ): T[] {
-  return requests.filter((r) => {
+  const out = requests.filter((r) => {
     if (!hasTeamVisibility(userRole, userId, r as Parameters<typeof hasTeamVisibility>[2]))
       return false;
     if (getRoleLevel(userRole) >= 4 && filters.managerId && filters.managerId !== "ALL") {
@@ -71,6 +71,34 @@ export function filterRequests<T extends RequestForFilter>(
     if (filters.status !== "TODOS" && r.status !== filters.status) return false;
     return true;
   });
+
+  // Ordenacao do HISTORICO:
+  // - Primeiro quem vai sair primeiro (menor startDate)
+  // - Depois quem ja terminou (endDate < agora) fica no final
+  if (filters.view === "historico") {
+    const now = new Date();
+    const outSorted = [...out].sort((a, b) => {
+      const aEnd = new Date(a.endDate).getTime();
+      const bEnd = new Date(b.endDate).getTime();
+      const aCompleted = aEnd < now.getTime();
+      const bCompleted = bEnd < now.getTime();
+
+      if (aCompleted !== bCompleted) {
+        // nao-completados primeiro
+        return aCompleted ? 1 : -1;
+      }
+
+      const aStart = new Date(a.startDate).getTime();
+      const bStart = new Date(b.startDate).getTime();
+      if (aStart !== bStart) return aStart - bStart;
+
+      return aEnd - bEnd;
+    });
+
+    return outSorted;
+  }
+
+  return out;
 }
 
 export function buildExportQuery(filters: DashboardFilters): string {
