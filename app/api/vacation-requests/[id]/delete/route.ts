@@ -8,6 +8,17 @@ type Params = {
   params: Promise<{ id: string }>;
 };
 
+function toUtcMidnight(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function daysBetweenInclusive(start: Date, end: Date): number {
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const s = toUtcMidnight(start);
+  const e = toUtcMidnight(end);
+  return Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
+}
+
 export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
   if (!isCuid(id)) {
@@ -38,6 +49,7 @@ export async function POST(request: Request, { params }: Params) {
 
   const isOwner = existing.userId === user.id;
   const isApprover = ROLE_LEVEL[user.role] >= 2;
+  const roleLevel = ROLE_LEVEL[user.role];
 
   // Funcionário pode excluir enquanto não tiver aprovação final do RH
   const deletableStatuses = ["PENDENTE", "APROVADO_GESTOR", "APROVADO_COORDENADOR", "APROVADO_GERENTE"];
@@ -54,6 +66,15 @@ export async function POST(request: Request, { params }: Params) {
   if (!isOwner && !isApprover) {
     return NextResponse.json(
       { error: "Você não tem permissão para excluir este pedido." },
+      { status: 403 },
+    );
+  }
+
+  // Pedido já consumido pelo RH: apenas Gerente/RH deve conseguir cancelar/excluir.
+  // Isso evita inconsistência de usadoDays quando houver supressao por papéis menores.
+  if (!isOwner && existing.status === "APROVADO_RH" && roleLevel < 3) {
+    return NextResponse.json(
+      { error: "Somente Gerente ou RH podem cancelar pedidos já aprovados pelo RH." },
       { status: 403 },
     );
   }
@@ -75,12 +96,40 @@ export async function POST(request: Request, { params }: Params) {
     }
   }
 
-  await prisma.vacationRequestHistory.deleteMany({
-    where: { vacationRequestId: existing.id },
-  });
+  if (existing.status === "APROVADO_RH" && !existing.acquisitionPeriodId) {
+    return NextResponse.json(
+      { error: "Não foi possível cancelar pois o pedido aprovado pelo RH não está vinculado a um periodo aquisitivo." },
+      { status: 409 },
+    );
+  }
 
-  await prisma.vacationRequest.delete({
-    where: { id: existing.id },
+  await prisma.$transaction(async (tx) => {
+    // Se o pedido foi aprovado pelo RH, precisamos reverter o consumo no período aquisitivo
+    // para manter consistência entre relatórios e saldo.
+    if (existing.status === "APROVADO_RH") {
+      const ap = await tx.acquisitionPeriod.findUnique({
+        where: { id: existing.acquisitionPeriodId },
+        select: { usedDays: true },
+      });
+
+      if (ap) {
+        const rawDays = daysBetweenInclusive(existing.startDate, existing.endDate);
+        const days = Math.min(Math.max(1, rawDays), 30); // compat com regra CLT de bloco
+        const nextUsed = Math.max(0, ap.usedDays - days);
+        await tx.acquisitionPeriod.update({
+          where: { id: existing.acquisitionPeriodId },
+          data: { usedDays: nextUsed },
+        });
+      }
+    }
+
+    await tx.vacationRequestHistory.deleteMany({
+      where: { vacationRequestId: existing.id },
+    });
+
+    await tx.vacationRequest.delete({
+      where: { id: existing.id },
+    });
   });
 
   const contentType = request.headers.get("content-type") ?? "";

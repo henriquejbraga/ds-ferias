@@ -55,7 +55,8 @@ export async function getCurrentUserBalance(userId: string) {
 }
 
 export async function getUserAcquisitionPeriods(userId: string) {
-  await syncAcquisitionPeriodsForUser(userId, null);
+  const userFull = await findUserWithBalance(userId);
+  await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);
   return findAcquisitionPeriodsForUser(userId);
 }
 

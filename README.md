@@ -1,6 +1,6 @@
 # Editora Globo - Férias
 
-Sistema interno de gestão de férias com fluxo de aprovação em cadeia (Coordenador → Gerente → RH), regras CLT, **abono 1/3** e **adiantamento de 13º**, além de auditoria completa. Desenvolvido com **Next.js 16** (App Router), **Prisma 7**, **PostgreSQL** e **TailwindCSS**.
+Sistema interno de gestão de férias com fluxo de aprovação em cadeia (Coordenador → Gerente → RH), regras CLT, **abono 1/3** e **adiantamento de 13º**, além de auditoria completa e **controle por períodos aquisitivos**. Desenvolvido com **Next.js 16** (App Router), **Prisma 7**, **PostgreSQL** e **TailwindCSS**.
 
 ---
 
@@ -132,11 +132,11 @@ Testes em `tests/` cobrem `lib/`, `services` e `repositories` (papéis, aprovaç
 ## Documentação em `docs/`
 
 - **`system_overview.md`** — visão geral do sistema, arquitetura, fluxos e modelo de dados.
-- **`engineering_audit.md`** — avaliação técnica e de arquitetura, com forças e dívidas de engenharia.
-- **`clt_compliance_analysis.md`** — análise de conformidade com a CLT (férias, fracionamento, abono, 13º, blackout).
-- **`product_analysis.md`** — análise de produto/UX para colaborador, gestor e RH, com lacunas de funcionalidades.
-- **`qa_analysis.md`** — visão de QA: cobertura de testes, mutation testing, riscos e recomendações.
-- **`engineering_roadmap.md`** — roadmap priorizado (alta/média/baixa prioridade) para evolução técnica e de compliance.
+- **`architecture.md`** — arquitetura do código e revisao tecnica (DDD-lite).
+- **`product_completeness.md`** — avaliação de completude do produto (PM + RH).
+- **`gap_analysis.md`** — lista de gaps com prioridade (CRITICAL/HIGH/MEDIUM/LOW).
+- **`qa_report.md`** — estado de QA: cobertura, riscos residuais e recomendações.
+- **`engineering_roadmap.md`** — roadmap priorizado para evolução técnica e de compliance.
 
 ---
 
@@ -144,9 +144,11 @@ Testes em `tests/` cobrem `lib/`, `services` e `repositories` (papéis, aprovaç
 
 - Fluxo de aprovação em 3 níveis (Coordenador → Gerente → RH) com histórico em `VacationRequestHistory`.
 - Validações CLT (início/fim, aviso, feriados, fracionamento, conflitos).
+- Modal de confirmacao para conflitos no time durante a aprovação (evita aprovar “por engano” em cenários conflitantes).
 - Dashboard por papel: Minhas Férias, Caixa de Aprovação, Histórico, **Times** (com filtro e expandir/colapsar por gerente e coordenador).
 - Filtros (busca, status, coordenador, departamento, período); export CSV e relatório de saldo (RH).
 - Períodos de bloqueio (blackout) por RH.
+- **Períodos aquisitivos**: vinculo de `VacationRequest` ao `AcquisitionPeriod`, UI em “Minhas Férias” e relatório CSV exclusivo para RH.
 - Backoffice (**/admin**) para usuários (nome, e‑mail, papel, matrícula, departamento, admissão, gestor), com:
   - Busca com filtro por papel.
   - Edição inline (inclusive e‑mail) com toasts de erro descritivos (ex.: e‑mail/matrícula já cadastrados).
