@@ -103,12 +103,14 @@ export async function POST(request: Request, { params }: Params) {
     );
   }
 
+  const acquisitionPeriodId = existing.acquisitionPeriodId;
+
   await prisma.$transaction(async (tx) => {
     // Se o pedido foi aprovado pelo RH, precisamos reverter o consumo no período aquisitivo
     // para manter consistência entre relatórios e saldo.
     if (existing.status === "APROVADO_RH") {
       const ap = await tx.acquisitionPeriod.findUnique({
-        where: { id: existing.acquisitionPeriodId },
+        where: { id: acquisitionPeriodId! },
         select: { usedDays: true },
       });
 
@@ -117,7 +119,7 @@ export async function POST(request: Request, { params }: Params) {
         const days = Math.min(Math.max(1, rawDays), 30); // compat com regra CLT de bloco
         const nextUsed = Math.max(0, ap.usedDays - days);
         await tx.acquisitionPeriod.update({
-          where: { id: existing.acquisitionPeriodId },
+          where: { id: acquisitionPeriodId! },
           data: { usedDays: nextUsed },
         });
       }

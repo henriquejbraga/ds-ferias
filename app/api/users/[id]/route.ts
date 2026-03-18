@@ -26,6 +26,7 @@ export async function PATCH(
   if (typeof body.role === "string" && ROLES.includes(body.role as any)) data.role = body.role;
   if (body.department !== undefined) data.department = body.department === "" || body.department == null ? null : String(body.department);
   if (body.hireDate !== undefined) data.hireDate = body.hireDate === "" || body.hireDate == null ? null : new Date(body.hireDate);
+  if (body.team !== undefined) data.team = body.team === "" || body.team == null ? null : String(body.team);
   if (body.managerId !== undefined) data.managerId = body.managerId === "" || body.managerId == null ? null : body.managerId;
 
   if (Object.keys(data).length === 0) {
@@ -35,7 +36,7 @@ export async function PATCH(
   const updated = await prisma.user.update({
     where: { id },
     data,
-    select: { id: true, name: true, email: true, role: true, department: true, hireDate: true, managerId: true },
+    select: { id: true, name: true, email: true, role: true, department: true, hireDate: true, team: true, managerId: true },
   });
 
   return NextResponse.json(updated);

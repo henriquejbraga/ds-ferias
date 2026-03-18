@@ -1,14 +1,38 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
-import { getRoleLevel, hasTeamVisibility, validateCltPeriod } from "@/lib/vacationRules";
+import { checkBlackoutPeriods, getRoleLevel, hasTeamVisibility, validateCltPeriod } from "@/lib/vacationRules";
 import { isCuid } from "@/lib/validation";
+import {
+  syncAcquisitionPeriodsForUser,
+  findAcquisitionPeriodForRange,
+  findAcquisitionPeriodsForUser,
+} from "@/repositories/acquisitionRepository";
 
 type Params = {
   params: Promise<{ id: string }>;
 };
 
 const ACTIVE_STATUSES = ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE", "APROVADO_RH"] as const;
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+function toUtcMidnight(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+function daysBetweenInclusive(start: Date, end: Date): number {
+  const s = toUtcMidnight(start);
+  const e = toUtcMidnight(end);
+  return Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
+}
+
+function overlapDaysInclusive(start: Date, end: Date, rangeStart: Date, rangeEnd: Date): number {
+  const s = new Date(Math.max(toUtcMidnight(start).getTime(), toUtcMidnight(rangeStart).getTime()));
+  const e = new Date(Math.min(toUtcMidnight(end).getTime(), toUtcMidnight(rangeEnd).getTime()));
+  if (e < s) return 0;
+  return daysBetweenInclusive(s, e);
+}
 
 export async function POST(request: Request, { params }: Params) {
   const { id } = await params;
@@ -105,9 +129,129 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.json({ error: cltError }, { status: 400 });
   }
 
+  // Bloqueio e limite por período aquisitivo (AcquisitionPeriod.usedDays)
+  const owner = await prisma.user.findUnique({
+    where: { id: existing.userId },
+    select: { hireDate: true, department: true },
+  });
+
+  const statusesAwaitingRH = ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"] as const;
+
+  if (owner?.hireDate) {
+    await syncAcquisitionPeriodsForUser(existing.userId, owner.hireDate);
+
+    const todayUtc = toUtcMidnight(new Date());
+    const hireUtc = toUtcMidnight(new Date(owner.hireDate));
+
+    let monthsWorked =
+      (todayUtc.getUTCFullYear() - hireUtc.getUTCFullYear()) * 12 + (todayUtc.getUTCMonth() - hireUtc.getUTCMonth());
+    if (todayUtc.getUTCDate() < hireUtc.getUTCDate()) monthsWorked -= 1;
+    monthsWorked = Math.max(0, monthsWorked);
+
+    const yearsWorked = Math.floor(monthsWorked / 12);
+    const MAX_CYCLES = 2;
+    const acquiredCount = Math.min(yearsWorked, MAX_CYCLES);
+
+    if (acquiredCount < 1) {
+      const remainingMonths = Math.max(1, 12 - monthsWorked);
+      return NextResponse.json(
+        {
+          error: `Você ainda não completou 12 meses de empresa para ter direito a férias. Faltam aproximadamente ${remainingMonths} meses.`,
+        },
+        { status: 400 },
+      );
+    }
+
+    const allAcquisitionPeriods = await findAcquisitionPeriodsForUser(existing.userId);
+    const periodIndexById = new Map<string, number>(
+      allAcquisitionPeriods.map((p: { id: string }, i: number) => [p.id, i]),
+    );
+
+    const acquisitionPeriod = await findAcquisitionPeriodForRange(existing.userId, startDate, endDate);
+    if (!acquisitionPeriod) {
+      return NextResponse.json(
+        {
+          error:
+            "Período fora dos ciclos aquisitivos adquiridos. Só é permitido solicitar/alterar férias dentro do período aquisitivo atual (12 meses).",
+        },
+        { status: 400 },
+      );
+    }
+
+    const idx = periodIndexById.get(acquisitionPeriod.id);
+    if (idx === undefined || idx >= acquiredCount) {
+      return NextResponse.json(
+        { error: "Você ainda não adquiriu o período aquisitivo correspondente (completou os 12 meses)." },
+        { status: 400 },
+      );
+    }
+
+    const usedDays = acquisitionPeriod.usedDays;
+    const accruedDays = acquisitionPeriod.accruedDays;
+
+    // Pending days no mesmo período aquisitivo (exceto a própria solicitação que está sendo atualizada).
+    const pending = await prisma.vacationRequest.findMany({
+      where: {
+        userId: existing.userId,
+        status: { in: [...statusesAwaitingRH] },
+        id: { not: existing.id },
+        AND: [
+          { startDate: { lte: acquisitionPeriod.endDate } },
+          { endDate: { gte: acquisitionPeriod.startDate } },
+        ],
+      },
+      select: { startDate: true, endDate: true },
+    });
+
+    const pendingDays = pending.reduce(
+      (sum, r) =>
+        sum + overlapDaysInclusive(r.startDate, r.endDate, acquisitionPeriod.startDate, acquisitionPeriod.endDate),
+      0,
+    );
+
+    if (usedDays >= accruedDays) {
+      return NextResponse.json(
+        {
+          error:
+            "Seu período aquisitivo atual já foi totalmente consumido. Você só poderá solicitar/alterar novas férias após a aquisição do próximo período (12 meses).",
+        },
+        { status: 400 },
+      );
+    }
+
+    const requestedDays = daysBetweenInclusive(startDate, endDate);
+    const available = accruedDays - usedDays - pendingDays;
+    if (requestedDays > available) {
+      return NextResponse.json(
+        {
+          error: `Saldo insuficiente no período aquisitivo ${acquisitionPeriod.startDate.toISOString().slice(0, 10)}–${acquisitionPeriod.endDate.toISOString().slice(0, 10)}. Disponível: ${available} dias.`,
+        },
+        { status: 400 },
+      );
+    }
+
+  }
+
+  // Blackout check também para update (evita bypass do enforcement via alteração de datas).
+  const blackouts = await prisma.blackoutPeriod.findMany({
+    select: { startDate: true, endDate: true, reason: true, department: true },
+  });
+  const blackoutError = checkBlackoutPeriods(
+    startDate,
+    endDate,
+    blackouts.map((b) => ({
+      startDate: b.startDate,
+      endDate: b.endDate,
+      reason: b.reason,
+      department: b.department,
+    })),
+    owner?.department,
+  );
+  if (blackoutError) return NextResponse.json({ error: blackoutError }, { status: 400 });
+
   const overlapping = await prisma.vacationRequest.findFirst({
     where: {
-      userId: user.id,
+      userId: existing.userId,
       id: { not: existing.id },
       status: { in: [...ACTIVE_STATUSES] },
       AND: [

@@ -13,9 +13,11 @@ type UserRow = {
   registration: string;
   department: string | null;
   hireDate: Date | null;
+  team: string | null;
   managerId: string | null;
   manager: { id: string; name: string } | null;
   _count: { reports: number };
+  tookVacationInCurrentCycle: boolean | null;
 };
 
 type Manager = { id: string; name: string };
@@ -37,6 +39,8 @@ export function BackofficeClient({
     registration: string;
     role: "" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "RH";
     department: string;
+    hireDate: string; // yyyy-mm-dd
+    team: string;
     managerId: string;
   }>({
     name: "",
@@ -44,6 +48,8 @@ export function BackofficeClient({
     registration: "",
     role: "",
     department: "",
+    hireDate: "",
+    team: "",
     managerId: "",
   });
   const [search, setSearch] = useState("");
@@ -61,6 +67,7 @@ export function BackofficeClient({
           role: form.role,
           department: form.department ?? "",
           hireDate: form.hireDate ? new Date(form.hireDate).toISOString().slice(0, 10) : null,
+          team: form.team ?? "",
           managerId: form.managerId ?? null,
         }),
       });
@@ -86,6 +93,7 @@ export function BackofficeClient({
       role: u.role,
       department: u.department,
       hireDate: u.hireDate,
+      team: u.team,
       managerId: u.managerId,
     });
   }
@@ -185,6 +193,20 @@ export function BackofficeClient({
                 onChange={(e) => setCreateForm((f) => ({ ...f, department: e.target.value }))}
                 className="w-40 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
               />
+              <input
+                type="date"
+                aria-label="Data de admissão"
+                value={createForm.hireDate}
+                onChange={(e) => setCreateForm((f) => ({ ...f, hireDate: e.target.value }))}
+                className="w-40 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              />
+              <input
+                type="text"
+                placeholder="Time (opcional)"
+                value={createForm.team}
+                onChange={(e) => setCreateForm((f) => ({ ...f, team: e.target.value }))}
+                className="w-40 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              />
               <select
                 value={createForm.managerId}
                 onChange={(e) => setCreateForm((f) => ({ ...f, managerId: e.target.value }))}
@@ -221,6 +243,8 @@ export function BackofficeClient({
                   registration: "",
                   role: "",
                   department: "",
+                  hireDate: "",
+                  team: "",
                   managerId: "",
                 });
                 window.location.reload();
@@ -242,7 +266,9 @@ export function BackofficeClient({
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Matrícula</th>
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Papel</th>
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Departamento</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Time</th>
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Admissão</th>
+              <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Férias no ciclo</th>
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Coordenador/Gerente</th>
               <th scope="col" className="px-4 py-3 font-semibold text-[#1a1d23] dark:text-white">Ações</th>
             </tr>
@@ -311,6 +337,19 @@ export function BackofficeClient({
                 <td className="px-4 py-3">
                   {editingId === u.id ? (
                     <input
+                      value={form.team ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, team: e.target.value || null }))}
+                      placeholder="Ex: Squad A"
+                      aria-label="Time"
+                      className="w-32 rounded border border-[#e2e8f0] bg-white px-2 py-1.5 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+                    />
+                  ) : (
+                    u.team ?? "—"
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {editingId === u.id ? (
+                    <input
                       type="date"
                       value={form.hireDate ? new Date(form.hireDate).toISOString().slice(0, 10) : ""}
                       onChange={(e) => setForm((f) => ({ ...f, hireDate: e.target.value ? new Date(e.target.value) : null }))}
@@ -319,6 +358,15 @@ export function BackofficeClient({
                     />
                   ) : (
                     u.hireDate ? new Date(u.hireDate).toLocaleDateString("pt-BR") : "—"
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  {u.tookVacationInCurrentCycle === null ? (
+                    "—"
+                  ) : u.tookVacationInCurrentCycle ? (
+                    <span className="text-emerald-700 dark:text-emerald-300 font-semibold">Sim</span>
+                  ) : (
+                    <span className="text-slate-600 dark:text-slate-300 font-semibold">Não</span>
                   )}
                 </td>
                 <td className="px-4 py-3">

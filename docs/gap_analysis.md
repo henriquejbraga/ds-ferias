@@ -13,12 +13,7 @@ Esta lista foca o que falta para o sistema ser operavel em ambiente corporativo 
    - Reprocessamentos/retries/double-click podem somar `usedDays` mais de uma vez se nao houver condicao no update.
    - Recomendacao: fazer update condicional (ex.: somar apenas se `status` ainda nao mudou) e/ou registrar um marcador unico de consumo.
 
-3. **Enforcamento de regras baseado em AcquisitionPeriod (ainda nao ocorre)**
-   - As validacoes de bloqueio e calculo de saldo sao baseadas em `calculateVacationBalance` (statuses + aproximacao por janela de ciclos), e nao em `AcquisitionPeriod.usedDays`.
-   - Impacto: o sistema nao garante “bloquear quando o periodo aquisitivo atual esta totalmente usado” com rastreabilidade em banco.
-   - Evidencia: `lib/vacationRules.ts` (balance usa `APROVADO_RH` e pendentes) e `regras`/`validateCltPeriods` nao referencia `AcquisitionPeriod.usedDays`.
-
-4. **Seguranca da sessao quando `SESSION_SECRET` nao esta definido**
+3. **Seguranca da sessao quando `SESSION_SECRET` nao esta definido**
    - O sistema aceita cookie nao assinado quando `SESSION_SECRET` nao existe.
    - Impacto: falsificacao de sessão em ambiente real.
    - Recomendacao: assinatura obrigatoria em producao.
@@ -29,13 +24,13 @@ Esta lista foca o que falta para o sistema ser operavel em ambiente corporativo 
    - Ha checagens em `canApproveRequest`, mas a maquina de estados nao e centralizada num use case unico, e rotas como update/delete/approve implementam regras parcialmente.
    - Impacto: risco de regressao em transicoes ao evoluir status/modelo.
 
-2. **Update de pedido pendente nao revalida blackout nem limite de ciclo**
-   - `POST /api/vacation-requests/[id]/update` valida CLT apenas para um bloco (`validateCltPeriod`), mas nao aplica `checkBlackoutPeriods` nem valida teto de fracionamento/ciclo via `validateCltPeriods`.
-   - Impacto: permitir alteracoes que violam blackout ou extrapolam limite do ciclo.
+2. **Update de pedido pendente com enforcement limitado a cenarios com `hireDate`**
+   - `POST /api/vacation-requests/[id]/update` passou a checar blackout e limite via `AcquisitionPeriod.usedDays`, mas o enforcement do periodo aquisitivo so acontece quando o `hireDate` do solicitante esta presente.
+   - Impacto: em dados legados com `hireDate` ausente, pode haver bypass parcial.
 
 3. **Solicitacoes que cruzam limites de periodo aquisitivo podem nao ser vinculadas**
    - `findAcquisitionPeriodForRange` exige que uma `AcquisitionPeriod` cubra integralmente o intervalo do pedido.
-   - Impacto: aprovacoes RH podem nao incrementar `usedDays` e relatorios ficam incompletos.
+   - Impacto atual: para criacoes/updates recentes, esses casos sao bloqueados; ainda pode existir consistencia parcial em dados legados.
 
 4. **CSV em risco de formula injection (Excel)**
    - Relatorios CSV inserem nomes/emails diretamente nas celulas sem sanitizacao contra valores iniciando com `=`, `+`, `-`, `@`.

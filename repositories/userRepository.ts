@@ -63,6 +63,9 @@ export async function findAllEmployees() {
 }
 
 export async function findAllUsersForAdmin() {
+  const now = new Date();
+  const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
   return prisma.user.findMany({
     orderBy: [{ role: "asc" }, { name: "asc" }],
     select: {
@@ -73,11 +76,31 @@ export async function findAllUsersForAdmin() {
       registration: true,
       department: true,
       hireDate: true,
+      team: true,
       managerId: true,
       manager: { select: { id: true, name: true } },
       _count: { select: { reports: true } },
+      acquisitionPeriods: {
+        where: {
+          startDate: { lte: todayUtc },
+          endDate: { gte: todayUtc },
+        },
+        orderBy: { startDate: "desc" },
+        take: 1,
+        select: { usedDays: true },
+      },
     },
-  });
+  }).then((rows) =>
+    rows.map((u) => {
+      const usedDays = u.acquisitionPeriods?.[0]?.usedDays;
+      const hasHireDate = u.hireDate != null;
+      return {
+        ...u,
+        tookVacationInCurrentCycle:
+          usedDays === undefined ? (hasHireDate ? false : null) : usedDays > 0,
+      };
+    }),
+  );
 }
 
 export async function findManagersForAdmin() {

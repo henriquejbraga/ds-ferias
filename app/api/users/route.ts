@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser, hashNewUserPassword } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRoleLevel } from "@/lib/vacationRules";
+import { syncAcquisitionPeriodsForUser } from "@/repositories/acquisitionRepository";
 
 const ROLES = ["FUNCIONARIO", "COLABORADOR", "COORDENADOR", "GESTOR", "GERENTE", "RH"] as const;
 
@@ -19,9 +20,20 @@ export async function POST(request: Request) {
   const role = typeof body.role === "string" ? body.role.trim() : "";
   const department = body.department ? String(body.department) : null;
   const managerId = body.managerId ? String(body.managerId) : null;
+  const hireDateRaw = typeof body.hireDate === "string" ? body.hireDate.trim() : "";
+  const teamRaw = typeof body.team === "string" ? body.team.trim() : "";
+  const hireDate = hireDateRaw ? new Date(hireDateRaw) : null;
+  const team = teamRaw ? teamRaw : null;
 
-  if (!name || !email || !registration || !ROLES.includes(role as any)) {
-    return NextResponse.json({ error: "Nome, e-mail, matrícula e papel são obrigatórios." }, { status: 400 });
+  if (!name || !email || !registration || !ROLES.includes(role as any) || !hireDate) {
+    return NextResponse.json(
+      { error: "Nome, e-mail, matrícula, papel e data de admissão são obrigatórios." },
+      { status: 400 },
+    );
+  }
+
+  if (isNaN(hireDate.getTime())) {
+    return NextResponse.json({ error: "Data de admissão inválida." }, { status: 400 });
   }
 
   try {
@@ -35,10 +47,15 @@ export async function POST(request: Request) {
         role,
         department,
         managerId,
+        hireDate,
+        team,
         passwordHash: defaultPasswordHash,
       },
-      select: { id: true, name: true, email: true, role: true, department: true, registration: true, managerId: true },
+      select: { id: true, name: true, email: true, role: true, department: true, registration: true, managerId: true, hireDate: true, team: true },
     });
+
+    // Garante que AcquisitionPeriod existe para permitir "férias no ciclo" no Backoffice.
+    await syncAcquisitionPeriodsForUser(created.id, created.hireDate);
 
     return NextResponse.json(created, { status: 201 });
   } catch (err: any) {
@@ -67,6 +84,7 @@ export async function GET() {
       role: true,
       department: true,
       hireDate: true,
+      team: true,
       managerId: true,
       manager: { select: { id: true, name: true } },
       _count: { select: { reports: true } },
