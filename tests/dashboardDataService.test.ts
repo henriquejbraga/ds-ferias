@@ -5,6 +5,8 @@ const mockFindManagedRequests = vi.fn().mockResolvedValue([]);
 const mockFindBlackouts = vi.fn().mockResolvedValue([]);
 const mockFindUserWithBalance = vi.fn().mockResolvedValue(null);
 const mockFindUserDepartment = vi.fn().mockResolvedValue(null);
+const mockSyncAcquisitionPeriodsForUser = vi.fn().mockResolvedValue([]);
+const mockFindAcquisitionPeriodsForUser = vi.fn().mockResolvedValue([]);
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/repositories/vacationRepository", () => ({
@@ -18,6 +20,10 @@ vi.mock("@/repositories/userRepository", () => ({
   findUserWithBalance: (...args: unknown[]) => mockFindUserWithBalance(...args),
   findUserDepartment: (...args: unknown[]) => mockFindUserDepartment(...args),
 }));
+vi.mock("@/repositories/acquisitionRepository", () => ({
+  syncAcquisitionPeriodsForUser: (...args: unknown[]) => mockSyncAcquisitionPeriodsForUser(...args),
+  findAcquisitionPeriodsForUser: (...args: unknown[]) => mockFindAcquisitionPeriodsForUser(...args),
+}));
 if (!process.env.DATABASE_URL) process.env.DATABASE_URL = "postgresql://localhost:5432/test";
 
 import {
@@ -26,6 +32,7 @@ import {
   getDashboardData,
   getCurrentUserBalance,
   getCurrentUserDepartment,
+  getUserAcquisitionPeriods,
 } from "@/services/dashboardDataService";
 
 describe("getDashboardData", () => {
@@ -89,6 +96,29 @@ describe("getCurrentUserDepartment", () => {
   it("returns null when user has no department", async () => {
     mockFindUserDepartment.mockResolvedValueOnce(null);
     expect(await getCurrentUserDepartment("u1")).toBeNull();
+  });
+});
+
+describe("getUserAcquisitionPeriods", () => {
+  it("syncs acquisition periods and returns acquisition periods list", async () => {
+    const hireDate = new Date("2023-01-01T12:00:00Z");
+    mockFindUserWithBalance.mockResolvedValueOnce({ hireDate } as any);
+    mockSyncAcquisitionPeriodsForUser.mockResolvedValueOnce([]);
+    mockFindAcquisitionPeriodsForUser.mockResolvedValueOnce([{ id: "p1" }] as any);
+
+    const out = await getUserAcquisitionPeriods("u1");
+    expect(mockSyncAcquisitionPeriodsForUser).toHaveBeenCalledWith("u1", hireDate);
+    expect(out).toEqual([{ id: "p1" }]);
+  });
+
+  it("passes null hireDate when user is null", async () => {
+    mockFindUserWithBalance.mockResolvedValueOnce(null);
+    mockSyncAcquisitionPeriodsForUser.mockResolvedValueOnce([]);
+    mockFindAcquisitionPeriodsForUser.mockResolvedValueOnce([{ id: "p1" }] as any);
+
+    const out = await getUserAcquisitionPeriods("u1");
+    expect(mockSyncAcquisitionPeriodsForUser).toHaveBeenCalledWith("u1", null);
+    expect(out).toEqual([{ id: "p1" }]);
   });
 });
 
