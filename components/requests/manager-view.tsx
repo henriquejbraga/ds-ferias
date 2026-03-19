@@ -48,7 +48,7 @@ export function ManagerView({
     view === "historico"
       ? "No Histórico aparecem apenas solicitações já processadas (aprovadas ou reprovadas). Pedidos pendentes de aprovação aparecem na aba Caixa de Aprovação."
       : visibleCount === 0
-      ? "Nenhuma solicitação da sua equipe no momento. Se colaboradores deveriam aparecer aqui, verifique no Backoffice se eles têm você como Coordenador(a)/Gerente."
+      ? "Nenhuma solicitação da sua equipe no momento."
       : "Nenhuma solicitação encontrada com os filtros aplicados.";
 
   return (
