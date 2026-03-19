@@ -69,8 +69,10 @@ export function getVisibleRequests(
   userId: string,
   managedRequests: RequestWithVisibility[]
 ): RequestWithVisibility[] {
-  return managedRequests.filter((r) =>
-    hasTeamVisibility(role, userId, r as Parameters<typeof hasTeamVisibility>[2])
+  return managedRequests.filter(
+    (r) =>
+      r.userId !== userId &&
+      hasTeamVisibility(role, userId, r as Parameters<typeof hasTeamVisibility>[2])
   );
 }
 
@@ -83,7 +85,7 @@ export function getPendingCount(
     if (userRoleLevel === 3)
       return ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status);
     if (userRoleLevel === 4)
-      return ["APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"].includes(r.status);
+      return r.status === "PENDENTE";
     return false;
   }).length;
 }

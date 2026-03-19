@@ -19,7 +19,8 @@ function formatStatus(status: string): string {
 function formatNewStatus(status: string, changedByRole?: string): string {
   if (status !== "APROVADO_GERENTE") return formatStatus(status);
   if (changedByRole === "COORDENADOR" || changedByRole === "GESTOR") return "Aprovado coordenador";
-  if (changedByRole === "GERENTE" || changedByRole === "DIRETOR") return "Aprovado gerente";
+  if (changedByRole === "GERENTE") return "Aprovado gerente";
+  if (changedByRole === "DIRETOR") return "Aprovado diretor";
   return "Aprovado";
 }
 

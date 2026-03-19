@@ -55,12 +55,10 @@ export function filterRequests<T extends RequestForFilter>(
     if (filters.to && new Date(r.endDate) > new Date(filters.to)) return false;
     const userLevel = getRoleLevel(userRole);
     if (filters.view === "inbox") {
+      if (r.userId === userId) return false; // caixa de aprovação nunca mostra solicitação própria
       if (userLevel === 2 && r.status !== "PENDENTE") return false;
       if (userLevel === 3 && !["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status)) return false;
-      if (
-        userLevel >= 4 &&
-        !["APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"].includes(r.status)
-      ) {
+      if (userLevel >= 4 && r.status !== "PENDENTE") {
         return false;
       }
     } else if (filters.view === "historico") {

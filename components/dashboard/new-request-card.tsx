@@ -52,11 +52,11 @@ export function NewRequestCardClient({ canRequest = true, balance, userRole }: P
     { start: "", end: "" },
   ]);
 
+  const isBusinessDaysRole = userRole === "GERENTE" || userRole === "DIRETOR";
   const stats = calculatePeriodStats(periods);
   const [showOver30Dialog, setShowOver30Dialog] = useState(false);
   const [over30Days, setOver30Days] = useState(0);
   const [wasOver30, setWasOver30] = useState(false);
-  const isBusinessDaysRole = userRole === "GERENTE" || userRole === "DIRETOR";
   const MAX_DAYS_PER_REQUEST = isBusinessDaysRole ? 22 : 30;
   const existingDaysInCycle = balance ? balance.pendingDays + balance.usedDays : 0;
   const availableDays = balance?.availableDays ?? Math.max(0, MAX_DAYS_PER_REQUEST - existingDaysInCycle);

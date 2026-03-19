@@ -218,6 +218,14 @@ export function hasTeamVisibility(
     );
   }
 
+  // Diretor: vê reportes diretos (gerentes) e próprias solicitações.
+  if (ROLE_LEVEL[approverRole] === 4) {
+    return (
+      request.user.managerId === approverUserId ||
+      request.userId === approverUserId
+    );
+  }
+
   return false;
 }
 
@@ -253,8 +261,7 @@ export function calculateVacationBalance(
     const usedDays = calcUsedDays(approvedRequests, "APROVADO_GERENTE", currentYear);
     const pendingDays = calcUsedDays(approvedRequests, "PENDENTE", currentYear) +
       calcUsedDays(approvedRequests, "APROVADO_COORDENADOR", currentYear) +
-      calcUsedDays(approvedRequests, "APROVADO_GESTOR", currentYear) +
-      calcUsedDays(approvedRequests, "APROVADO_GERENTE", currentYear);
+      calcUsedDays(approvedRequests, "APROVADO_GESTOR", currentYear);
     return {
       entitledDays: 30,
       usedDays,
@@ -305,7 +312,7 @@ export function calculateVacationBalance(
   // Dias em aprovação (pendentes)
   const totalPending = approvedRequests
     .filter((r) =>
-      ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"].includes(r.status) &&
+      ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status) &&
       new Date(r.endDate) >= cutoff,
     )
     .reduce((sum, r) => sum + calcDays(r.startDate, r.endDate), 0);

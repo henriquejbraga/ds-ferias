@@ -103,12 +103,10 @@ export function filterRequestsByVisibilityAndView(
     if (filters.from && r.startDate < new Date(filters.from)) return false;
     if (filters.to && r.endDate > new Date(filters.to)) return false;
     if (view === "inbox") {
+      if (r.userId === userId) return false; // inbox é só para aprovar terceiros
       if (userLevel === 2 && r.status !== "PENDENTE") return false;
       if (userLevel === 3 && !["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status)) return false;
-      if (
-        userLevel >= 4 &&
-        !["APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"].includes(r.status)
-      ) {
+      if (userLevel >= 4 && r.status !== "PENDENTE") {
         return false;
       }
     } else if (view === "historico") {

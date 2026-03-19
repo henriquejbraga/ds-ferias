@@ -39,8 +39,11 @@ export function StatusBadge({
     if (approvedByRole === "COORDENADOR" || approvedByRole === "GESTOR") {
       return <StatusChip color="green" label="Aprovado Coordenador" />;
     }
-    if (approvedByRole === "GERENTE" || approvedByRole === "DIRETOR") {
+    if (approvedByRole === "GERENTE") {
       return <StatusChip color="green" label="Aprovado Gerente" />;
+    }
+    if (approvedByRole === "DIRETOR") {
+      return <StatusChip color="green" label="Aprovado Diretor" />;
     }
     return <StatusChip color="green" label="Aprovado" />;
   }
