@@ -64,7 +64,7 @@ Períodos em que a empresa não permite férias (blackout) são configurados pel
 2. **Variáveis de ambiente** — Crie `.env` (pode copiar de `.env.example`):
 
 ```bash
-DATABASE_URL="postgres://46e1670243cc5e3ec8a0280efcc062721ae0ffbdff72abac2804c212a1ff8c82:sk_9HxIdmu68RIN8mSKMYAyu@db.prisma.io:5432/postgres?sslmode=require"
+DATABASE_URL="postgresql://usuario:senha@host:porta/banco"
 # Recomendado: assina o cookie de sessão (mín. 16 caracteres)
 SESSION_SECRET="seu-secret-com-pelo-menos-16-caracteres"
 ```
