@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { canApproveRequest, getNextApprovalStatus, ROLE_LEVEL, detectTeamConflicts } from "@/lib/vacationRules";
+import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRule";
 import { notifyApproved } from "@/lib/notifications";
 import { isCuid } from "@/lib/validation";
 import { logger } from "@/lib/logger";
@@ -28,8 +29,8 @@ export async function POST(request: Request, { params }: Params) {
   }
   const user = await getSessionUser();
 
-  // Apenas COORDENADOR, GESTOR, GERENTE e RH podem aprovar
-  if (!user || ROLE_LEVEL[user.role] < 2) {
+  // Aprovação única: apenas líderes diretos (coordenador/gestor, gerente, diretor).
+  if (!user || ROLE_LEVEL[user.role] < 2 || ROLE_LEVEL[user.role] > 4) {
     return NextResponse.json({ error: "Sem permissão para aprovar solicitações." }, { status: 403 });
   }
 
@@ -45,6 +46,7 @@ export async function POST(request: Request, { params }: Params) {
           name: true,
           email: true,
           role: true,
+          createdAt: true,
           managerId: true,
           manager: { select: { managerId: true } },
         },
@@ -70,25 +72,19 @@ export async function POST(request: Request, { params }: Params) {
     );
   }
 
-  // Para COORDENADOR/GESTOR: só pode aprovar do seu time direto
-  if (ROLE_LEVEL[user.role] === 2) {
-    if (existing.user.managerId !== user.id) {
+  if (existing.user.managerId !== user.id) {
+    const canIndirect = await canIndirectLeaderActWhenDirectOnVacation({
+      approverId: user.id,
+      directLeaderId: existing.user.managerId,
+      directLeaderManagerId: existing.user.manager?.managerId ?? null,
+      requestCreatedAt: existing.createdAt,
+    });
+    if (!canIndirect) {
       return NextResponse.json(
-        { error: "Você só pode aprovar solicitações do seu time direto." },
-        { status: 403 },
-      );
-    }
-  }
-
-  // Para GERENTE: pode aprovar reportes diretos (coordenadores) e indiretos (funcionários dos coordenadores)
-  if (ROLE_LEVEL[user.role] === 3) {
-    const isDirectReport = existing.user.managerId === user.id;
-    const isIndirectReport = existing.user.manager?.managerId === user.id;
-    const isOwnRequest = existing.userId === user.id;
-
-    if (!isDirectReport && !isIndirectReport && !isOwnRequest) {
-      return NextResponse.json(
-        { error: "Você só pode aprovar solicitações da sua cadeia de equipe." },
+        {
+          error:
+            "Somente o líder direto pode aprovar. Líder indireto só pode aprovar quando o líder direto estava de férias no momento da solicitação.",
+        },
         { status: 403 },
       );
     }
@@ -170,7 +166,6 @@ export async function POST(request: Request, { params }: Params) {
             email: true,
             role: true,
             managerId: true,
-            manager: { select: { managerId: true } },
           },
         },
       },
@@ -191,7 +186,7 @@ export async function POST(request: Request, { params }: Params) {
 
     let periodId: string | undefined;
 
-    if (nextStatus === "APROVADO_RH") {
+    if (nextStatus === "APROVADO_GERENTE") {
       // FIFO: consome o período aquisitivo mais antigo que ainda tenha saldo disponível.
       // A data das férias NÃO precisa cair dentro do período — CLT permite usar dias
       // de ciclos anteriores em qualquer data futura.
@@ -208,7 +203,7 @@ export async function POST(request: Request, { params }: Params) {
       status: nextStatus,
       [noteField]: approvalNote,
     };
-    if (nextStatus === "APROVADO_RH" && periodId) {
+    if (nextStatus === "APROVADO_GERENTE" && periodId) {
       data.acquisitionPeriodId = periodId;
     }
 
@@ -238,7 +233,7 @@ export async function POST(request: Request, { params }: Params) {
       return;
     }
 
-    if (nextStatus === "APROVADO_RH" && periodId) {
+    if (nextStatus === "APROVADO_GERENTE" && periodId) {
       // Incremento atomicamente dentro da mesma transação.
       const period = await tx.acquisitionPeriod.findUnique({
         where: { id: periodId },

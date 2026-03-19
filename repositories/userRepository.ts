@@ -105,7 +105,7 @@ export async function findAllUsersForAdmin() {
 
 export async function findManagersForAdmin() {
   return prisma.user.findMany({
-    where: { role: { in: ["COORDENADOR", "GERENTE", "GESTOR"] } },
+    where: { role: { in: ["COORDENADOR", "GERENTE", "GESTOR", "DIRETOR"] } },
     select: { id: true, name: true },
     orderBy: { name: "asc" },
   });

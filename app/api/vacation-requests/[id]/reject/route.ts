@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: Params) {
   }
   const user = await getSessionUser();
 
-  if (!user || ROLE_LEVEL[user.role] < 2) {
+  if (!user || ROLE_LEVEL[user.role] < 2 || ROLE_LEVEL[user.role] > 4) {
     return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
   }
 
@@ -45,6 +45,13 @@ export async function POST(request: Request, { params }: Params) {
   if (!canAct) {
     return NextResponse.json(
       { error: "Você não tem permissão para reprovar esta solicitação." },
+      { status: 403 },
+    );
+  }
+
+  if (existing.user.managerId !== user.id) {
+    return NextResponse.json(
+      { error: "Somente o líder direto pode reprovar esta solicitação." },
       { status: 403 },
     );
   }

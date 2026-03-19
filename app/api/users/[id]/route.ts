@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getRoleLevel } from "@/lib/vacationRules";
 import type { UserUncheckedUpdateInput } from "@/generated/prisma/models/User";
 
-const ROLES = ["FUNCIONARIO", "COLABORADOR", "COORDENADOR", "GESTOR", "GERENTE", "RH"] as const;
+const ROLES = ["FUNCIONARIO", "COLABORADOR", "COORDENADOR", "GESTOR", "GERENTE", "DIRETOR", "RH"] as const;
 
 /** PATCH: atualiza usuário (apenas RH). */
 export async function PATCH(
@@ -13,7 +13,7 @@ export async function PATCH(
 ) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (getRoleLevel(user.role) < 4) {
+  if (getRoleLevel(user.role) < 5) {
     return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
   }
 

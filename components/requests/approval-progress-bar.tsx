@@ -6,7 +6,7 @@ export function ApprovalProgressBar({ request }: { request: RequestLike }) {
   const steps = getApprovalSteps(request.user?.role ?? "FUNCIONARIO");
   const progress = getApprovalProgress(request.status);
   const isRejected = request.status === "REPROVADO" || request.status === "CANCELADO";
-  const isCompleted = request.status === "APROVADO_RH";
+  const isCompleted = request.status === "APROVADO_GERENTE" || request.status === "APROVADO_RH";
   const nextApprover = getNextApprover(request.status, request.user?.role ?? "FUNCIONARIO");
 
   if (!steps.length) return null;

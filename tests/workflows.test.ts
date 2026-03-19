@@ -14,28 +14,28 @@ import {
  * usadas nas APIs e no dashboard se comportam de forma consistente.
  */
 
-describe("Workflow: approval chain (Coordenador/ Gerente → RH)", () => {
+describe("Workflow: approval chain (aprovação única do líder direto)", () => {
   it("PENDENTE can be approved by Coordenador or Gerente", () => {
     const request = { userId: "f1", status: "PENDENTE", user: { role: "FUNCIONARIO" } };
     expect(canApproveRequest("COORDENADOR", "c1", request)).toBe(true);
     expect(canApproveRequest("GERENTE", "g1", request)).toBe(true);
-    expect(canApproveRequest("RH", "r1", request)).toBe(true);
-    expect(getNextApprovalStatus("COORDENADOR")).toBe("APROVADO_COORDENADOR");
+    expect(canApproveRequest("RH", "r1", request)).toBe(true); // função base; rota bloqueia RH
+    expect(getNextApprovalStatus("COORDENADOR")).toBe("APROVADO_GERENTE");
   });
 
-  it("APROVADO_COORDENADOR can be approved by RH only (not Coordenador nem Gerente)", () => {
+  it("APROVADO_COORDENADOR é terminal no novo fluxo", () => {
     const request = { userId: "f1", status: "APROVADO_COORDENADOR", user: { role: "FUNCIONARIO" } };
     expect(canApproveRequest("COORDENADOR", "c1", request)).toBe(false);
     expect(canApproveRequest("GERENTE", "g1", request)).toBe(false);
-    expect(canApproveRequest("RH", "r1", request)).toBe(true);
-    expect(getNextApprovalStatus("RH")).toBe("APROVADO_RH");
+    expect(canApproveRequest("RH", "r1", request)).toBe(false);
+    expect(getNextApprovalStatus("GERENTE")).toBe("APROVADO_GERENTE");
   });
 
   it("approval progress matches chain", () => {
     expect(getApprovalProgress("PENDENTE")).toBe(0);
     expect(getApprovalProgress("APROVADO_COORDENADOR")).toBe(1);
     expect(getApprovalProgress("APROVADO_GERENTE")).toBe(1);
-    expect(getApprovalProgress("APROVADO_RH")).toBe(2);
+    expect(getApprovalProgress("APROVADO_RH")).toBe(1);
   });
 });
 

@@ -467,12 +467,12 @@ describe("userRepository", () => {
     );
   });
 
-  it("findManagersForAdmin chama prisma filtrando apenas coordenadores/gerentes/gestores", async () => {
+  it("findManagersForAdmin chama prisma filtrando coordenadores/gerentes/gestores/diretores", async () => {
     const { prisma } = await import("@/lib/prisma");
     await findManagersForAdmin();
     expect(prisma.user.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { role: { in: ["COORDENADOR", "GERENTE", "GESTOR"] } },
+        where: { role: { in: ["COORDENADOR", "GERENTE", "GESTOR", "DIRETOR"] } },
         select: { id: true, name: true },
       })
     );

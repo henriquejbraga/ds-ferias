@@ -35,7 +35,8 @@ export const ROLE_LEVEL: Record<string, number> = {
   GESTOR: 2,       // legado
   COORDENADOR: 2,
   GERENTE: 3,
-  RH: 4,
+  DIRETOR: 4,
+  RH: 5,
 };
 
 export const ROLE_LABEL: Record<string, string> = {
@@ -44,6 +45,7 @@ export const ROLE_LABEL: Record<string, string> = {
   GESTOR: "Coordenador(a)",
   COORDENADOR: "Coordenador(a)",
   GERENTE: "Gerente",
+  DIRETOR: "Diretor(a)",
   RH: "RH / Admin",
 };
 
@@ -53,6 +55,7 @@ export const ROLE_COLOR: Record<string, string> = {
   GESTOR: "indigo",
   COORDENADOR: "indigo",
   GERENTE: "purple",
+  DIRETOR: "violet",
   RH: "emerald",
 };
 
@@ -76,9 +79,8 @@ export function getRoleLabel(role: string): string {
  */
 export function getNextApprovalStatus(approverRole: string): string {
   const level = ROLE_LEVEL[approverRole] ?? 1;
-  if (level >= 4) return "APROVADO_RH";
-  // Primeira etapa única: Coordenador OU Gerente podem aprovar para APROVADO_COORDENADOR
-  return "APROVADO_COORDENADOR";
+  // Aprovação única por líder direto.
+  return level >= 2 ? "APROVADO_GERENTE" : "PENDENTE";
 }
 
 /**
@@ -116,18 +118,17 @@ export function canApproveRequest(
  * Retorna o nível mínimo necessário para aprovar uma solicitação
  * dado o status atual e o nível do solicitante.
  */
-function getRequiredApproverLevel(status: string, requesterLevel: number): number | null {
+function getRequiredApproverLevel(status: string, _requesterLevel: number): number | null {
   switch (status) {
     case "PENDENTE":
-      // Primeira etapa pode ser feita por Coordenador OU Gerente (nível 2+)
+      // Aprovação única por líder direto (nível 2+)
       return 2;
-    case "APROVADO_COORDENADOR":
+    case "APROVADO_COORDENADOR": // legado
     case "APROVADO_GESTOR": // legado
-    case "APROVADO_GERENTE": // legado
-      // Após primeira aprovação, apenas RH conclui
-      return 4;
+    case "APROVADO_GERENTE": // final atual
+      return null;
     default:
-      // Status terminal: APROVADO_RH, REPROVADO, CANCELADO
+      // Status terminal: APROVADO_RH (legado), REPROVADO, CANCELADO
       return null;
   }
 }
@@ -142,9 +143,10 @@ export function getNextApprover(status: string, requesterRole: string): string |
   if (requiredLevel === null) return null;
 
   const levelToLabel: Record<number, string> = {
-    2: "Coordenador(a)",
+    2: "Líder direto",
     3: "Gerente",
-    4: "RH",
+    4: "Diretor(a)",
+    5: "RH",
   };
 
   return levelToLabel[requiredLevel] ?? null;
@@ -157,9 +159,8 @@ export function getNextApprover(status: string, requesterRole: string): string |
 export function getApprovalSteps(requesterRole: string): string[] {
   const level = ROLE_LEVEL[requesterRole] ?? 1;
 
-  if (level >= 4) return []; // RH não precisa de aprovação de outros
-  // Para Funcionário/Colaborador, Coordenador ou Gerente: duas etapas visíveis
-  return ["Coordenador(a) / Gerente", "RH"];
+  if (level >= 2) return []; // Coordenador/Gestor/Gerente/Diretor/RH
+  return ["Líder direto"];
 }
 
 /**
@@ -169,12 +170,11 @@ export function getApprovalProgress(status: string): number {
   switch (status) {
     case "PENDENTE":
       return 0;
-    case "APROVADO_COORDENADOR":
-    case "APROVADO_GESTOR": // legado
-    case "APROVADO_GERENTE": // legado
-      return 1;
+    case "APROVADO_GERENTE":
     case "APROVADO_RH":
-      return 2;
+    case "APROVADO_COORDENADOR":
+    case "APROVADO_GESTOR":
+      return 1;
     default:
       return 0;
   }

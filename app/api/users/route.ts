@@ -4,12 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { getRoleLevel } from "@/lib/vacationRules";
 import { syncAcquisitionPeriodsForUser } from "@/repositories/acquisitionRepository";
 
-const ROLES = ["FUNCIONARIO", "COLABORADOR", "COORDENADOR", "GESTOR", "GERENTE", "RH"] as const;
+const ROLES = ["FUNCIONARIO", "COLABORADOR", "COORDENADOR", "GESTOR", "GERENTE", "DIRETOR", "RH"] as const;
 
 export async function POST(request: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (getRoleLevel(user.role) < 4) {
+  if (getRoleLevel(user.role) < 5) {
     return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
   }
 
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (getRoleLevel(user.role) < 4) {
+  if (getRoleLevel(user.role) < 5) {
     return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
   }
 

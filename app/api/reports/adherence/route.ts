@@ -7,7 +7,7 @@ import { findUsersWithVacationForBalance } from "@/repositories/userRepository";
 export async function GET(request: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (getRoleLevel(user.role) < 4) {
+  if (getRoleLevel(user.role) < 5) {
     return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
   }
 

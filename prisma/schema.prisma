@@ -13,10 +13,10 @@ datasource db {
 // ============================================================
 // HIERARQUIA DE CARGOS
 // ============================================================
-// FUNCIONARIO → aprovação por COORDENADOR → GERENTE → RH
-// COORDENADOR  → aprovação por GERENTE → RH
-// GERENTE      → aprovação por RH
-// RH           → aprovação por GERENTE (outro RH não se auto-aprova)
+// Funcionário(a) → aprovação única pelo líder direto
+// Coordenador(a) → aprovação única pelo líder direto (gerente)
+// Gerente        → aprovação única pelo líder direto (diretor)
+// Diretor(a)/RH  → sem aprovação no fluxo padrão
 // Aliases legados mantidos para compatibilidade de dados existentes
 // ============================================================
 enum Role {
@@ -25,13 +25,14 @@ enum Role {
   FUNCIONARIO
   COORDENADOR
   GERENTE
+  DIRETOR
   RH
 }
 
 // ============================================================
 // STATUS DO CICLO DE APROVAÇÃO
 // ============================================================
-// PENDENTE → APROVADO_COORDENADOR → APROVADO_GERENTE → APROVADO_RH
+// PENDENTE → APROVADO_GERENTE (etapas anteriores mantidas como legado)
 // Aliases legados mantidos para compatibilidade
 // ============================================================
 enum VacationStatus {

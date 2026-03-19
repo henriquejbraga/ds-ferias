@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { ROLE_LEVEL, hasTeamVisibility } from "@/lib/vacationRules";
+import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRule";
 import { isCuid } from "@/lib/validation";
 
 type Params = {
@@ -36,6 +37,7 @@ export async function POST(request: Request, { params }: Params) {
       user: {
         select: {
           id: true,
+          createdAt: true,
           managerId: true,
           manager: { select: { managerId: true } },
         },
@@ -80,7 +82,7 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   // Coordenador e Gerente só podem excluir solicitações da sua equipe; RH pode excluir qualquer
-  if (isApprover && !isOwner && ROLE_LEVEL[user.role] < 4) {
+  if (isApprover && !isOwner && ROLE_LEVEL[user.role] < 5) {
     const visible = hasTeamVisibility(user.role, user.id, {
       userId: existing.userId,
       user: {
@@ -91,6 +93,24 @@ export async function POST(request: Request, { params }: Params) {
     if (!visible) {
       return NextResponse.json(
         { error: "Você não tem permissão para excluir este pedido." },
+        { status: 403 },
+      );
+    }
+  }
+
+  if (isApprover && !isOwner && ROLE_LEVEL[user.role] < 5 && existing.user.managerId !== user.id) {
+    const canIndirect = await canIndirectLeaderActWhenDirectOnVacation({
+      approverId: user.id,
+      directLeaderId: existing.user.managerId,
+      directLeaderManagerId: existing.user.manager?.managerId ?? null,
+      requestCreatedAt: existing.createdAt,
+    });
+    if (!canIndirect) {
+      return NextResponse.json(
+        {
+          error:
+            "Somente o líder direto pode excluir. Líder indireto só pode excluir quando o líder direto estava de férias no momento da solicitação.",
+        },
         { status: 403 },
       );
     }

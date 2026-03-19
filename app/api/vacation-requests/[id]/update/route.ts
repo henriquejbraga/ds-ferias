@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { checkBlackoutPeriods, getRoleLevel, hasTeamVisibility, validateCltPeriod } from "@/lib/vacationRules";
+import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRule";
 import { isCuid } from "@/lib/validation";
 import {
   syncAcquisitionPeriodsForUser,
@@ -53,6 +54,7 @@ export async function POST(request: Request, { params }: Params) {
       user: {
         select: {
           id: true,
+          createdAt: true,
           managerId: true,
           manager: { select: { managerId: true } },
         },
@@ -73,7 +75,7 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   // Coordenador / Gerente só podem editar pedidos da sua cadeia de equipe; RH vê todos.
-  if (getRoleLevel(user.role) < 4) {
+  if (getRoleLevel(user.role) < 5) {
     const visible = hasTeamVisibility(user.role, user.id, {
       userId: existing.userId,
       user: {
@@ -84,6 +86,24 @@ export async function POST(request: Request, { params }: Params) {
     if (!visible) {
       return NextResponse.json(
         { error: "Você não tem permissão para alterar este pedido." },
+        { status: 403 },
+      );
+    }
+  }
+
+  if (getRoleLevel(user.role) < 5 && existing.user.managerId !== user.id) {
+    const canIndirect = await canIndirectLeaderActWhenDirectOnVacation({
+      approverId: user.id,
+      directLeaderId: existing.user.managerId,
+      directLeaderManagerId: existing.user.manager?.managerId ?? null,
+      requestCreatedAt: existing.createdAt,
+    });
+    if (!canIndirect) {
+      return NextResponse.json(
+        {
+          error:
+            "Somente o líder direto pode editar. Líder indireto só pode editar quando o líder direto estava de férias no momento da solicitação.",
+        },
         { status: 403 },
       );
     }

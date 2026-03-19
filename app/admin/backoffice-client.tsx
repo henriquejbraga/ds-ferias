@@ -37,7 +37,7 @@ export function BackofficeClient({
     name: string;
     email: string;
     registration: string;
-    role: "" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "RH";
+    role: "" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "DIRETOR" | "RH";
     department: string;
     hireDate: string; // yyyy-mm-dd
     team: string;
@@ -53,7 +53,7 @@ export function BackofficeClient({
     managerId: "",
   });
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "RH">("");
+  const [roleFilter, setRoleFilter] = useState<"" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "DIRETOR" | "RH">("");
 
   async function handleSave(id: string) {
     setSaving(true);
@@ -134,7 +134,7 @@ export function BackofficeClient({
           <select
             value={roleFilter}
             onChange={(e) =>
-              setRoleFilter((e.target.value || "") as "" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "RH")
+              setRoleFilter((e.target.value || "") as "" | "FUNCIONARIO" | "COORDENADOR" | "GERENTE" | "DIRETOR" | "RH")
             }
             aria-label="Filtrar por papel"
             className="w-40 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
@@ -143,6 +143,7 @@ export function BackofficeClient({
             <option value="FUNCIONARIO">Funcionário(a)</option>
             <option value="COORDENADOR">Coordenador(a)</option>
             <option value="GERENTE">Gerente</option>
+            <option value="DIRETOR">Diretor(a)</option>
             <option value="RH">RH</option>
           </select>
         </div>
@@ -184,6 +185,7 @@ export function BackofficeClient({
                 <option value="FUNCIONARIO">Funcionário(a)</option>
                 <option value="COORDENADOR">Coordenador(a)</option>
                 <option value="GERENTE">Gerente</option>
+                <option value="DIRETOR">Diretor(a)</option>
                 <option value="RH">RH</option>
               </select>
               <input
@@ -315,6 +317,7 @@ export function BackofficeClient({
                       <option value="FUNCIONARIO">Funcionário(a)</option>
                       <option value="COORDENADOR">Coordenador(a)</option>
                       <option value="GERENTE">Gerente</option>
+                      <option value="DIRETOR">Diretor(a)</option>
                       <option value="RH">RH</option>
                     </select>
                   ) : (

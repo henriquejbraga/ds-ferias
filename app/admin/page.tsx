@@ -8,7 +8,7 @@ import { BackofficeBackButton } from "./backoffice-back-button";
 export default async function AdminPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
-  if (getRoleLevel(user.role) < 4) redirect("/dashboard");
+  if (getRoleLevel(user.role) < 5) redirect("/dashboard");
 
   const [users, managers] = await Promise.all([
     findAllUsersForAdmin(),
