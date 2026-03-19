@@ -85,11 +85,6 @@ export async function POST(request: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
 
-  // Somente colaboradores (FUNCIONARIO/COLABORADOR) devem conseguir criar pedidos de férias.
-  if (user.role !== "FUNCIONARIO" && user.role !== "COLABORADOR") {
-    return NextResponse.json({ error: "Somente colaboradores podem criar solicitações." }, { status: 403 });
-  }
-
   if (!checkRateLimit(`vacation-post:${user.id}`, POST_REQUESTS_MAX_PER_MINUTE)) {
     return NextResponse.json(
       { error: "Muitas solicitações. Aguarde um momento antes de criar outra." },
