@@ -69,7 +69,14 @@ export function TimesViewRhTeamsList({
                         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
                           {team.coordinatorName.charAt(0).toUpperCase()}
                         </span>
-                        <h3 className="text-sm font-semibold text-[#1a1d23] dark:text-white">{team.teamName}</h3>
+                        <div className="min-w-0">
+                          <h3 className="truncate text-sm font-semibold text-[#1a1d23] dark:text-white">
+                            Gestor: {team.coordinatorName}
+                          </h3>
+                          <p className="truncate text-xs text-[#64748b] dark:text-slate-400">
+                            Time: {team.teamName}
+                          </p>
+                        </div>
                         <span className="ml-auto text-xs text-[#64748b] dark:text-slate-400">{team.members.length} colaborador(es)</span>
                       </button>
 

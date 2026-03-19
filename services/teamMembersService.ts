@@ -91,7 +91,16 @@ export async function getTeamMembersForTimes(
         });
       }
     }
-    return { kind: "coord", teams };
+    return {
+      kind: "rh",
+      gerentes: [
+        {
+          gerenteId: userId,
+          gerenteName: "Meu time (Gerente)",
+          teams,
+        },
+      ],
+    };
   }
 
   const users = await findAllEmployees();

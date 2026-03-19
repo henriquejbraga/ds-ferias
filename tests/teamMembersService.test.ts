@@ -63,7 +63,7 @@ describe("getTeamMembersForTimes", () => {
     expect(mockFindTeamMembersByManager).toHaveBeenCalledWith("coord-1");
   });
 
-  it("level 3 (gerente): returns coord structure with teams by coordenador", async () => {
+  it("level 3 (gerente): returns tree structure with gerente > coordenador > colaboradores", async () => {
     mockFindTeamMembersByGerente.mockResolvedValueOnce([
       {
         id: "u1",
@@ -87,10 +87,12 @@ describe("getTeamMembersForTimes", () => {
       },
     ]);
     const result = await getTeamMembersForTimes("ger-1", "GERENTE");
-    expect(result.kind).toBe("coord");
-    expect(result.teams.length).toBeGreaterThanOrEqual(1);
+    expect(result.kind).toBe("rh");
+    expect(result.gerentes.length).toBe(1);
+    expect(result.gerentes[0].gerenteId).toBe("ger-1");
+    expect(result.gerentes[0].teams.length).toBeGreaterThanOrEqual(1);
     // garante que o comparator do sort foi exercitado
-    expect(result.teams[0].members.map((m) => m.user.name)).toEqual(["Ana", "Zeca"]);
+    expect(result.gerentes[0].teams[0].members.map((m) => m.user.name)).toEqual(["Ana", "Zeca"]);
     expect(mockFindTeamMembersByGerente).toHaveBeenCalledWith("ger-1");
   });
 
