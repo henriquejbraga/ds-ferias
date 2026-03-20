@@ -59,10 +59,15 @@ export function NewRequestCardClient({ canRequest = true, balance, userRole }: P
   const [wasOver30, setWasOver30] = useState(false);
   const MAX_DAYS_PER_REQUEST = isBusinessDaysRole ? 22 : 30;
   const existingDaysInCycle = balance ? balance.pendingDays + balance.usedDays : 0;
+  const isPreEntitlement = !isBusinessDaysRole && (balance?.hasEntitlement === false);
   const availableDays = balance?.availableDays ?? Math.max(0, MAX_DAYS_PER_REQUEST - existingDaysInCycle);
   const maxDaysThisRequest = Math.min(Math.max(0, availableDays), MAX_DAYS_PER_REQUEST);
+  const effectiveMaxDaysThisRequest = isPreEntitlement ? MAX_DAYS_PER_REQUEST : maxDaysThisRequest;
   const selectedDays = isBusinessDaysRole ? stats.totalBusinessDays : stats.totalDays;
-  const totalOk = maxDaysThisRequest === 0 ? selectedDays === 0 : selectedDays > 0 && selectedDays <= maxDaysThisRequest;
+  const totalOk =
+    effectiveMaxDaysThisRequest === 0
+      ? selectedDays === 0
+      : selectedDays > 0 && selectedDays <= effectiveMaxDaysThisRequest;
   const hasPeriod14OrMore = stats.periods.some((p) => p.days >= 14);
   const needsPeriod14 = isBusinessDaysRole ? false : existingDaysInCycle < 14 && !hasPeriod14OrMore;
   const totalWithExisting = existingDaysInCycle + selectedDays;
@@ -206,8 +211,11 @@ export function NewRequestCardClient({ canRequest = true, balance, userRole }: P
               : existingDaysInCycle > 0
                 ? `Máximo de 3 períodos; total do ciclo 30 dias (você já tem ${existingDaysInCycle} no ciclo)`
                 : "Máximo de 3 períodos, totalizando 30 dias",
+            isPreEntitlement
+              ? "Pré-agendamento: permitido se o início das férias for após completar 12 meses de empresa"
+              : null,
           ].map((rule, i) => (
-            <li key={i}>{rule}</li>
+            rule ? <li key={i}>{rule}</li> : null
           ))}
         </ul>
       </section>

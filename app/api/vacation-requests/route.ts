@@ -54,6 +54,18 @@ function overlapBusinessDaysInclusive(start: Date, end: Date, rangeStart: Date, 
   return businessDaysBetweenInclusive(s, e);
 }
 
+function addMonthsUtc(date: Date, months: number): Date {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth();
+  const d = date.getUTCDate();
+  const tentative = new Date(Date.UTC(y, m + months, d));
+  if (tentative.getUTCDate() !== d) {
+    const lastDay = new Date(Date.UTC(y, m + months + 1, 0));
+    return lastDay;
+  }
+  return tentative;
+}
+
 function getCurrentCycleRange(today: Date, hireDate: Date | null | undefined) {
   const now = toUtcMidnight(today);
   if (!hireDate) {
@@ -239,65 +251,103 @@ export async function POST(request: Request) {
     const MAX_CYCLES = 2;
     const acquiredCount = Math.min(yearsWorked, MAX_CYCLES);
 
+    const firstEntitlementDate = addMonthsUtc(hireUtc, 12);
+
     if (acquiredCount < 1) {
-      const remainingMonths = Math.max(1, 12 - monthsWorked);
-      return NextResponse.json(
-        {
-          error: `Você ainda não completou 12 meses de empresa para ter direito a férias. Faltam aproximadamente ${remainingMonths} meses.`,
+      const invalidStart = periods.find((p) => toUtcMidnight(p.start) < firstEntitlementDate);
+      if (invalidStart) {
+        return NextResponse.json(
+          {
+            error: `Pré-agendamento permitido somente com início a partir de ${firstEntitlementDate.toLocaleDateString("pt-BR")}, quando você completa 12 meses de empresa.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      const pendingRequests = await prisma.vacationRequest.findMany({
+        where: {
+          userId: user.id,
+          status: { in: [...statusesAwaitingRH] },
+          startDate: { gte: firstEntitlementDate },
         },
-        { status: 400 },
+        select: { startDate: true, endDate: true },
+      });
+      const existingDaysInCycle = pendingRequests.reduce(
+        (sum, r) => sum + daysBetweenInclusive(r.startDate, r.endDate),
+        0,
       );
-    }
 
-    // Todos os períodos adquiridos (do mais antigo para o mais novo)
-    const allAcquisitionPeriods: Array<{ id: string; accruedDays: number; usedDays: number }> =
-      await findAcquisitionPeriodsForUser(user.id);
-    const acquiredPeriods = allAcquisitionPeriods.slice(0, acquiredCount);
+      const cltError = validateCltPeriods(periods, {
+        checkAdvanceNotice: true,
+        existingDaysInCycle,
+        entitledDays: 30,
+      });
+      if (cltError) return NextResponse.json({ error: cltError }, { status: 400 });
 
-    if (acquiredPeriods.length === 0) {
-      return NextResponse.json({ error: "Sem períodos aquisitivos disponíveis para este usuário." }, { status: 400 });
-    }
+      const totalRequestedDays = periods.reduce((sum, p) => sum + daysBetweenInclusive(p.start, p.end), 0);
+      const totalAvailable = Math.max(0, 30 - existingDaysInCycle);
+      if (totalRequestedDays > totalAvailable) {
+        return NextResponse.json(
+          {
+            error:
+              totalAvailable === 0
+                ? "Você já possui 30 dias pré-agendados para o primeiro ciclo aquisitivo."
+                : `Saldo insuficiente para pré-agendamento. Você tem ${totalAvailable} dia(s) disponível(is) no primeiro ciclo.`,
+          },
+          { status: 400 },
+        );
+      }
+    } else {
+      // Todos os períodos adquiridos (do mais antigo para o mais novo)
+      const allAcquisitionPeriods: Array<{ id: string; accruedDays: number; usedDays: number }> =
+        await findAcquisitionPeriodsForUser(user.id);
+      const acquiredPeriods = allAcquisitionPeriods.slice(0, acquiredCount);
 
-    // Saldo total adquirido e usado nos períodos efetivamente earned
-    const totalEntitled = acquiredPeriods.reduce((sum, p) => sum + p.accruedDays, 0);
-    const totalUsed = acquiredPeriods.reduce((sum, p) => sum + p.usedDays, 0);
+      if (acquiredPeriods.length === 0) {
+        return NextResponse.json({ error: "Sem períodos aquisitivos disponíveis para este usuário." }, { status: 400 });
+      }
 
-    // Dias em curso (pendentes de aprovação RH) — deduzidos do saldo total
-    const pendingRequests = await prisma.vacationRequest.findMany({
-      where: {
-        userId: user.id,
-        status: { in: [...statusesAwaitingRH] },
-      },
-      select: { startDate: true, endDate: true },
-    });
-    const totalPending = pendingRequests.reduce(
-      (sum, r) => sum + daysBetweenInclusive(r.startDate, r.endDate),
-      0,
-    );
+      // Saldo total adquirido e usado nos períodos efetivamente earned
+      const totalEntitled = acquiredPeriods.reduce((sum, p) => sum + p.accruedDays, 0);
+      const totalUsed = acquiredPeriods.reduce((sum, p) => sum + p.usedDays, 0);
 
-    const totalAvailable = Math.max(0, totalEntitled - totalUsed - totalPending);
-    const existingDaysInCycle = totalUsed + totalPending;
-
-    // Validação CLT (fracionamento, aviso prévio, etc.)
-    const cltError = validateCltPeriods(periods, {
-      checkAdvanceNotice: true,
-      existingDaysInCycle,
-      entitledDays: totalEntitled,
-    });
-    if (cltError) return NextResponse.json({ error: cltError }, { status: 400 });
-
-    // Saldo suficiente?
-    const totalRequestedDays = periods.reduce((sum, p) => sum + daysBetweenInclusive(p.start, p.end), 0);
-    if (totalRequestedDays > totalAvailable) {
-      return NextResponse.json(
-        {
-          error:
-            totalAvailable === 0
-              ? "Seu saldo de férias está zerado. Todos os dias adquiridos já foram usados ou estão pendentes de aprovação."
-              : `Saldo insuficiente. Você tem ${totalAvailable} dia(s) disponível(is) nos ciclos aquisitivos adquiridos.`,
+      // Dias em curso (pendentes de aprovação RH) — deduzidos do saldo total
+      const pendingRequests = await prisma.vacationRequest.findMany({
+        where: {
+          userId: user.id,
+          status: { in: [...statusesAwaitingRH] },
         },
-        { status: 400 },
+        select: { startDate: true, endDate: true },
+      });
+      const totalPending = pendingRequests.reduce(
+        (sum, r) => sum + daysBetweenInclusive(r.startDate, r.endDate),
+        0,
       );
+
+      const totalAvailable = Math.max(0, totalEntitled - totalUsed - totalPending);
+      const existingDaysInCycle = totalUsed + totalPending;
+
+      // Validação CLT (fracionamento, aviso prévio, etc.)
+      const cltError = validateCltPeriods(periods, {
+        checkAdvanceNotice: true,
+        existingDaysInCycle,
+        entitledDays: totalEntitled,
+      });
+      if (cltError) return NextResponse.json({ error: cltError }, { status: 400 });
+
+      // Saldo suficiente?
+      const totalRequestedDays = periods.reduce((sum, p) => sum + daysBetweenInclusive(p.start, p.end), 0);
+      if (totalRequestedDays > totalAvailable) {
+        return NextResponse.json(
+          {
+            error:
+              totalAvailable === 0
+                ? "Seu saldo de férias está zerado. Todos os dias adquiridos já foram usados ou estão pendentes de aprovação."
+                : `Saldo insuficiente. Você tem ${totalAvailable} dia(s) disponível(is) nos ciclos aquisitivos adquiridos.`,
+          },
+          { status: 400 },
+        );
+      }
     }
   } else {
     // Fallback: sem hireDate não conseguimos resolver períodos aquisitivos com fidelidade.

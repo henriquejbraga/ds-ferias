@@ -17,13 +17,7 @@ export async function GET(request: Request) {
   await Promise.all(
     users
       .filter((u) => !!u.hireDate)
-      .map((u) =>
-        syncAcquisitionPeriodsForUser({
-          userId: u.id,
-          hireDate: u.hireDate,
-          now: new Date(),
-        }),
-      ),
+      .map((u) => syncAcquisitionPeriodsForUser(u.id, u.hireDate)),
   );
 
   const { searchParams } = new URL(request.url);
