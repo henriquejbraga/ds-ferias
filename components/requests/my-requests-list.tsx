@@ -45,6 +45,7 @@ export function MyRequestsList({
   requests,
   balance,
   acquisitionPeriods,
+  firstEntitlementDate,
 }: {
   requests: RequestLike[];
   balance: VacationBalance;
@@ -55,7 +56,12 @@ export function MyRequestsList({
     accruedDays: number;
     usedDays: number;
   }>;
+  firstEntitlementDate?: Date | string | null;
 }) {
+  const entitlementLabel = firstEntitlementDate
+    ? new Date(firstEntitlementDate).toLocaleDateString("pt-BR")
+    : null;
+
   const today = new Date();
   const hasRequests = requests.length > 0;
   const upcoming = requests
@@ -115,9 +121,16 @@ export function MyRequestsList({
             })}
           </div>
         ) : (
-          <p className="mt-3 text-xs text-[#64748b] dark:text-slate-400">
-            Aguardando completar 12 meses para exibir os períodos aquisitivos.
-          </p>
+          <div className="mt-3 space-y-2">
+            <p className="text-xs text-[#64748b] dark:text-slate-400">
+              Aguardando completar 12 meses para exibir os períodos aquisitivos.
+            </p>
+            {balance.hasEntitlement === false && entitlementLabel && (
+              <p className="rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-900 dark:border-blue-800/40 dark:bg-blue-950/30 dark:text-blue-200">
+                Seu 1º período aquisitivo completa em {entitlementLabel}.
+              </p>
+            )}
+          </div>
         )}
       </section>
 

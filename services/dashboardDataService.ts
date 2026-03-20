@@ -75,6 +75,20 @@ export async function getCurrentUserBalance(userId: string) {
   );
 }
 
+function addMonthsPreservingDay(date: Date, months: number): Date {
+  const d = new Date(date);
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + months);
+  if (d.getDate() < day) d.setDate(0);
+  return d;
+}
+
+export async function getFirstEntitlementDate(userId: string): Promise<Date | null> {
+  const userFull = await findUserWithBalance(userId);
+  if (!userFull?.hireDate) return null;
+  return addMonthsPreservingDay(new Date(userFull.hireDate), 12);
+}
+
 export async function getUserAcquisitionPeriods(userId: string) {
   const userFull = await findUserWithBalance(userId);
   await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);

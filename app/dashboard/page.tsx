@@ -7,6 +7,7 @@ import {
   getCurrentUserBalance,
   getCurrentUserDepartment,
   getUserAcquisitionPeriods,
+  getFirstEntitlementDate,
   getVisibleRequests,
   getPendingCount,
 } from "@/services/dashboardDataService";
@@ -55,10 +56,11 @@ export default async function DashboardPage({
     status: statusFilter,
   });
 
-  const [balance, userDept, acquisitionPeriods] = await Promise.all([
+  const [balance, userDept, acquisitionPeriods, firstEntitlementDate] = await Promise.all([
     getCurrentUserBalance(user.id),
     getCurrentUserDepartment(user.id),
     getUserAcquisitionPeriods(user.id),
+    getFirstEntitlementDate(user.id),
   ]);
 
   const visibleRequests = getVisibleRequests(user.role, user.id, managedRequests);
@@ -152,6 +154,7 @@ export default async function DashboardPage({
                   requests={myRequests}
                   balance={balance}
                   acquisitionPeriods={acquisitionPeriods as any}
+                  firstEntitlementDate={firstEntitlementDate}
                 />
               )}
             </section>
@@ -172,7 +175,12 @@ export default async function DashboardPage({
                     </p>
                   </div>
                   <div className="min-w-0 p-5">
-                    <NewRequestCardClient canRequest balance={balance} userRole={user.role} />
+                    <NewRequestCardClient
+                      canRequest
+                      balance={balance}
+                      userRole={user.role}
+                      firstEntitlementDate={firstEntitlementDate}
+                    />
                   </div>
                 </div>
               )}

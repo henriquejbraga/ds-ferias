@@ -14,6 +14,7 @@ type Props = {
   /** Saldo completo do ciclo (entitledDays, availableDays, pendingDays, usedDays). Deve vir do dashboard. */
   balance?: VacationBalance | null;
   userRole?: string;
+  firstEntitlementDate?: Date | string | null;
 };
 
 type Period = {
@@ -38,7 +39,7 @@ function parseYmdLocal(value: string): Date | undefined {
   return new Date(year, month - 1, day);
 }
 
-export function NewRequestCardClient({ canRequest = true, balance, userRole }: Props) {
+export function NewRequestCardClient({ canRequest = true, balance, userRole, firstEntitlementDate }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [submitting, setSubmitting] = useState(false);
@@ -60,6 +61,9 @@ export function NewRequestCardClient({ canRequest = true, balance, userRole }: P
   const MAX_DAYS_PER_REQUEST = isBusinessDaysRole ? 22 : 30;
   const existingDaysInCycle = balance ? balance.pendingDays + balance.usedDays : 0;
   const isPreEntitlement = !isBusinessDaysRole && (balance?.hasEntitlement === false);
+  const entitlementLabel = firstEntitlementDate
+    ? new Date(firstEntitlementDate).toLocaleDateString("pt-BR")
+    : null;
   const availableDays = balance?.availableDays ?? Math.max(0, MAX_DAYS_PER_REQUEST - existingDaysInCycle);
   const maxDaysThisRequest = Math.min(Math.max(0, availableDays), MAX_DAYS_PER_REQUEST);
   const effectiveMaxDaysThisRequest = isPreEntitlement ? MAX_DAYS_PER_REQUEST : maxDaysThisRequest;
@@ -218,6 +222,11 @@ export function NewRequestCardClient({ canRequest = true, balance, userRole }: P
             rule ? <li key={i}>{rule}</li> : null
           ))}
         </ul>
+        {isPreEntitlement && entitlementLabel && (
+          <p className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 dark:border-blue-800/40 dark:bg-blue-950/30 dark:text-blue-200">
+            Seu 1º período aquisitivo completa em {entitlementLabel}. Você pode solicitar agora, mas o início das férias deve ser a partir dessa data.
+          </p>
+        )}
       </section>
 
       {/* PERÍODOS */}
