@@ -16,8 +16,8 @@ type Props = {
 
 const STATUS_COLOR: Record<string, string> = {
   PENDENTE: "bg-amber-200 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200",
-  APROVADO_COORDENADOR: "bg-blue-200 text-blue-900 dark:bg-blue-900/60 dark:text-blue-200",
-  APROVADO_GERENTE: "bg-indigo-200 text-indigo-900 dark:bg-indigo-900/60 dark:text-indigo-200",
+  APROVADO_COORDENADOR: "bg-emerald-200 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200",
+  APROVADO_GERENTE: "bg-emerald-200 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200",
   REPROVADO: "bg-red-200 text-red-900 dark:bg-red-900/60 dark:text-red-200",
   CANCELADO: "bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-200",
 };

@@ -96,7 +96,7 @@ export async function getTeamMembersForTimes(
       gerentes: [
         {
           gerenteId: userId,
-          gerenteName: "Meu time (Gerente)",
+          gerenteName: "Minha gestão",
           teams,
         },
       ],

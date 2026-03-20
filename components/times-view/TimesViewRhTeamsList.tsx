@@ -34,6 +34,8 @@ export function TimesViewRhTeamsList({
         const gerenteKey = `gerente-${g.gerenteId}`;
         const gerenteOpen = expanded[gerenteKey] !== false;
         const totalMembers = g.teams.reduce((s, t) => s + t.members.length, 0);
+        const coordinatorCount = new Set(g.teams.map((t) => t.coordinatorId)).size;
+        const totalPeople = totalMembers + coordinatorCount;
 
         return (
           <div key={g.gerenteId} className="space-y-0">
@@ -49,9 +51,9 @@ export function TimesViewRhTeamsList({
                 {g.gerenteName.charAt(0).toUpperCase()}
               </span>
               <div>
-                <h2 className="text-lg font-semibold text-[#1a1d23] dark:text-white">Gerente: {g.gerenteName}</h2>
+                <h2 className="text-lg font-semibold text-[#1a1d23] dark:text-white">{g.gerenteName}</h2>
                 <p className="text-sm text-[#64748b] dark:text-slate-400">
-                  {g.teams.length} time(s) · {totalMembers} colaborador(es)
+                  {g.teams.length} time(s) · {totalMembers} colaborador(es) + {coordinatorCount} coordenador(es) ({totalPeople} pessoas)
                 </p>
               </div>
             </button>
@@ -77,13 +79,15 @@ export function TimesViewRhTeamsList({
                         </span>
                         <div className="min-w-0">
                           <h3 className="truncate text-sm font-semibold text-[#1a1d23] dark:text-white">
-                            Gestor: {team.coordinatorName}
+                            Coordenador: {team.coordinatorName}
                           </h3>
                           <p className="truncate text-xs text-[#64748b] dark:text-slate-400">
                             Time: {team.teamName}
                           </p>
                         </div>
-                        <span className="ml-auto text-xs text-[#64748b] dark:text-slate-400">{team.members.length} colaborador(es)</span>
+                        <span className="ml-auto text-xs text-[#64748b] dark:text-slate-400">
+                          {team.members.length} colaborador(es) + 1 coordenador
+                        </span>
                       </button>
 
                       {teamOpen && (

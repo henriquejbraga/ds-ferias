@@ -44,7 +44,7 @@ export function SidebarBalance({ balance, userRole }: { balance: VacationBalance
       </p>
       <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#e2e8f0] dark:bg-[#252a35]">
         <div className="flex h-full">
-          <div className="bg-blue-500 transition-all" style={{ width: `${usedPct}%` }} />
+          <div className="bg-slate-500 transition-all dark:bg-slate-400" style={{ width: `${usedPct}%` }} />
           <div className="bg-amber-400 transition-all" style={{ width: `${pendingPct}%` }} />
         </div>
       </div>
@@ -56,7 +56,7 @@ export function SidebarBalance({ balance, userRole }: { balance: VacationBalance
       </p>
       <div className="mt-3 grid grid-cols-3 gap-2 text-center">
         <div>
-          <p className="text-base font-bold text-blue-600 dark:text-blue-400">{normalizedUsed}</p>
+          <p className="text-base font-bold text-slate-600 dark:text-slate-300">{normalizedUsed}</p>
           <p className="mt-0.5 text-xs font-medium text-[#64748b] dark:text-slate-400">Usados</p>
         </div>
         <div>
