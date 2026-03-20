@@ -1,4 +1,4 @@
-import { canApproveRequest } from "@/lib/vacationRules";
+import { canApproveRequest, getRoleLevel } from "@/lib/vacationRules";
 import { StatusBadge, RoleChip } from "@/components/requests/status-badge";
 import { ApprovalProgressBar } from "@/components/requests/approval-progress-bar";
 import { HistorySection } from "@/components/requests/history-section";
@@ -67,6 +67,8 @@ export function RequestCard({
     !!userId && !!request.user?.managerId && request.user.managerId !== userId;
   const progressStepLabel =
     !isOwner && isIndirectApproverContext ? "Líder indireto" : undefined;
+  const shouldShowFallbackApprovalStep =
+    !isOwner && !!userRole && getRoleLevel(userRole) >= 3 && request.status === "PENDENTE";
   const start = new Date(request.startDate);
   const end = new Date(request.endDate);
   const approvalEntry =
@@ -166,7 +168,11 @@ export function RequestCard({
         )}
 
         {request.user && (
-          <ApprovalProgressBar request={request} stepLabelOverride={progressStepLabel} />
+          <ApprovalProgressBar
+            request={request}
+            stepLabelOverride={progressStepLabel}
+            fallbackStepLabel={shouldShowFallbackApprovalStep ? (progressStepLabel ?? "Líder direto") : undefined}
+          />
         )}
 
         {request.history?.length ? <HistorySection history={request.history as Parameters<typeof HistorySection>[0]["history"]} /> : null}

@@ -5,22 +5,25 @@ type RequestLike = { status: string; user?: { role?: string } | null };
 export function ApprovalProgressBar({
   request,
   stepLabelOverride,
+  fallbackStepLabel,
 }: {
   request: RequestLike;
   stepLabelOverride?: string;
+  fallbackStepLabel?: string;
 }) {
   const steps = getApprovalSteps(request.user?.role ?? "FUNCIONARIO");
+  const stepsToRender = steps.length > 0 ? steps : fallbackStepLabel ? [fallbackStepLabel] : [];
   const progress = getApprovalProgress(request.status);
   const isRejected = request.status === "REPROVADO" || request.status === "CANCELADO";
   const isCompleted = request.status === "APROVADO_GERENTE";
   const nextApprover = getNextApprover(request.status, request.user?.role ?? "FUNCIONARIO");
 
-  if (!steps.length) return null;
+  if (!stepsToRender.length) return null;
 
   return (
     <div className="mt-3 rounded-md bg-[#f5f6f8] px-3 py-2.5 dark:bg-[#0f1117]">
       <div className="flex items-center gap-1">
-        {steps.map((step, i) => (
+        {stepsToRender.map((step, i) => (
           <div key={i} className="flex flex-1 items-center">
             <div
               className={`h-1.5 flex-1 rounded-full transition-all ${
@@ -33,12 +36,12 @@ export function ApprovalProgressBar({
                   : "bg-[#e2e8f0] dark:bg-[#252a35]"
               }`}
             />
-            {i < steps.length - 1 && <div className="mx-0.5" />}
+            {i < stepsToRender.length - 1 && <div className="mx-0.5" />}
           </div>
         ))}
       </div>
       <div className="mt-1.5 flex items-start gap-1">
-        {steps.map((step, i) => (
+        {stepsToRender.map((step, i) => (
           <div key={i} className="flex flex-1 items-start">
             <span
               className={`block w-full text-center text-xs leading-tight ${
