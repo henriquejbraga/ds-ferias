@@ -193,7 +193,7 @@ describe("filterRequests", () => {
   it("RH with managerId=ALL does not exclude", () => {
     const reqWithManager = {
       ...baseReq,
-      status: "APROVADO_COORDENADOR",
+      status: "PENDENTE",
       user: { ...baseReq.user!, manager: { id: "ger-2", managerId: null } },
     };
     const out = filterRequests("RH", "rh-1", [reqWithManager], {
@@ -208,8 +208,8 @@ describe("filterRequests", () => {
     expect(out).toHaveLength(1);
   });
 
-  it("RH inbox includes APROVADO_COORDENADOR (pendente RH)", () => {
-    const out = filterRequests("RH", "rh-1", [{ ...baseReq, status: "APROVADO_COORDENADOR" }], {
+  it("RH inbox includes only PENDENTE", () => {
+    const out = filterRequests("RH", "rh-1", [{ ...baseReq, status: "PENDENTE" }], {
       view: "inbox",
       query: "",
       status: "TODOS",
@@ -221,8 +221,8 @@ describe("filterRequests", () => {
     expect(out).toHaveLength(1);
   });
 
-  it("RH inbox excludes non-awaited statuses (e.g. PENDENTE)", () => {
-    const out = filterRequests("RH", "rh-1", [{ ...baseReq, status: "PENDENTE" }], {
+  it("RH inbox excludes non-awaited statuses (e.g. APROVADO_COORDENADOR)", () => {
+    const out = filterRequests("RH", "rh-1", [{ ...baseReq, status: "APROVADO_COORDENADOR" }], {
       view: "inbox",
       query: "",
       status: "TODOS",

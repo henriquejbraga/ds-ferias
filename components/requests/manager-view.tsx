@@ -62,7 +62,7 @@ export function ManagerView({
       />
       <div className="flex flex-wrap items-center justify-end gap-3">
         <ExportButton href={`/api/vacation-requests/export?${buildExportQuery(filters)}`} />
-        {userLevel >= 4 && (
+        {userLevel >= 5 && (
           <>
             <a
               href="/api/reports/balance"

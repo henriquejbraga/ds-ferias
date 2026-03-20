@@ -42,7 +42,7 @@ export async function GET() {
     ].join(";");
   });
 
-  const csv = [header, ...lines].join("\n");
+  const csv = `\uFEFF${[header, ...lines].join("\n")}`;
   const filename = `relatorio-saldo-ferias-${new Date().toISOString().slice(0, 10)}.csv`;
 
   return new Response(csv, {

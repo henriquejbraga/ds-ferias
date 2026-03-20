@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
 import { getRoleLevel } from "@/lib/vacationRules";
+import { findUsersWithVacationForBalance } from "@/repositories/userRepository";
+import { syncAcquisitionPeriodsForUser } from "@/repositories/acquisitionRepository";
 
 export async function GET(request: Request) {
   const user = await getSessionUser();
@@ -9,6 +11,20 @@ export async function GET(request: Request) {
   if (getRoleLevel(user.role) < 5) {
     return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
   }
+
+  // Garante que os períodos aquisitivos estejam atualizados antes do CSV.
+  const users = await findUsersWithVacationForBalance();
+  await Promise.all(
+    users
+      .filter((u) => !!u.hireDate)
+      .map((u) =>
+        syncAcquisitionPeriodsForUser({
+          userId: u.id,
+          hireDate: u.hireDate,
+          now: new Date(),
+        }),
+      ),
+  );
 
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get("year");
@@ -68,7 +84,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const csv = lines.join("\n");
+  const csv = `\uFEFF${lines.join("\n")}`;
   const filename = `relatorio-periodos-aquisitivos-${year}.csv`;
 
   return new Response(csv, {

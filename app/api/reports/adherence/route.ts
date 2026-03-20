@@ -62,7 +62,7 @@ export async function GET(request: Request) {
     ].join(";"));
   }
 
-  const csv = lines.join("\n");
+  const csv = `\uFEFF${lines.join("\n")}`;
   const filename = `relatorio-adesao-ferias-${year}.csv`;
 
   return new Response(csv, {

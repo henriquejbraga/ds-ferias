@@ -77,7 +77,6 @@ export async function GET(request: Request) {
       "",
       "",
       "",
-      "",
     ].join(";"));
 
     // Linhas de histórico
@@ -106,7 +105,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const csv = lines.join("\n");
+  const csv = `\uFEFF${lines.join("\n")}`;
   const filename = `relatorio-ferias-${new Date().toISOString().slice(0, 10)}.csv`;
   logger.info("Export CSV concluído", { userId: user.id, count: filtered.length });
 

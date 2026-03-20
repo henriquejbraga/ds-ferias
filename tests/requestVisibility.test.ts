@@ -125,7 +125,7 @@ describe("filterRequestsByVisibilityAndView", () => {
   it("RH with managerId filter", () => {
     const reqWithManager = {
       ...baseRequest,
-      status: "APROVADO_GERENTE",
+      status: "PENDENTE",
       user: { ...baseRequest.user!, manager: { id: "ger-1", managerId: null } },
     };
     const list = filterRequestsByVisibilityAndView(
@@ -167,7 +167,7 @@ describe("filterRequestsByVisibilityAndView", () => {
     expect(list).toHaveLength(0);
   });
 
-  it("RH inbox sees approvals pendentes para RH (APROVADO_COORDENADOR / GERENTE)", () => {
+  it("RH inbox sees only PENDENTE", () => {
     const requests = [
       { ...baseRequest, status: "APROVADO_COORDENADOR" as const },
       { ...baseRequest, status: "APROVADO_GERENTE" as const },
@@ -177,8 +177,8 @@ describe("filterRequestsByVisibilityAndView", () => {
     const list = filterRequestsByVisibilityAndView("RH", "rh-1", requests, { view: "inbox" });
     const statuses = list.map((r) => r.status);
 
-    expect(statuses).toContain("APROVADO_COORDENADOR");
-    expect(statuses).toContain("APROVADO_GERENTE");
-    expect(statuses).not.toContain("PENDENTE");
+    expect(statuses).toContain("PENDENTE");
+    expect(statuses).not.toContain("APROVADO_COORDENADOR");
+    expect(statuses).not.toContain("APROVADO_GERENTE");
   });
 });
