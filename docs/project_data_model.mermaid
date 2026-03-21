@@ -1,0 +1,76 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+erDiagram
+    direction LR
+    User {
+        string id PK ""
+        string name ""
+        string email UK ""
+        string passwordHash ""
+        enum role ""
+        string registration UK ""
+        string department ""
+        date hireDate ""
+        string team ""
+        string managerId FK ""
+        datetime createdAt ""
+        datetime updatedAt ""
+    }
+
+    VacationRequest {
+        string id PK ""
+        string userId FK ""
+        string acquisitionPeriodId FK ""
+        date startDate ""
+        date endDate ""
+        boolean abono ""
+        boolean thirteenth ""
+        enum status ""
+        string notes ""
+        string managerNote ""
+        string hrNote ""
+        datetime createdAt ""
+        datetime updatedAt ""
+    }
+
+    VacationRequestHistory {
+        string id PK ""
+        string vacationRequestId FK ""
+        enum previousStatus ""
+        enum newStatus ""
+        string changedByUserId FK ""
+        string note ""
+        datetime changedAt ""
+    }
+
+    BlackoutPeriod {
+        string id PK ""
+        date startDate ""
+        date endDate ""
+        string reason ""
+        string department ""
+        string createdById FK ""
+        datetime createdAt ""
+    }
+
+    AcquisitionPeriod {
+        string id PK ""
+        string userId FK ""
+        date startDate ""
+        date endDate ""
+        int accruedDays ""
+        int usedDays ""
+        datetime createdAt ""
+        datetime updatedAt ""
+    }
+
+    User o|--o{ User : reports
+    User ||--o{ VacationRequest : vacationRequests
+    User ||--o{ VacationRequestHistory : historyEntries
+    User ||--o{ BlackoutPeriod : blackoutPeriods
+    User ||--o{ AcquisitionPeriod : acquisitionPeriods
+    AcquisitionPeriod o|--o{ VacationRequest : acquisitionPeriod
+    VacationRequest ||--o{ VacationRequestHistory : history

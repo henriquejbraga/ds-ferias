@@ -1,0 +1,55 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart TB
+    subgraph Routes["app/api/login | logout | health | vacation-balance"]
+        Login["POST /api/login"]
+        Logout["POST /api/logout"]
+        Health["GET /api/health"]
+        Balance["GET /api/vacation-balance"]
+    end
+
+    subgraph AuthFlow["lib/auth.ts + lib/rateLimit.ts"]
+        ClientId["getClientId(request)"]
+        Limit["checkRateLimit(login:clientId)"]
+        ParseLogin["request.json()"]
+        Verify["verifyCredentials(email, password)"]
+        Crypto["hashPassword() + HMAC SHA-256"]
+        SessionSet["createSession()<br/>cookies().set(ds-ferias-session)"]
+        SessionGet["getSessionUser()<br/>cookies().get(ds-ferias-session)"]
+        SessionDel["destroySession()<br/>cookies().delete(ds-ferias-session)"]
+    end
+
+    subgraph DataDeps["dados"]
+        UserQ["prisma.user.findUnique({ email })"]
+        DbPing["prisma.$queryRaw`SELECT 1`"]
+        BalanceUser["findUserWithBalance(session.id)"]
+        BalanceCalc["calculateVacationBalance(hireDate, vacationRequests)"]
+    end
+
+    subgraph Responses["respostas"]
+        LoginResp["NextResponse.json({ ok: true })"]
+        LogoutMode{"content-type inclui JSON?"}
+        LogoutJson["NextResponse.json({ ok: true })"]
+        LogoutRedirect["NextResponse.redirect(/login)"]
+        HealthOk["200 { status: ok }"]
+        HealthFail["503 { status: error }"]
+        BalanceResp["NextResponse.json({ balance })"]
+    end
+
+    Login --> ClientId --> Limit --> ParseLogin --> Verify
+    Verify --> UserQ
+    Verify --> Crypto
+    Verify --> SessionSet --> LoginResp
+
+    Logout --> SessionDel --> LogoutMode
+    LogoutMode -->|sim| LogoutJson
+    LogoutMode -->|nao| LogoutRedirect
+
+    Health --> DbPing
+    DbPing -->|ok| HealthOk
+    DbPing -->|erro| HealthFail
+
+    Balance --> SessionGet --> BalanceUser --> BalanceCalc --> BalanceResp

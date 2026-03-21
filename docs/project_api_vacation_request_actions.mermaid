@@ -1,0 +1,78 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart TB
+    subgraph ActionApi["app/api/vacation-requests/[id]/*"]
+        Approve["POST /approve"]
+        Reject["POST /reject"]
+        Update["POST /update"]
+        Delete["POST /delete"]
+    end
+
+    subgraph Shared["comum"]
+        Session["getSessionUser()"]
+        LoadReq["prisma.vacationRequest.findUnique()<br/>include user + manager chain"]
+        Visibility["hasTeamVisibility()"]
+        Indirect["canIndirectLeaderActWhenDirectOnVacation()"]
+        Tx["prisma.$transaction()"]
+    end
+
+    subgraph ApproveFlow["approve"]
+        CanApprove["ROLE_LEVEL 2..4<br/>+ canApproveRequest()"]
+        DirectRule["se nao for lider direto,<br/>canIndirectLeaderActWhenDirectOnVacation()"]
+        Conflict["prisma.user.findMany()<br/>+ detectTeamConflicts()"]
+        Confirm{"confirmConflict?"}
+        Next["getNextApprovalStatus()"]
+        Period["find oldest AcquisitionPeriod com saldo"]
+        IncUsed["increment AcquisitionPeriod.usedDays"]
+        HistA["create VacationRequestHistory"]
+        NotifyA["notifyApproved()"]
+    end
+
+    subgraph RejectFlow["reject"]
+        CanReject["ROLE_LEVEL 2..4<br/>+ canApproveRequest()"]
+        DirectOnly["existing.user.managerId === user.id"]
+        SetRejected["update status=REPROVADO<br/>+ history.create(...)"]
+        NotifyR["notifyRejected()"]
+    end
+
+    subgraph UpdateFlow["update"]
+        UpdateGuard["getRoleLevel() >= 2<br/>e request.userId !== user.id"]
+        TeamScope["se role < 5,<br/>hasTeamVisibility()"]
+        IndirectU["se nao for lider direto,<br/>canIndirectLeaderActWhenDirectOnVacation()"]
+        PendingOnly["existing.status === PENDENTE"]
+        Dates["request.json() | formData()"]
+        CltUpdate["validateCltPeriod()"]
+        Owner["buscar owner(hireDate, department, role)"]
+        CycleLimit["se owner.role = GERENTE/DIRETOR,<br/>limite 22 dias uteis por ciclo"]
+        SyncUpdate["syncAcquisitionPeriodsForUser()"]
+        Range["findAcquisitionPeriodsForUser()<br/>+ findAcquisitionPeriodForRange()"]
+        Available["validar acquiredCount e saldo"]
+        BlackoutU["checkBlackoutPeriods()"]
+        OverlapU["prisma.vacationRequest.findFirst()<br/>ACTIVE_STATUSES"]
+        SaveDates["update startDate/endDate"]
+    end
+
+    subgraph DeleteFlow["delete"]
+        OwnerOrApprover["owner ou approver"]
+        FinalRole["se status = APROVADO_GERENTE e !owner,<br/>ROLE_LEVEL >= 3"]
+        TeamScopeD["se approver e role < 5,<br/>hasTeamVisibility()"]
+        IndirectD["se nao for lider direto,<br/>canIndirectLeaderActWhenDirectOnVacation()"]
+        FinalGuard["APROVADO_GERENTE exige acquisitionPeriodId"]
+        FinalRule["reverter usedDays<br/>(quando APROVADO_GERENTE)"]
+        HistDel["deleteMany VacationRequestHistory"]
+        ReqDel["delete VacationRequest"]
+        Resp["JSON ou redirect /dashboard"]
+    end
+
+    Approve --> Session --> LoadReq --> CanApprove --> DirectRule --> Conflict --> Confirm
+    Confirm -->|nao confirmado e ha conflito| Resp409["409 requiresConfirmation"]
+    Confirm -->|ok| Next --> Tx --> Period --> IncUsed --> HistA --> NotifyA
+
+    Reject --> Session --> LoadReq --> CanReject --> DirectOnly --> SetRejected --> NotifyR
+
+    Update --> Session --> LoadReq --> UpdateGuard --> TeamScope --> IndirectU --> PendingOnly --> Dates --> CltUpdate --> Owner --> CycleLimit --> SyncUpdate --> Range --> Available --> BlackoutU --> OverlapU --> SaveDates
+
+    Delete --> Session --> LoadReq --> OwnerOrApprover --> FinalRole --> TeamScopeD --> IndirectD --> FinalGuard --> Tx --> FinalRule --> HistDel --> ReqDel --> Resp

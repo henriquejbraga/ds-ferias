@@ -1,0 +1,33 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart LR
+    U["Usuario"] --> Root["app/layout.tsx<br/>DashboardNavProvider + Toaster + Analytics"]
+    Root --> Home["app/page.tsx"] & Login["app/login/page.tsx"] & Dashboard["app/dashboard/page.tsx"] & Admin["app/admin/page.tsx"]
+    Home --> Redirect{"sessao existe?"}
+    Redirect -- sim --> Dashboard
+    Redirect -- nao --> Login
+    Login --> Theme["ThemeToggle"] & LoginForm["form client<br/>fetch /api/login"] & TestUsers["TestUsersPanel"]
+    Dashboard --> Sidebar["AppSidebar"] & TopBar["TopBar"] & Bread["DashboardBreadcrumb<br/>(retorna null nas views atuais)"] & Stat["StatCard"] & BlackoutAlert["BlackoutAlert"] & BlackoutList["BlackoutListCard"] & ViewSel{"view"} & NewReq["NewRequestCardClient"]
+    Sidebar --> SideItem["DashboardSidebarItem"] & SideBalance["SidebarBalance"] & Logout["SidebarLogoutButton"]
+    TopBar --> ThemeTop["ThemeToggle"]
+    ViewSel -- minhas --> MyReq["MyRequestsList"]
+    ViewSel -- inbox/historico --> Manager["ManagerView"]
+    ViewSel -- times --> Times["TimesView"]
+    NewReq --> DateUI["DatePicker + Alert + Button"]
+    MyReq --> ExportMine["ExportButton"] & MonthCal["MonthlyCalendar"] & ReqCard["RequestCard"]
+    Manager --> Filter["FilterForm"] & ExportMgmt["ExportButton"] & Grouped["RequestsGroupedByManager"] & ReqCard
+    Grouped --> ReqCard
+    ReqCard --> Status["StatusBadge"] & Progress["ApprovalProgressBar"] & History["HistorySection"] & Actions["RequestActions"]
+    Actions --> ActionForm["ActionButtonForm"] & Edit["EditPeriodFormClient"]
+    Times --> TimesClient["TimesViewClient"]
+    TimesClient --> TimesFilter["TimesViewFilterBar"] & TimesKind{"teamData.kind"}
+    TimesKind --> CoordList["TimesViewCoordTeamsList"]
+    TimesKind --> RhList["TimesViewRhTeamsList"]
+    CoordList --> TeamCal1["TeamCalendar"] & TeamRow1["TeamMemberRow"]
+    RhList --> TeamCal2["TeamCalendar"] & TeamRow2["TeamMemberRow"]
+    TeamRow1 --> MemberBadge1["TeamMemberStatusBadge"]
+    TeamRow2 --> MemberBadge2["TeamMemberStatusBadge"]
+    Admin --> BackButton["BackofficeBackButton"] & Backoffice["BackofficeClient"]

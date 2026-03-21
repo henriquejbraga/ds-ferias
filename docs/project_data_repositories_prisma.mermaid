@@ -1,0 +1,66 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart LR
+    subgraph UserRepo["repositories/userRepository.ts"]
+        U1["findUserWithBalance()"]
+        U2["findUserDepartment()"]
+        U3["findTeamMembersByManager()"]
+        U4["findTeamMembersByGerente()"]
+        U5["findAllEmployees()"]
+        U6["findAllUsersForAdmin()"]
+        U7["findManagersForAdmin()"]
+        U8["findUsersWithVacationForBalance()"]
+    end
+
+    subgraph VacRepo["repositories/vacationRepository.ts"]
+        V1["findMyRequests()"]
+        V2["findManagedRequests()"]
+    end
+
+    subgraph BlackRepo["repositories/blackoutRepository.ts"]
+        B1["findBlackouts()"]
+    end
+
+    subgraph AcqRepo["repositories/acquisitionRepository.ts"]
+        A1["syncAcquisitionPeriodsForUser()<br/>recalcula usedDays + acquisitionPeriodId"]
+        A2["findAcquisitionPeriodsForUser()"]
+        A3["findAcquisitionPeriodForRange()"]
+        A4["addUsedDaysForRequest()"]
+    end
+
+    subgraph Prisma["lib/prisma.ts"]
+        Client["PrismaClient<br/>adapter: PrismaPg"]
+    end
+
+    subgraph DB["PostgreSQL"]
+        UserT["User"]
+        ReqT["VacationRequest"]
+        HistT["VacationRequestHistory"]
+        BlackT["BlackoutPeriod"]
+        AcqT["AcquisitionPeriod"]
+    end
+
+    U1 --> Client
+    U2 --> Client
+    U3 --> Client
+    U4 --> Client
+    U5 --> Client
+    U6 --> Client
+    U7 --> Client
+    U8 --> Client
+    V1 --> Client
+    V2 --> Client
+    B1 --> Client
+    A1 --> Client
+    A2 --> Client
+    A3 --> Client
+    A4 --> Client
+
+    Client --> UserT
+    Client --> ReqT
+    Client --> HistT
+    Client --> BlackT
+    Client --> AcqT

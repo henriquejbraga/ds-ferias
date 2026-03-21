@@ -1,0 +1,133 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart LR
+    U["Usuarios<br/>FUNCIONARIO / COLABORADOR / COORDENADOR / GESTOR / GERENTE / DIRETOR / RH"]
+
+    subgraph FE["Next.js app/ + components/"]
+        Root["app/layout.tsx<br/>DashboardNavProvider + Toaster + Analytics"]
+        Home["app/page.tsx<br/>redirect por sessao"]
+        Login["app/login/page.tsx"]
+        Dash["app/dashboard/page.tsx"]
+        Admin["app/admin/page.tsx"]
+        Mine["MyRequestsList + NewRequestCardClient"]
+        Manage["ManagerView"]
+        Times["TimesView"]
+        Backoffice["BackofficeClient"]
+    end
+
+    subgraph API["app/api/*"]
+        AuthApi["login / logout / health"]
+        BalanceApi["vacation-balance"]
+        ReqApi["vacation-requests<br/>list / create / export"]
+        ActionApi["vacation-requests/[id]<br/>approve / reject / update / delete"]
+        UserApi["users / users/[id]"]
+        BlackoutApi["blackout-periods"]
+        ReportApi["reports/balance<br/>reports/adherence<br/>reports/acquisition-periods"]
+    end
+
+    subgraph APP["services/"]
+        DashSvc["dashboardDataService"]
+        TeamSvc["teamMembersService"]
+        ExportSvc["vacationRequestListService"]
+    end
+
+    subgraph DOMAIN["lib/"]
+        Auth["auth.ts<br/>cookies + HMAC/sha256"]
+        Rules["vacationRules.ts<br/>hierarquia + CLT + saldo + conflitos + blackout"]
+        Visibility["requestVisibility.ts<br/>dashboardFilters.ts"]
+        Indirect["indirectLeaderRule.ts"]
+        Infra["rateLimit.ts<br/>logger.ts"]
+        Notify["notifications.ts"]
+    end
+
+    subgraph DATA["repositories/ + Prisma"]
+        UserRepo["userRepository"]
+        VacRepo["vacationRepository"]
+        BlackoutRepo["blackoutRepository"]
+        AcqRepo["acquisitionRepository"]
+        Prisma["lib/prisma.ts<br/>PrismaClient + PrismaPg"]
+        DB[("PostgreSQL<br/>User / VacationRequest / VacationRequestHistory / BlackoutPeriod / AcquisitionPeriod")]
+    end
+
+    subgraph EXT["Integracoes externas"]
+        Webhook["NOTIFY_WEBHOOK_URL<br/>webhook opcional"]
+        Analytics["Vercel Analytics"]
+    end
+
+    U --> Root
+    Root --> Home
+    Root --> Login
+    Root --> Dash
+    Root --> Admin
+    Root --> Analytics
+
+    Login -->|fetch /api/login| AuthApi
+    Dash -->|SSR| Auth
+    Dash -->|SSR| DashSvc
+    Dash -->|SSR, quando view=times| TeamSvc
+    Admin -->|SSR| Auth
+    Admin -->|SSR| UserRepo
+
+    Dash --> Mine
+    Dash --> Manage
+    Dash --> Times
+    Admin --> Backoffice
+
+    Mine -->|POST /api/vacation-requests| ReqApi
+    Mine -->|GET /api/vacation-requests/export| ReqApi
+    Manage -->|approve/reject/update/delete| ActionApi
+    Manage -->|GET /api/vacation-requests/export| ReqApi
+    Manage -->|GET /api/reports/*| ReportApi
+    Backoffice -->|GET / POST / PATCH| UserApi
+
+    DashSvc --> VacRepo
+    DashSvc --> BlackoutRepo
+    DashSvc --> Visibility
+    DashSvc --> Rules
+    DashSvc --> Indirect
+    TeamSvc --> UserRepo
+    TeamSvc --> Rules
+    ExportSvc --> Visibility
+    ExportSvc --> Prisma
+
+    AuthApi --> Auth
+    AuthApi --> Infra
+    BalanceApi --> Auth
+    BalanceApi --> UserRepo
+    BalanceApi --> Rules
+    ReqApi --> Auth
+    ReqApi --> Rules
+    ReqApi --> Visibility
+    ReqApi --> Notify
+    ReqApi --> Infra
+    ReqApi --> AcqRepo
+    ReqApi --> Prisma
+    ActionApi --> Auth
+    ActionApi --> Rules
+    ActionApi --> Indirect
+    ActionApi --> Notify
+    ActionApi --> AcqRepo
+    ActionApi --> Prisma
+    UserApi --> Auth
+    UserApi --> Rules
+    UserApi --> AcqRepo
+    UserApi --> Prisma
+    BlackoutApi --> Auth
+    BlackoutApi --> Rules
+    BlackoutApi --> Prisma
+    ReportApi --> Auth
+    ReportApi --> Rules
+    ReportApi --> UserRepo
+    ReportApi --> AcqRepo
+    ReportApi --> Prisma
+
+    UserRepo --> Prisma
+    VacRepo --> Prisma
+    BlackoutRepo --> Prisma
+    AcqRepo --> Prisma
+    Prisma --> DB
+
+    Notify --> Webhook
