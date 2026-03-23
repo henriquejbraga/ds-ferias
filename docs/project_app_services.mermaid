@@ -1,0 +1,64 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart LR
+    subgraph DashboardSvc["services/dashboardDataService.ts"]
+        GD["getDashboardData()"]
+        GBal["getCurrentUserBalance()"]
+        GDept["getCurrentUserDepartment()"]
+        GAcq["getUserAcquisitionPeriods()"]
+        GEnt["getFirstEntitlementDate()"]
+        GVis["getVisibleRequests()"]
+        GPend["getPendingCount()"]
+    end
+
+    subgraph TeamSvc["services/teamMembersService.ts"]
+        GT["getTeamMembersForTimes()"]
+        MapUsers["mapUsersToMembers()"]
+        OnVacation["isOnVacationNow()"]
+    end
+
+    subgraph ExportSvc["services/vacationRequestListService.ts"]
+        GExp["getVacationRequestsForExport()"]
+    end
+
+    subgraph RepoDeps["repositories/"]
+        VacRepo["vacationRepository"]
+        UserRepo["userRepository"]
+        BlackRepo["blackoutRepository"]
+        AcqRepo["acquisitionRepository"]
+    end
+
+    subgraph LibDeps["lib/"]
+        Rules["vacationRules.ts"]
+        Visibility["requestVisibility.ts"]
+        Indirect["indirectLeaderRule.ts"]
+        Prisma["lib/prisma.ts"]
+    end
+
+    GD --> VacRepo
+    GD --> BlackRepo
+    GD --> Visibility
+    GD --> Rules
+    GD --> Indirect
+
+    GBal --> UserRepo
+    GBal --> AcqRepo
+    GBal --> Rules
+
+    GDept --> UserRepo
+    GAcq --> UserRepo
+    GAcq --> AcqRepo
+    GEnt --> UserRepo
+    GVis --> Rules
+
+    GT --> UserRepo
+    GT --> Rules
+    GT --> MapUsers
+    MapUsers --> OnVacation
+    MapUsers --> Rules
+
+    GExp --> Visibility
+    GExp --> Prisma

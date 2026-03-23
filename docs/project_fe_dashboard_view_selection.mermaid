@@ -1,0 +1,28 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart LR
+    Dashboard["app/dashboard/page.tsx"] --> Session["getSessionUser()"]
+    Session --> Role["getRoleLevel(user.role)"]
+    Role --> DefaultView["defaultView = inbox | minhas"]
+    DefaultView --> Params["normalizeParam(searchParams)"]
+    Params --> View{"view"}
+
+    View -->|minhas| Mine["MyRequestsList"]
+    View -->|inbox / historico| Manage["ManagerView"]
+    View -->|times| Times["TimesView"]
+
+    Dashboard --> Sidebar["AppSidebar"]
+    Sidebar --> Balance["SidebarBalance"]
+    Dashboard --> TopBar["TopBar"]
+    Dashboard --> Breadcrumb["DashboardBreadcrumb<br/>(retorna null nas views atuais)"]
+    Dashboard --> Stat["StatCard<br/>(quando approver e nao times)"]
+    Dashboard --> Alert["BlackoutAlert<br/>(quando !isApprover)"]
+    Dashboard --> Blackouts["BlackoutListCard<br/>(quando isApprover)"]
+    Dashboard --> NewReq["NewRequestCardClient<br/>(quando isMyView)"]
+
+    Mine --> MineUi["MonthlyCalendar + ExportButton + RequestCard"]
+    Manage --> ManageUi["FilterForm + ExportButton + RequestCard<br/>ou RequestsGroupedByManager"]
+    Times --> TimesUi["TimesViewClient"]

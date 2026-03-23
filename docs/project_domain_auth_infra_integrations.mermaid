@@ -1,0 +1,61 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart LR
+    subgraph Auth["lib/auth.ts"]
+        VerifyCred["verifyCredentials()"]
+        GetSess["getSessionUser()"]
+        CreateSess["createSession()"]
+        DestroySess["destroySession()"]
+        HashNew["hashNewUserPassword()"]
+        Cookies["cookies()"]
+        Secret["SESSION_SECRET"]
+        Crypto["hashPassword() / HMAC SHA-256"]
+        UserQ["prisma.user.findUnique({ email })"]
+    end
+
+    subgraph Indirect["lib/indirectLeaderRule.ts"]
+        IndCheck["canIndirectLeaderActWhenDirectOnVacation()"]
+        IndQuery["prisma.user.findUnique()<br/>vacationRequests do lider direto"]
+    end
+
+    subgraph Infra["lib/rateLimit.ts + logger.ts + validation.ts"]
+        Limit["checkRateLimit() / getClientId()"]
+        Store["Map em memoria por processo"]
+        Logger["logger.info() / warn() / error()"]
+        Cuid["isCuid() / requireCuid()"]
+    end
+
+    subgraph Notify["lib/notifications.ts"]
+        NotifyFns["notify()<br/>notifyNewRequest()<br/>notifyApproved()<br/>notifyRejected()"]
+        NotifyLog["logEvent()"]
+        Webhook["NOTIFY_WEBHOOK_URL"]
+    end
+
+    subgraph Holidays["lib/holidaysApi.ts"]
+        LoadHol["ensureNationalHolidaysLoaded()"]
+        CacheHol["nationalHolidaysCache"]
+        ReadHol["isNationalHolidayCached()"]
+        Brasil["BrasilAPI /api/feriados/v1"]
+    end
+
+    VerifyCred --> UserQ
+    VerifyCred --> Crypto
+    GetSess --> Cookies
+    GetSess --> Secret
+    GetSess --> Crypto
+    CreateSess --> Cookies
+    CreateSess --> Secret
+    CreateSess --> Crypto
+    DestroySess --> Cookies
+    HashNew --> Crypto
+
+    IndCheck --> IndQuery
+    Limit --> Store
+    NotifyFns --> NotifyLog
+    NotifyFns --> Webhook
+    LoadHol --> CacheHol
+    ReadHol --> CacheHol
+    LoadHol --> Brasil

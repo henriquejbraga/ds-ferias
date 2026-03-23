@@ -1,0 +1,58 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart TB
+    subgraph ReqApi["app/api/vacation-requests + export"]
+        List["GET /api/vacation-requests"]
+        Create["POST /api/vacation-requests"]
+        Export["GET /api/vacation-requests/export"]
+    end
+
+    subgraph Common["comum"]
+        Session["getSessionUser()"]
+        Where["buildManagedRequestsWhere()"]
+        Limit["checkRateLimit(vacation-post:userId)"]
+        CsvSvc["getVacationRequestsForExport()"]
+    end
+
+    subgraph CreateFlow["criacao"]
+        Parse["request.json() | formData()<br/>1 a 3 periodos"]
+        Load["buscar blackouts + user(hireDate, department, vacationRequests)"]
+        Hire{"userFull.hireDate?"}
+        Cycle22["se role = GERENTE/DIRETOR,<br/>limite 22 dias uteis por ciclo"]
+        Sync["syncAcquisitionPeriodsForUser()"]
+        Acquired{"acquiredCount < 1?"}
+        PreEnt["firstEntitlementDate + pendingRequests<br/>+ validateCltPeriods()"]
+        Acq["findAcquisitionPeriodsForUser()<br/>+ totalEntitled/used/pending<br/>+ validateCltPeriods()"]
+        Balance["calculateVacationBalance()<br/>fallback sem hireDate"]
+        Validate["validar datas + checkBlackoutPeriods()<br/>+ hasOverlappingRequest()"]
+        Tx["prisma.$transaction()<br/>create N VacationRequest"]
+        ManagerMail["buscar manager.email"]
+        Notify["notifyNewRequest()<br/>(primeira request criada)"]
+    end
+
+    subgraph ListFlow["listagem"]
+        OwnWhere["FUNCIONARIO/COLABORADOR<br/>where = { userId }"]
+        ManagedWhere["demais papeis<br/>where por equipe/status/query"]
+        ListQ["prisma.vacationRequest.findMany()<br/>include user(name,email)"]
+    end
+
+    subgraph ExportFlow["exportacao"]
+        Filtered["filterRequestsByVisibilityAndView()<br/>(interno ao service)"]
+        ExportCsv["monta CSV de solicitacao + historico"]
+    end
+
+    List --> Session --> OwnOrManaged{"papel"}
+    OwnOrManaged -->|FUNCIONARIO / COLABORADOR| OwnWhere --> ListQ
+    OwnOrManaged -->|COORDENADOR / GESTOR / GERENTE / DIRETOR / RH| Where --> ManagedWhere --> ListQ
+
+    Create --> Session --> Limit --> Parse --> Load --> Hire
+    Hire -->|sim| Cycle22 --> Sync --> Acquired
+    Hire -->|nao| Balance --> Validate
+    Acquired -->|sim| PreEnt --> Validate
+    Acquired -->|nao| Acq --> Validate
+    Validate --> Tx --> ManagerMail --> Notify
+
+    Export --> Session --> CsvSvc --> Filtered --> ExportCsv

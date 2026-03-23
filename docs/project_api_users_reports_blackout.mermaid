@@ -1,0 +1,58 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart TB
+    subgraph Routes["users + reports + blackout-periods"]
+        UsersGet["GET /api/users"]
+        UsersPost["POST /api/users"]
+        UserId["PATCH /api/users/[id]"]
+        BlackoutGet["GET /api/blackout-periods"]
+        BlackoutWrite["POST /api/blackout-periods<br/>DELETE /api/blackout-periods?id=:id"]
+        Balance["GET /api/reports/balance"]
+        Adherence["GET /api/reports/adherence"]
+        Acq["GET /api/reports/acquisition-periods"]
+    end
+
+    subgraph Guards["guards"]
+        Session["getSessionUser()"]
+        RhOnly["getRoleLevel() >= 5"]
+        BlackoutWriteRole["ROLE_LEVEL >= 3<br/>GERENTE / DIRETOR / RH"]
+    end
+
+    subgraph UserFlow["usuarios"]
+        ListUsers["prisma.user.findMany()<br/>select manager + _count.reports"]
+        CreateUser["prisma.user.create()"]
+        PatchUser["prisma.user.update()"]
+        DefaultPwd["hashNewUserPassword('senha123')"]
+        SyncPeriods["syncAcquisitionPeriodsForUser()"]
+    end
+
+    subgraph BlackoutFlow["blackout"]
+        ListBlack["prisma.blackoutPeriod.findMany()<br/>include createdBy.name"]
+        CreateBlack["prisma.blackoutPeriod.create()"]
+        DeleteBlack["prisma.blackoutPeriod.delete()"]
+    end
+
+    subgraph ReportFlow["relatorios"]
+        BalanceUsers["findUsersWithVacationForBalance()"]
+        BalanceCalc["calculateVacationBalance()<br/>+ getRoleLabel()"]
+        AdherenceFilter["hireDate + APROVADO_GERENTE no ano"]
+        AcqSync["syncAcquisitionPeriodsForUser()<br/>para cada usuario com hireDate"]
+        AcqQ["prisma.acquisitionPeriod.findMany()<br/>include user"]
+        Csv["Response text/csv"]
+    end
+
+    UsersGet --> Session --> RhOnly --> ListUsers
+    UsersPost --> Session --> RhOnly --> DefaultPwd --> CreateUser --> SyncPeriods
+    UserId --> Session --> RhOnly --> PatchUser
+
+    BlackoutGet --> Session --> ListBlack
+    BlackoutWrite --> Session --> BlackoutWriteRole --> BlackSel{"metodo"}
+    BlackSel -->|POST| CreateBlack
+    BlackSel -->|DELETE| DeleteBlack
+
+    Balance --> Session --> RhOnly --> BalanceUsers --> BalanceCalc --> Csv
+    Adherence --> Session --> RhOnly --> BalanceUsers --> AdherenceFilter --> Csv
+    Acq --> Session --> RhOnly --> BalanceUsers --> AcqSync --> AcqQ --> Csv

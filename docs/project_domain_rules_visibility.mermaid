@@ -1,0 +1,40 @@
+---
+config:
+  theme: default
+  layout: elk
+---
+flowchart TB
+    subgraph Rules["lib/vacationRules.ts"]
+        RoleMeta["ROLE_LEVEL / ROLE_LABEL / ROLE_COLOR"]
+        RoleFns["getRoleLevel() / getRoleLabel()"]
+        Approval["getNextApprovalStatus()<br/>canApproveRequest()<br/>getNextApprover()<br/>getApprovalSteps()<br/>getApprovalProgress()"]
+        TeamVis["hasTeamVisibility()"]
+        Balance["calculateVacationBalance()"]
+        TeamConflict["detectTeamConflicts()"]
+        Clt["validateCltPeriod()<br/>validateCltPeriods()"]
+        LocalHoliday["isSaoPauloHoliday()<br/>getEasterSunday()"]
+        Blackout["checkBlackoutPeriods()"]
+    end
+
+    subgraph Visibility["lib/requestVisibility.ts"]
+        BuildWhere["buildManagedRequestsWhere()"]
+        FilterView["filterRequestsByVisibilityAndView()"]
+    end
+
+    subgraph DashboardFilters["lib/dashboardFilters.ts"]
+        ManagerOpts["getManagerOptions()"]
+        DeptOpts["getDepartmentOptions()"]
+        FilterUi["filterRequests()"]
+        ExportQuery["buildExportQuery()"]
+    end
+
+    RoleMeta --> RoleFns
+    RoleMeta --> Approval
+    RoleMeta --> TeamVis
+    RoleMeta --> BuildWhere
+    RoleMeta --> FilterView
+    RoleMeta --> ManagerOpts
+    RoleMeta --> FilterUi
+    Clt --> LocalHoliday
+    TeamVis --> FilterView
+    TeamVis --> FilterUi
