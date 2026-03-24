@@ -12,6 +12,7 @@ import {
   getNextApprover,
   getApprovalSteps,
   getApprovalProgress,
+  getApproverRelationshipStepLabel,
   detectTeamConflicts,
   checkBlackoutPeriods,
 } from "@/lib/vacationRules";
@@ -358,6 +359,47 @@ describe("getApprovalProgress", () => {
   });
   it("returns 0 for REPROVADO", () => {
     expect(getApprovalProgress("REPROVADO")).toBe(0);
+  });
+});
+
+describe("getApproverRelationshipStepLabel", () => {
+  const baseEmployee = {
+    managerId: "coord-1" as string | null,
+    manager: undefined as { id?: string | null } | undefined,
+  };
+
+  it("returns RH label for role RH", () => {
+    expect(getApproverRelationshipStepLabel("rh-1", "RH", baseEmployee)).toBe("Aprovação pelo RH");
+  });
+
+  it("returns direct-leader label for gerente when managerId matches", () => {
+    expect(
+      getApproverRelationshipStepLabel("ger-1", "GERENTE", { ...baseEmployee, managerId: "ger-1" })
+    ).toBe("Você é o líder direto");
+  });
+
+  it("returns indirect label for gerente when managerId points to subordinate coordinator", () => {
+    expect(getApproverRelationshipStepLabel("ger-1", "GERENTE", baseEmployee)).toBe(
+      "Você aprova como líder indireto",
+    );
+  });
+
+  it("returns direct-leader label for coordenador when managerId matches (uses manager.id fallback)", () => {
+    expect(
+      getApproverRelationshipStepLabel("coord-1", "COORDENADOR", {
+        ...baseEmployee,
+        managerId: null,
+        manager: { id: "coord-1" },
+      })
+    ).toBe("Você é o líder direto");
+  });
+
+  it("returns undefined for coordenador when not the direct manager", () => {
+    expect(getApproverRelationshipStepLabel("coord-x", "COORDENADOR", baseEmployee)).toBeUndefined();
+  });
+
+  it("returns directoria label for diretor when not direct manager", () => {
+    expect(getApproverRelationshipStepLabel("dir-1", "DIRETOR", baseEmployee)).toBe("Aprovação na diretoria");
   });
 });
 

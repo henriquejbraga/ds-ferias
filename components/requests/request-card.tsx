@@ -1,4 +1,8 @@
-import { canApproveRequest, getRoleLevel } from "@/lib/vacationRules";
+import {
+  canApproveRequest,
+  getApproverRelationshipStepLabel,
+  getRoleLevel,
+} from "@/lib/vacationRules";
 import { StatusBadge, RoleChip } from "@/components/requests/status-badge";
 import { ApprovalProgressBar } from "@/components/requests/approval-progress-bar";
 import { HistorySection } from "@/components/requests/history-section";
@@ -36,6 +40,7 @@ export type RequestWithUser = {
     role?: string;
     department?: string | null;
     managerId?: string | null;
+    manager?: { id?: string | null } | null;
   } | null;
   history?: Array<{
     newStatus?: string;
@@ -63,10 +68,10 @@ export function RequestCard({
       })
     : false;
   const showActions = isOwner || (!!userId && request.userId !== userId);
-  const isIndirectApproverContext =
-    !!userId && !!request.user?.managerId && request.user.managerId !== userId;
-  const progressStepLabel =
-    !isOwner && isIndirectApproverContext ? "Líder indireto" : undefined;
+  const approverStepLabel =
+    !isOwner && userId && request.user
+      ? getApproverRelationshipStepLabel(userId, approverRole, request.user)
+      : undefined;
   const shouldShowFallbackApprovalStep =
     !isOwner && !!userRole && getRoleLevel(userRole) >= 3 && request.status === "PENDENTE";
   const start = new Date(request.startDate);
@@ -170,8 +175,10 @@ export function RequestCard({
         {!isOwner && request.user && (
           <ApprovalProgressBar
             request={request}
-            stepLabelOverride={progressStepLabel}
-            fallbackStepLabel={shouldShowFallbackApprovalStep ? (progressStepLabel ?? "Líder direto") : undefined}
+            stepLabelOverride={approverStepLabel}
+            fallbackStepLabel={
+              shouldShowFallbackApprovalStep ? (approverStepLabel ?? "Etapa de aprovação") : undefined
+            }
           />
         )}
 

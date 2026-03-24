@@ -179,6 +179,42 @@ export function getApprovalProgress(status: string): number {
   }
 }
 
+/**
+ * Rótulo da etapa no card de solicitação, na perspectiva de quem aprova.
+ * Evita mostrar só "Líder direto" quando o aprovador é gerente/RH de reporte indireto.
+ */
+export function getApproverRelationshipStepLabel(
+  approverId: string,
+  approverRole: string,
+  employee: {
+    managerId?: string | null;
+    manager?: { id?: string | null } | null;
+  } | null | undefined,
+): string | undefined {
+  if (!employee) return undefined;
+  const level = getRoleLevel(approverRole);
+  const directLeaderId = employee.managerId ?? employee.manager?.id ?? null;
+
+  if (level >= 5) return "Aprovação pelo RH";
+
+  if (level === 4) {
+    if (directLeaderId && directLeaderId === approverId) return "Você é o líder direto";
+    return "Aprovação na diretoria";
+  }
+
+  if (level === 3) {
+    if (directLeaderId && directLeaderId === approverId) return "Você é o líder direto";
+    return "Você aprova como líder indireto";
+  }
+
+  if (level === 2) {
+    if (directLeaderId && directLeaderId === approverId) return "Você é o líder direto";
+    return undefined;
+  }
+
+  return undefined;
+}
+
 // ============================================================
 // VISIBILIDADE POR EQUIPE
 // ============================================================
