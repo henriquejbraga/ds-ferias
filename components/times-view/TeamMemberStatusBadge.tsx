@@ -13,12 +13,10 @@ export function TeamMemberStatusBadge({ member }: { member: TeamMemberInfoSerial
     start.setHours(0, 0, 0, 0);
     return start > today;
   });
-  const hasFuturePendingVacation = requests.some((r) => {
-    if (!["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status)) return false;
-    const start = new Date(r.startDate);
-    start.setHours(0, 0, 0, 0);
-    return start > today;
-  });
+  /** Pedido ainda não finalizado (gerente); inclui datas já iniciadas ou no passado. */
+  const hasPendingApproval = requests.some((r) =>
+    ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status),
+  );
   const hasTakenVacation = requests.some((r) => {
     if (r.status !== "APROVADO_GERENTE") return false;
     const end = new Date(r.endDate);
@@ -37,11 +35,14 @@ export function TeamMemberStatusBadge({ member }: { member: TeamMemberInfoSerial
 
   if (
     !isOnVacationNow &&
-    (hasFuturePendingVacation || hasFutureApprovedVacation || balance.availableDays > 0 || balance.pendingDays > 0)
+    (hasPendingApproval ||
+      hasFutureApprovedVacation ||
+      balance.availableDays > 0 ||
+      balance.pendingDays > 0)
   ) {
     return (
       <span className="inline-flex flex-wrap items-center gap-1.5">
-        {hasFuturePendingVacation && (
+        {hasPendingApproval && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-hidden />
             Pendente aprovação
@@ -55,7 +56,7 @@ export function TeamMemberStatusBadge({ member }: { member: TeamMemberInfoSerial
           </span>
         )}
 
-        {!hasFuturePendingVacation && !hasFutureApprovedVacation && balance.availableDays > 0 && (
+        {!hasPendingApproval && !hasFutureApprovedVacation && balance.availableDays > 0 && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-semibold text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
             Férias a tirar
@@ -72,4 +73,3 @@ export function TeamMemberStatusBadge({ member }: { member: TeamMemberInfoSerial
     </span>
   );
 }
-

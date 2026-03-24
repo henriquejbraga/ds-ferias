@@ -12,6 +12,29 @@ function approvedByRoleFromRequest(r: any): string | null {
   return approval?.changedByUser?.role ?? null;
 }
 
+type GerenteTeamRow = TeamDataRH["gerentes"][0]["teams"][number];
+
+/** Vários `teamKey` podem compartilhar o mesmo coordenador — um bloco na UI do gerente. */
+function groupTeamsByCoordinator(teams: GerenteTeamRow[]) {
+  const map = new Map<string, { coordinatorName: string; teams: GerenteTeamRow[] }>();
+  for (const t of teams) {
+    const cur = map.get(t.coordinatorId);
+    if (cur) cur.teams.push(t);
+    else map.set(t.coordinatorId, { coordinatorName: t.coordinatorName, teams: [t] });
+  }
+  return Array.from(map.entries())
+    .map(([coordinatorId, v]) => ({
+      coordinatorId,
+      coordinatorName: v.coordinatorName,
+      teams: v.teams,
+    }))
+    .sort((a, b) => {
+      const byName = a.coordinatorName.localeCompare(b.coordinatorName, "pt-BR", { sensitivity: "base" });
+      if (byName !== 0) return byName;
+      return a.coordinatorId.localeCompare(b.coordinatorId);
+    });
+}
+
 const LIDERANCA_DIRETA_CAPACITY_KEY = "__lideranca_direta_gerente__";
 
 /**
@@ -144,84 +167,111 @@ export function TimesViewRhTeamsList({
                   <div className="border-t border-[#e2e8f0] pt-6 dark:border-[#252a35]">
                     <h3 className="text-base font-semibold text-[#1a1d23] dark:text-white">Por coordenador</h3>
                     <p className="mt-1 text-sm text-[#64748b] dark:text-slate-400">
-                      Calendário e lista por time de cada coordenador(a).
+                      Quem coordena mais de um time entra num único bloco (vários calendários, uma ficha de férias). Só o(a)
+                      coordenador(a) tem card com pendentes/saldo; colaboradores ficam no calendário.
                     </p>
                   </div>
                 )}
 
                 <div className="space-y-4">
-                {g.teams.map((team) => {
-                  const teamKey = `${gerenteKey}-team-${team.teamKey}`;
-                  const teamOpen = expanded[teamKey] !== false;
+                  {showConsolidatedOverview
+                    ? groupTeamsByCoordinator(g.teams).map((group) => {
+                        const groupKey = `${gerenteKey}-coordgrp-${group.coordinatorId}`;
+                        const groupOpen = expanded[groupKey] !== false;
+                        const coordMember = g.coordinatorMembers?.find(
+                          (m) => m.user.id === group.coordinatorId,
+                        );
+                        const totalCollab = group.teams.reduce((s, t) => s + t.members.length, 0);
+                        const teamNames = group.teams.map((t) => t.teamName).join(" · ");
 
-                  return (
-                    <div key={team.teamKey} className="space-y-0">
-                      <button
-                        type="button"
-                        onClick={() => toggle(teamKey)}
-                        className="flex w-full items-center gap-2 rounded-md bg-[#f5f6f8] px-3 py-2.5 text-left transition-colors hover:bg-[#e2e8f0] dark:bg-[#1e2330] dark:hover:bg-[#252a35]"
-                        aria-expanded={teamOpen}
-                        aria-label={teamOpen ? `Recolher time de ${team.coordinatorName}` : `Expandir time de ${team.coordinatorName}`}
-                      >
-                        <Chevron open={teamOpen} />
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                          {team.coordinatorName.charAt(0).toUpperCase()}
-                        </span>
-                        <div className="min-w-0">
-                          <h3 className="truncate text-sm font-semibold text-[#1a1d23] dark:text-white">
-                            Coordenador: {team.coordinatorName}
-                          </h3>
-                          <p className="truncate text-xs text-[#64748b] dark:text-slate-400">
-                            Time: {team.teamName}
-                          </p>
-                        </div>
-                        <span className="ml-auto text-xs text-[#64748b] dark:text-slate-400">
-                          {team.members.length} colaborador(es) + 1 coordenador
-                        </span>
-                      </button>
+                        return (
+                          <div
+                            key={group.coordinatorId}
+                            className="space-y-0 overflow-hidden rounded-lg border border-[#e2e8f0] bg-white dark:border-[#252a35] dark:bg-[#1a1d23]"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => toggle(groupKey)}
+                              className="flex w-full items-center gap-2 bg-[#f5f6f8] px-3 py-2.5 text-left transition-colors hover:bg-[#e2e8f0] dark:bg-[#1e2330] dark:hover:bg-[#252a35]"
+                              aria-expanded={groupOpen}
+                              aria-label={
+                                groupOpen
+                                  ? `Recolher equipes de ${group.coordinatorName}`
+                                  : `Expandir equipes de ${group.coordinatorName}`
+                              }
+                            >
+                              <Chevron open={groupOpen} />
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-sm font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                {group.coordinatorName.charAt(0).toUpperCase()}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <h3 className="truncate text-sm font-semibold text-[#1a1d23] dark:text-white">
+                                  {group.coordinatorName}
+                                </h3>
+                                <p className="truncate text-xs text-[#64748b] dark:text-slate-400" title={teamNames}>
+                                  {group.teams.length} time(s) · {totalCollab} colaborador(es) · {teamNames}
+                                </p>
+                              </div>
+                            </button>
 
-                      {teamOpen && (
-                        <div className="space-y-3 pl-4 pt-2">
-                          {(() => {
-                            const coordMember = g.coordinatorMembers?.find((m) => m.user.id === team.coordinatorId);
-                            const calendarMembers: TeamMemberInfoSerialized[] = [];
-                            const seen = new Set<string>();
-                            const push = (m: TeamMemberInfoSerialized) => {
-                              if (seen.has(m.user.id)) return;
-                              seen.add(m.user.id);
-                              calendarMembers.push(m);
-                            };
-                            if (coordMember) push(coordMember as TeamMemberInfoSerialized);
-                            for (const m of team.members) push(m as TeamMemberInfoSerialized);
-                            return (
-                              <>
-                                {calendarMembers.length > 0 && (
-                                  <TeamCalendar members={calendarMembers} />
-                                )}
+                            {groupOpen && (
+                              <div className="space-y-4 border-t border-[#e2e8f0] p-3 dark:border-[#252a35]">
+                                {group.teams.map((team) => {
+                                  const teamKey = `${gerenteKey}-team-${team.teamKey}`;
+                                  const teamOpen = expanded[teamKey] !== false;
+                                  const cm = g.coordinatorMembers?.find((m) => m.user.id === team.coordinatorId);
+                                  const calendarMembers: TeamMemberInfoSerialized[] = [];
+                                  const seen = new Set<string>();
+                                  const push = (m: TeamMemberInfoSerialized) => {
+                                    if (seen.has(m.user.id)) return;
+                                    seen.add(m.user.id);
+                                    calendarMembers.push(m);
+                                  };
+                                  if (cm) push(cm as TeamMemberInfoSerialized);
+                                  for (const m of team.members) push(m as TeamMemberInfoSerialized);
+
+                                  return (
+                                    <div key={team.teamKey} className="space-y-0 rounded-md border border-[#e2e8f0] dark:border-[#252a35]">
+                                      <button
+                                        type="button"
+                                        onClick={() => toggle(teamKey)}
+                                        className="flex w-full items-center gap-2 bg-[#f8fafc] px-3 py-2 text-left text-sm transition-colors hover:bg-[#f1f5f9] dark:bg-[#141720] dark:hover:bg-[#1e2330]"
+                                        aria-expanded={teamOpen}
+                                        aria-label={
+                                          teamOpen
+                                            ? `Recolher calendário do time ${team.teamName}`
+                                            : `Expandir calendário do time ${team.teamName}`
+                                        }
+                                      >
+                                        <Chevron open={teamOpen} />
+                                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-bold text-slate-700 dark:bg-slate-600 dark:text-slate-200">
+                                          {team.teamName.charAt(0).toUpperCase()}
+                                        </span>
+                                        <div className="min-w-0 flex-1">
+                                          <span className="font-semibold text-[#1a1d23] dark:text-white">
+                                            Time: {team.teamName}
+                                          </span>
+                                          <span className="ml-2 text-xs text-[#64748b] dark:text-slate-400">
+                                            {team.members.length} colaborador(es) + coordenador no calendário
+                                          </span>
+                                        </div>
+                                      </button>
+                                      {teamOpen && (
+                                        <div className="border-t border-[#e2e8f0] p-2 pt-3 dark:border-[#252a35]">
+                                          {calendarMembers.length > 0 ? (
+                                            <TeamCalendar members={calendarMembers} />
+                                          ) : null}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
                                 {coordMember && (
-                                  <div className="rounded-md border border-indigo-100/80 bg-indigo-50/40 px-2 py-1.5 dark:border-indigo-900/40 dark:bg-indigo-950/25">
-                                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-800 dark:text-indigo-200">
-                                      Coordenador(a)
-                                    </p>
-                                    <TeamMemberRow
-                                      member={coordMember as TeamMemberInfoSerialized}
-                                      requestsSummary={(
-                                        coordMember.requests as VacationRequestSummary[]
-                                      ).map((r) => ({
-                                        startDate: r.startDate,
-                                        endDate: r.endDate,
-                                        status: r.status,
-                                        abono: r.abono,
-                                        approvedByRole: approvedByRoleFromRequest(r),
-                                      }))}
-                                    />
-                                  </div>
-                                )}
-                                {team.members.map((member) => (
                                   <TeamMemberRow
-                                    key={member.user.id}
-                                    member={member}
-                                    requestsSummary={(member.requests as VacationRequestSummary[]).map((r) => ({
+                                    member={coordMember as TeamMemberInfoSerialized}
+                                    requestsSummary={(
+                                      coordMember.requests as VacationRequestSummary[]
+                                    ).map((r) => ({
                                       startDate: r.startDate,
                                       endDate: r.endDate,
                                       status: r.status,
@@ -229,15 +279,89 @@ export function TimesViewRhTeamsList({
                                       approvedByRole: approvedByRoleFromRequest(r),
                                     }))}
                                   />
-                                ))}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    : g.teams.map((team) => {
+                        const teamKey = `${gerenteKey}-team-${team.teamKey}`;
+                        const teamOpen = expanded[teamKey] !== false;
+
+                        return (
+                          <div key={team.teamKey} className="space-y-0">
+                            <button
+                              type="button"
+                              onClick={() => toggle(teamKey)}
+                              className="flex w-full items-center gap-2 rounded-md bg-[#f5f6f8] px-3 py-2.5 text-left transition-colors hover:bg-[#e2e8f0] dark:bg-[#1e2330] dark:hover:bg-[#252a35]"
+                              aria-expanded={teamOpen}
+                              aria-label={
+                                teamOpen
+                                  ? `Recolher time de ${team.coordinatorName}`
+                                  : `Expandir time de ${team.coordinatorName}`
+                              }
+                            >
+                              <Chevron open={teamOpen} />
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                                {team.coordinatorName.charAt(0).toUpperCase()}
+                              </span>
+                              <div className="min-w-0">
+                                <h3 className="truncate text-sm font-semibold text-[#1a1d23] dark:text-white">
+                                  Coordenador: {team.coordinatorName}
+                                </h3>
+                                <p className="truncate text-xs text-[#64748b] dark:text-slate-400">
+                                  Time: {team.teamName}
+                                </p>
+                              </div>
+                              <span className="ml-auto text-xs text-[#64748b] dark:text-slate-400">
+                                {team.members.length} colaborador(es) + 1 coordenador
+                              </span>
+                            </button>
+
+                            {teamOpen && (
+                              <div className="space-y-3 pl-4 pt-2">
+                                {(() => {
+                                  const coordMember = g.coordinatorMembers?.find(
+                                    (m) => m.user.id === team.coordinatorId,
+                                  );
+                                  const calendarMembers: TeamMemberInfoSerialized[] = [];
+                                  const seen = new Set<string>();
+                                  const push = (m: TeamMemberInfoSerialized) => {
+                                    if (seen.has(m.user.id)) return;
+                                    seen.add(m.user.id);
+                                    calendarMembers.push(m);
+                                  };
+                                  if (coordMember) push(coordMember as TeamMemberInfoSerialized);
+                                  for (const m of team.members) push(m as TeamMemberInfoSerialized);
+                                  return (
+                                    <>
+                                      {calendarMembers.length > 0 && (
+                                        <TeamCalendar members={calendarMembers} />
+                                      )}
+                                      {team.members.map((member) => (
+                                        <TeamMemberRow
+                                          key={member.user.id}
+                                          member={member}
+                                          requestsSummary={(
+                                            member.requests as VacationRequestSummary[]
+                                          ).map((r) => ({
+                                            startDate: r.startDate,
+                                            endDate: r.endDate,
+                                            status: r.status,
+                                            abono: r.abono,
+                                            approvedByRole: approvedByRoleFromRequest(r),
+                                          }))}
+                                        />
+                                      ))}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                 </div>
               </div>
             )}

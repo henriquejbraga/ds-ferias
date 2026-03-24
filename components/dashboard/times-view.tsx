@@ -57,12 +57,20 @@ export function TimesView({
         <p className="text-base text-[#64748b] dark:text-slate-400">
           No topo: <span className="font-medium text-[#475569] dark:text-slate-300">visão geral</span> com calendário de
           todo o time. Abaixo: <span className="font-medium text-[#475569] dark:text-slate-300">por coordenador</span>, com
-          calendário e detalhes de cada time. Use o filtro e expanda &quot;Minha gestão&quot; e cada coordenador.
+          calendário e detalhes de cada time. Use o filtro e expanda &quot;Minha gestão&quot; e cada equipe (coordenador com
+          um ou mais times).
         </p>
       )}
-      {teamData.kind === "rh" && (
+      {level === 4 && teamData.kind === "rh" && (
         <p className="text-base text-[#64748b] dark:text-slate-400">
-          Todos os times por gerente e coordenador(a). Filtre e expanda cada gerente ou time para facilitar a navegação.
+          Todos os times agrupados por <span className="font-medium text-[#475569] dark:text-slate-300">gerente</span> e{" "}
+          <span className="font-medium text-[#475569] dark:text-slate-300">coordenador(a)</span>. Use o filtro e expanda
+          cada gerente ou time.
+        </p>
+      )}
+      {level >= 5 && teamData.kind === "rh" && (
+        <p className="text-base text-[#64748b] dark:text-slate-400">
+          Visão global: todos os times por gerente e coordenador(a). Filtre e expanda cada gerente ou time para navegar.
         </p>
       )}
       <TimesViewClient teamData={teamData as Parameters<typeof TimesViewClient>[0]["teamData"]} userId={userId} userRole={userRole} level={level} />
