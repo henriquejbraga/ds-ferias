@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
 
+/**
+ * Times / visões de equipe: férias sem histórico aninhado (reduz muito o payload e o tempo de query).
+ */
 const baseInclude = {
   manager: {
     select: {
@@ -11,11 +14,12 @@ const baseInclude = {
   },
   vacationRequests: {
     orderBy: { startDate: "asc" as const },
-    include: {
-      history: {
-        orderBy: { changedAt: "asc" as const },
-        include: { changedByUser: { select: { name: true, role: true } } },
-      },
+    select: {
+      id: true,
+      startDate: true,
+      endDate: true,
+      status: true,
+      abono: true,
     },
   },
 } as const;

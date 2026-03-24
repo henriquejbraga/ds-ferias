@@ -7,12 +7,15 @@ const mockFindUserWithBalance = vi.fn().mockResolvedValue(null);
 const mockFindUserDepartment = vi.fn().mockResolvedValue(null);
 const mockSyncAcquisitionPeriodsForUser = vi.fn().mockResolvedValue([]);
 const mockFindAcquisitionPeriodsForUser = vi.fn().mockResolvedValue([]);
-const mockCanIndirectLeaderActWhenDirectOnVacation = vi.fn().mockResolvedValue(false);
+const mockFilterManagedRequestsForIndirectLeaders = vi.fn(
+  async (_approverId: string, requests: unknown[]) => requests,
+);
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 vi.mock("@/repositories/vacationRepository", () => ({
   findMyRequests: (...args: unknown[]) => mockFindMyRequests(...args),
   findManagedRequests: (...args: unknown[]) => mockFindManagedRequests(...args),
+  findManagedRequestsLean: (...args: unknown[]) => mockFindManagedRequests(...args),
 }));
 vi.mock("@/repositories/blackoutRepository", () => ({
   findBlackouts: (...args: unknown[]) => mockFindBlackouts(...args),
@@ -26,8 +29,8 @@ vi.mock("@/repositories/acquisitionRepository", () => ({
   findAcquisitionPeriodsForUser: (...args: unknown[]) => mockFindAcquisitionPeriodsForUser(...args),
 }));
 vi.mock("@/lib/indirectLeaderRule", () => ({
-  canIndirectLeaderActWhenDirectOnVacation: (...args: unknown[]) =>
-    mockCanIndirectLeaderActWhenDirectOnVacation(...args),
+  filterManagedRequestsForIndirectLeaders: (...args: unknown[]) =>
+    mockFilterManagedRequestsForIndirectLeaders(...args),
 }));
 if (!process.env.DATABASE_URL) process.env.DATABASE_URL = "postgresql://localhost:5432/test";
 
@@ -46,7 +49,7 @@ describe("getDashboardData", () => {
     mockFindMyRequests.mockResolvedValue([]);
     mockFindManagedRequests.mockResolvedValue([]);
     mockFindBlackouts.mockResolvedValue([]);
-    mockCanIndirectLeaderActWhenDirectOnVacation.mockResolvedValue(false);
+    mockFilterManagedRequestsForIndirectLeaders.mockImplementation(async (_id, requests) => requests as any[]);
   });
 
   it("returns only myRequests for COLABORADOR/FUNCIONARIO", async () => {
@@ -96,13 +99,13 @@ describe("getDashboardData", () => {
         user: { managerId: "coord-2", manager: { managerId: "ger-1" } },
       },
     ]);
-    mockCanIndirectLeaderActWhenDirectOnVacation
-      .mockResolvedValueOnce(true) // r-indirect-allowed
-      .mockResolvedValueOnce(false); // r-indirect-blocked
+    mockFilterManagedRequestsForIndirectLeaders.mockImplementationOnce(async (_id, requests: any[]) =>
+      requests.filter((r) => r.id !== "r-indirect-blocked"),
+    );
 
     const out = await getDashboardData({ userId: "ger-1", role: "GERENTE" });
     expect(out.managedRequests.map((r: any) => r.id)).toEqual(["r-direct", "r-indirect-allowed"]);
-    expect(mockCanIndirectLeaderActWhenDirectOnVacation).toHaveBeenCalledTimes(2);
+    expect(mockFilterManagedRequestsForIndirectLeaders).toHaveBeenCalledTimes(1);
   });
 
   it("for DIRETOR, keeps direct reports and only allowed indirect reports", async () => {
@@ -129,13 +132,13 @@ describe("getDashboardData", () => {
         user: { managerId: "ger-3", manager: { managerId: "dir-1" } },
       },
     ]);
-    mockCanIndirectLeaderActWhenDirectOnVacation
-      .mockResolvedValueOnce(true) // r-indirect-allowed
-      .mockResolvedValueOnce(false); // r-indirect-blocked
+    mockFilterManagedRequestsForIndirectLeaders.mockImplementationOnce(async (_id, requests: any[]) =>
+      requests.filter((r) => r.id !== "r-indirect-blocked"),
+    );
 
     const out = await getDashboardData({ userId: "dir-1", role: "DIRETOR" });
     expect(out.managedRequests.map((r: any) => r.id)).toEqual(["r-direct-gerente", "r-indirect-allowed"]);
-    expect(mockCanIndirectLeaderActWhenDirectOnVacation).toHaveBeenCalledTimes(2);
+    expect(mockFilterManagedRequestsForIndirectLeaders).toHaveBeenCalledTimes(1);
   });
 });
 

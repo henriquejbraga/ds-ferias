@@ -1,7 +1,11 @@
 import { buildManagedRequestsWhere } from "@/lib/requestVisibility";
 import { hasTeamVisibility, getRoleLevel, calculateVacationBalance } from "@/lib/vacationRules";
-import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRule";
-import { findMyRequests, findManagedRequests } from "@/repositories/vacationRepository";
+import { filterManagedRequestsForIndirectLeaders } from "@/lib/indirectLeaderRule";
+import {
+  findMyRequests,
+  findManagedRequests,
+  findManagedRequestsLean,
+} from "@/repositories/vacationRepository";
 import { findBlackouts } from "@/repositories/blackoutRepository";
 import { findUserWithBalance, findUserDepartment } from "@/repositories/userRepository";
 import { syncAcquisitionPeriodsForUser, findAcquisitionPeriodsForUser } from "@/repositories/acquisitionRepository";
@@ -13,10 +17,27 @@ export type DashboardDataParams = {
   status?: string;
 };
 
-export async function getDashboardData(params: DashboardDataParams) {
-  const { userId, role, query: q, status } = params;
+/** Opções para evitar trabalho pesado quando a UI não precisa (ex.: inbox não lista “minhas” solicitações). */
+export type DashboardFetchOptions = {
+  /** Solicitações geridas sem include de `history` (contador / Times). */
+  leanManaged?: boolean;
+  /** Não carregar `findMyRequests` (aprovador em inbox/histórico/times). */
+  skipMyRequests?: boolean;
+};
 
-  const myRequestsPromise = findMyRequests(userId);
+export async function getDashboardData(
+  params: DashboardDataParams,
+  options: DashboardFetchOptions = {},
+) {
+  const { userId, role, query: q, status } = params;
+  const { leanManaged = false, skipMyRequests: skipMyRequestsOpt = false } = options;
+
+  const skipMyRequests =
+    skipMyRequestsOpt && role !== "COLABORADOR" && role !== "FUNCIONARIO";
+
+  const myRequestsPromise = skipMyRequests
+    ? Promise.resolve([] as Awaited<ReturnType<typeof findMyRequests>>)
+    : findMyRequests(userId);
 
   if (role === "COLABORADOR" || role === "FUNCIONARIO") {
     const myRequests = await myRequestsPromise;
@@ -33,9 +54,11 @@ export async function getDashboardData(params: DashboardDataParams) {
     status: status && status !== "TODOS" ? status : undefined,
   }) as Record<string, unknown>;
 
+  const managedFetcher = leanManaged ? findManagedRequestsLean : findManagedRequests;
+
   const [myRequests, managedRequests, blackouts] = await Promise.all([
     myRequestsPromise,
-    findManagedRequests(where),
+    managedFetcher(where),
     findBlackouts(),
   ]);
 
@@ -44,26 +67,21 @@ export async function getDashboardData(params: DashboardDataParams) {
   const roleLevel = getRoleLevel(role);
   const managedRequestsFiltered =
     roleLevel >= 3
-      ? await Promise.all(
-          managedRequests.map(async (r) => {
-            const directLeaderId = r.user?.managerId ?? null;
-            const directLeaderManagerId = r.user?.manager?.managerId ?? null;
-            const isDirectReport = directLeaderId === userId;
-            if (isDirectReport) return r;
-            const canIndirect = await canIndirectLeaderActWhenDirectOnVacation({
-              approverId: userId,
-              directLeaderId,
-              directLeaderManagerId,
-              requestCreatedAt: r.createdAt,
-            });
-            return canIndirect ? r : null;
-          }),
-        ).then((items) => items.filter((x): x is (typeof managedRequests)[number] => !!x))
+      ? await filterManagedRequestsForIndirectLeaders(userId, managedRequests)
       : managedRequests;
 
   const teamRequests = managedRequestsFiltered.filter((r) => r.status === "APROVADO_GERENTE");
 
   return { myRequests, managedRequests: managedRequestsFiltered, blackouts, teamRequests };
+}
+
+/** Saldo para o sidebar: sem sincronizar períodos aquisitivos (evita custo em telas de aprovação). */
+export async function getCurrentUserBalanceLight(userId: string) {
+  const userFull = await findUserWithBalance(userId);
+  return calculateVacationBalance(
+    userFull?.hireDate ?? null,
+    (userFull?.vacationRequests ?? []) as Array<{ startDate: Date; endDate: Date; status: string }>,
+  );
 }
 
 export async function getCurrentUserBalance(userId: string) {
@@ -93,6 +111,26 @@ export async function getUserAcquisitionPeriods(userId: string) {
   const userFull = await findUserWithBalance(userId);
   await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);
   return findAcquisitionPeriodsForUser(userId);
+}
+
+/** Uma leitura do usuário + sync + períodos (página Minhas Férias). */
+export async function getMyVacationSidebarContext(userId: string) {
+  const userFull = await findUserWithBalance(userId);
+  await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);
+  const acquisitionPeriods = await findAcquisitionPeriodsForUser(userId);
+  const balance = calculateVacationBalance(
+    userFull?.hireDate ?? null,
+    (userFull?.vacationRequests ?? []) as Array<{ startDate: Date; endDate: Date; status: string }>,
+  );
+  const firstEntitlementDate = userFull?.hireDate
+    ? addMonthsPreservingDay(new Date(userFull.hireDate), 12)
+    : null;
+  return {
+    balance,
+    acquisitionPeriods,
+    firstEntitlementDate,
+    department: userFull?.department ?? null,
+  };
 }
 
 type RequestWithVisibility = {

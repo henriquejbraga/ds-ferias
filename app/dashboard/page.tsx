@@ -4,10 +4,9 @@ import { getRoleLabel, getRoleLevel } from "@/lib/vacationRules";
 import { normalizeParam } from "@/lib/utils";
 import {
   getDashboardData,
-  getCurrentUserBalance,
+  getCurrentUserBalanceLight,
   getCurrentUserDepartment,
-  getUserAcquisitionPeriods,
-  getFirstEntitlementDate,
+  getMyVacationSidebarContext,
   getVisibleRequests,
   getPendingCount,
 } from "@/services/dashboardDataService";
@@ -49,26 +48,36 @@ export default async function DashboardPage({
   const toFilter = normalizeParam(params.to);
   const deptFilter = normalizeParam(params.department);
 
-  const { myRequests, managedRequests, blackouts } = await getDashboardData({
-    userId: user.id,
-    role: user.role,
-    query: q,
-    status: statusFilter,
-  });
+  const isMyView = !isApprover || view === "minhas";
+  const isTimesView = isApprover && view === "times";
 
-  const [balance, userDept, acquisitionPeriods, firstEntitlementDate] = await Promise.all([
-    getCurrentUserBalance(user.id),
-    getCurrentUserDepartment(user.id),
-    getUserAcquisitionPeriods(user.id),
-    getFirstEntitlementDate(user.id),
+  /** Inbox/histórico precisam de cards com histórico; minhas/times só de metadados para badge ou não usam. */
+  const needsFullManagedInclude = isApprover && (view === "inbox" || view === "historico");
+  const skipMyRequests = isApprover && view !== "minhas";
+  const leanManaged = isApprover && !needsFullManagedInclude;
+
+  const [{ myRequests, managedRequests, blackouts }, sidebarCtx, teamData] = await Promise.all([
+    getDashboardData(
+      { userId: user.id, role: user.role, query: q, status: statusFilter },
+      { leanManaged, skipMyRequests },
+    ),
+    isMyView
+      ? getMyVacationSidebarContext(user.id)
+      : Promise.all([getCurrentUserBalanceLight(user.id), getCurrentUserDepartment(user.id)]).then(
+          ([balance, department]) => ({
+            balance,
+            acquisitionPeriods: [],
+            firstEntitlementDate: null,
+            department,
+          }),
+        ),
+    isTimesView ? getTeamMembersForTimes(user.id, user.role) : Promise.resolve(null),
   ]);
+
+  const { balance, acquisitionPeriods, firstEntitlementDate, department: userDept } = sidebarCtx;
 
   const visibleRequests = getVisibleRequests(user.role, user.id, managedRequests);
   const pendingCount = getPendingCount(userRoleLevel, visibleRequests);
-
-  const isMyView = !isApprover || view === "minhas";
-  const isTimesView = isApprover && view === "times";
-  const teamData = isTimesView ? await getTeamMembersForTimes(user.id, user.role) : null;
 
   const filters: DashboardFilters = {
     query: q,
