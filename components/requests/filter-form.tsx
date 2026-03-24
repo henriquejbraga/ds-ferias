@@ -45,8 +45,10 @@ export function FilterForm({
           >
             <option value="TODOS">Todos os status</option>
             <option value="PENDENTE">Pendente aprovação</option>
-            <option value="APROVADO_COORDENADOR">Aprovado Coord.</option>
-            <option value="APROVADO_GERENTE">Aprovado Gerente</option>
+            <option value="APROVADO_COORDENADOR">Aprovado (coordenador)</option>
+            <option value="APROVADO_GERENTE">Aprovado (gerente)</option>
+            <option value="APROVADO_DIRETOR">Aprovado (diretoria)</option>
+            <option value="APROVADO_RH">Aprovado (RH)</option>
             <option value="REPROVADO">Reprovado</option>
           </select>
 

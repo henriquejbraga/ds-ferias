@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getRoleLabel } from "@/lib/vacationRules";
+import { getRoleLabel, getVacationStatusDisplayLabel } from "@/lib/vacationRules";
 
 type HistoryEntry = {
   changedAt: Date | string;
@@ -10,22 +10,13 @@ type HistoryEntry = {
   changedByUser?: { name?: string; role?: string };
 };
 
-function formatStatus(status: string): string {
-  if (status === "APROVADO_COORDENADOR" || status === "APROVADO_GESTOR") return "Aprovado coordenador";
-  if (status === "APROVADO_GERENTE") return "Aprovado";
-  return status.replace(/_/g, " ");
-}
-
-function formatNewStatus(status: string, changedByRole?: string): string {
-  if (status !== "APROVADO_GERENTE") return formatStatus(status);
-  if (changedByRole === "COORDENADOR" || changedByRole === "GESTOR") return "Aprovado coordenador";
-  if (changedByRole === "GERENTE") return "Aprovado gerente";
-  if (changedByRole === "DIRETOR") return "Aprovado diretor";
-  return "Aprovado";
-}
-
 export function HistorySection({ history }: { history: HistoryEntry[] }) {
   const [openByIndex, setOpenByIndex] = useState<Record<number, boolean>>({});
+
+  const labelFor = useMemo(
+    () => (status: string) => getVacationStatusDisplayLabel(status),
+    [],
+  );
 
   return (
     <div className="mt-4 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] p-3 dark:border-[#252a35] dark:bg-[#0f1117]">
@@ -55,11 +46,11 @@ export function HistorySection({ history }: { history: HistoryEntry[] }) {
 
                 <span className="flex-1 break-all">
                   <span className="font-normal text-[#64748b] dark:text-slate-400">
-                    {formatStatus(h.previousStatus)}
+                    {labelFor(h.previousStatus)}
                   </span>{" "}
                   <span className="text-[#94a3b8]">→</span>{" "}
                   <span className="font-semibold text-[#0f172a] dark:text-slate-100">
-                    {formatNewStatus(h.newStatus, h.changedByUser?.role)}
+                    {labelFor(h.newStatus)}
                   </span>
                 </span>
 
@@ -68,15 +59,14 @@ export function HistorySection({ history }: { history: HistoryEntry[] }) {
                 </span>
               </button>
 
-              {isOpen && (
-                h.changedByUser?.name ? (
+              {isOpen &&
+                (h.changedByUser?.name ? (
                   <div className="mt-2 text-xs text-[#94a3b8]">
                     Responsável: {h.changedByUser.name} ({getRoleLabel(h.changedByUser.role ?? "")})
                   </div>
                 ) : (
                   <div className="mt-2 text-xs text-[#94a3b8]">Sem responsável</div>
-                )
-              )}
+                ))}
             </div>
           );
         })}

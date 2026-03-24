@@ -1,19 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { logger } from "@/lib/logger";
-import { formatVacationStatusForExport } from "@/lib/vacationRules";
 import { getVacationRequestsForExport } from "@/services/vacationRequestListService";
-
-function finalApproverRoleFromHistory(
-  history: {
-    newStatus: string | null;
-    changedByUser: { role: string } | null;
-  }[],
-): string | null {
-  const finals = history.filter((h) => h.newStatus === "APROVADO_GERENTE");
-  const last = finals[finals.length - 1];
-  return last?.changedByUser?.role ?? null;
-}
 
 export async function GET(request: Request) {
   const user = await getSessionUser();
@@ -35,10 +23,8 @@ export async function GET(request: Request) {
 
   const filtered = await getVacationRequestsForExport(user, filters);
 
-  // Monta CSV – Excel lê CSV sem problemas.
   const lines: string[] = [];
 
-  // Cabeçalho
   lines.push([
     "Colaborador",
     "EmailColaborador",
@@ -56,13 +42,11 @@ export async function GET(request: Request) {
     const colaborador = r.user?.name ?? "";
     const emailColab = r.user?.email ?? "";
     const gestor = r.user?.manager?.name ?? "";
-    const finalApproverRole = finalApproverRoleFromHistory(r.history);
-    const statusAtual = formatVacationStatusForExport(r.status, finalApproverRole);
+    const statusAtual = r.status;
     const dataInicio = r.startDate.toLocaleDateString("pt-BR");
     const dataFim = r.endDate.toLocaleDateString("pt-BR");
 
     if (!r.history.length) {
-      // Linha única de solicitação sem histórico
       lines.push([
         colaborador,
         emailColab,
@@ -78,7 +62,6 @@ export async function GET(request: Request) {
       continue;
     }
 
-    // Linha principal da solicitação (dados gerais)
     lines.push([
       colaborador,
       emailColab,
@@ -92,7 +75,6 @@ export async function GET(request: Request) {
       "",
     ].join(";"));
 
-    // Linhas de histórico
     for (const h of r.history) {
       const changedByName = h.changedByUser?.name ?? "";
       const changedAt = h.changedAt.toLocaleString("pt-BR", {
@@ -102,12 +84,6 @@ export async function GET(request: Request) {
         hour: "2-digit",
         minute: "2-digit",
       });
-      const prevOut = h.previousStatus
-        ? formatVacationStatusForExport(h.previousStatus, null)
-        : "";
-      const newOut = h.newStatus
-        ? formatVacationStatusForExport(h.newStatus, h.changedByUser?.role ?? null)
-        : "";
 
       lines.push([
         colaborador,
@@ -116,8 +92,8 @@ export async function GET(request: Request) {
         statusAtual,
         dataInicio,
         dataFim,
-        prevOut,
-        newOut,
+        h.previousStatus ?? "",
+        h.newStatus ?? "",
         changedByName,
         changedAt,
       ].join(";"));
@@ -136,4 +112,3 @@ export async function GET(request: Request) {
     },
   });
 }
-

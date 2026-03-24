@@ -1,6 +1,7 @@
 "use client";
 
 import type { TeamMemberInfoSerialized } from "./types";
+import { isVacationApprovedStatus } from "@/lib/vacationRules";
 
 export function TeamMemberStatusBadge({ member }: { member: TeamMemberInfoSerialized }) {
   const { isOnVacationNow, balance, requests } = member;
@@ -8,17 +9,14 @@ export function TeamMemberStatusBadge({ member }: { member: TeamMemberInfoSerial
   today.setHours(0, 0, 0, 0);
 
   const hasFutureApprovedVacation = requests.some((r) => {
-    if (r.status !== "APROVADO_GERENTE") return false;
+    if (!isVacationApprovedStatus(r.status)) return false;
     const start = new Date(r.startDate);
     start.setHours(0, 0, 0, 0);
     return start > today;
   });
-  /** Pedido ainda não finalizado (gerente); inclui datas já iniciadas ou no passado. */
-  const hasPendingApproval = requests.some((r) =>
-    ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status),
-  );
+  const hasPendingApproval = requests.some((r) => r.status === "PENDENTE");
   const hasTakenVacation = requests.some((r) => {
-    if (r.status !== "APROVADO_GERENTE") return false;
+    if (!isVacationApprovedStatus(r.status)) return false;
     const end = new Date(r.endDate);
     end.setHours(0, 0, 0, 0);
     return end < today;

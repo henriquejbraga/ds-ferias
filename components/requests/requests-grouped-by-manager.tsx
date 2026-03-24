@@ -1,18 +1,4 @@
-import { RequestCard } from "@/components/requests/request-card";
-
-type RequestWithUser = {
-  id: string;
-  userId: string;
-  status: string;
-  startDate: Date | string;
-  endDate: Date | string;
-  notes?: string | null;
-  user?: { name?: string; role?: string; department?: string | null; manager?: { name?: string } | null };
-  history?: Array<{
-    newStatus?: string;
-    changedByUser?: { role?: string | null } | null;
-  }>;
-};
+import { RequestCard, type RequestWithUser } from "@/components/requests/request-card";
 
 function groupByManager(requests: RequestWithUser[]): Record<string, RequestWithUser[]> {
   return requests.reduce((groups: Record<string, RequestWithUser[]>, r) => {

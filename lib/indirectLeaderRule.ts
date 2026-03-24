@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isVacationApprovedStatus } from "@/lib/vacationRules";
 
 type LeaderVacationRow = {
   startDate: Date;
@@ -14,7 +15,7 @@ type Params = {
   requestCreatedAt: Date;
 };
 
-/** Verifica se `requestCreatedAt` cai em algum período APROVADO_GERENTE do líder (com ajuste de abono). */
+/** Verifica se `requestCreatedAt` cai em algum período de férias aprovado do líder (com ajuste de abono). */
 export function wasSubmittedDuringLeaderApprovedVacation(
   leaderVacations: LeaderVacationRow[] | undefined,
   requestCreatedAt: Date,
@@ -23,7 +24,7 @@ export function wasSubmittedDuringLeaderApprovedVacation(
   submittedAt.setHours(0, 0, 0, 0);
 
   return (leaderVacations ?? []).some((r) => {
-    if (!["APROVADO_GERENTE"].includes(r.status)) return false;
+    if (!isVacationApprovedStatus(r.status)) return false;
     const start = new Date(r.startDate);
     const rawEnd = new Date(r.endDate);
     const end =

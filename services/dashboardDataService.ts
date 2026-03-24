@@ -1,5 +1,10 @@
 import { buildManagedRequestsWhere } from "@/lib/requestVisibility";
-import { hasTeamVisibility, getRoleLevel, calculateVacationBalance } from "@/lib/vacationRules";
+import {
+  hasTeamVisibility,
+  getRoleLevel,
+  calculateVacationBalance,
+  isVacationApprovedStatus,
+} from "@/lib/vacationRules";
 import { filterManagedRequestsForIndirectLeaders } from "@/lib/indirectLeaderRule";
 import {
   findMyRequests,
@@ -70,7 +75,7 @@ export async function getDashboardData(
       ? await filterManagedRequestsForIndirectLeaders(userId, managedRequests)
       : managedRequests;
 
-  const teamRequests = managedRequestsFiltered.filter((r) => r.status === "APROVADO_GERENTE");
+  const teamRequests = managedRequestsFiltered.filter((r) => isVacationApprovedStatus(r.status));
 
   return { myRequests, managedRequests: managedRequestsFiltered, blackouts, teamRequests };
 }

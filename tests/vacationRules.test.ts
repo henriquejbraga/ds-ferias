@@ -13,7 +13,7 @@ import {
   getApprovalSteps,
   getApprovalProgress,
   getApproverRelationshipStepLabel,
-  formatVacationStatusForExport,
+  isVacationApprovedStatus,
   detectTeamConflicts,
   checkBlackoutPeriods,
 } from "@/lib/vacationRules";
@@ -126,11 +126,21 @@ describe("canApproveRequest", () => {
     ).toBe(true);
   });
 
-  it("returns false for Coordenador approving APROVADO_GERENTE (status final)", () => {
+  it("returns false for Coordenador when already APROVADO_GERENTE (status final)", () => {
     expect(
       canApproveRequest("COORDENADOR", "coord-1", {
         userId: "func-1",
         status: "APROVADO_GERENTE",
+        user: { role: "FUNCIONARIO" },
+      }),
+    ).toBe(false);
+  });
+
+  it("returns false for Coordenador when already APROVADO_COORDENADOR (status final)", () => {
+    expect(
+      canApproveRequest("COORDENADOR", "coord-1", {
+        userId: "func-1",
+        status: "APROVADO_COORDENADOR",
         user: { role: "FUNCIONARIO" },
       }),
     ).toBe(false);
@@ -269,7 +279,7 @@ describe("calculateVacationBalance", () => {
     expect(balance.availableDays).toBe(60);
   });
 
-  it("counts used days from APROVADO_GERENTE requests", () => {
+  it("counts used days from any approved status (gerente ou coordenador)", () => {
     const hireDate = new Date("2023-01-01");
     const requests = [
       { startDate: new Date("2025-01-06"), endDate: new Date("2025-01-20"), status: "APROVADO_GERENTE" },
@@ -277,6 +287,10 @@ describe("calculateVacationBalance", () => {
     const balance = calculateVacationBalance(hireDate, requests);
     expect(balance.usedDays).toBe(15);
     expect(balance.availableDays).toBeLessThanOrEqual(balance.entitledDays - 15);
+    const balanceCoord = calculateVacationBalance(hireDate, [
+      { startDate: new Date("2025-01-06"), endDate: new Date("2025-01-20"), status: "APROVADO_COORDENADOR" },
+    ]);
+    expect(balanceCoord.usedDays).toBe(15);
   });
 
   it("caps entitlement at 60 days (2 períodos aquisitivos) mesmo após muitos anos", () => {
@@ -309,14 +323,18 @@ describe("ROLE_COLOR", () => {
 });
 
 describe("getNextApprovalStatus", () => {
-  it("returns APROVADO_GERENTE for level 2 (aprovação única)", () => {
-    expect(getNextApprovalStatus("COORDENADOR")).toBe("APROVADO_GERENTE");
+  it("returns APROVADO_COORDENADOR for coordenador/gestor", () => {
+    expect(getNextApprovalStatus("COORDENADOR")).toBe("APROVADO_COORDENADOR");
+    expect(getNextApprovalStatus("GESTOR")).toBe("APROVADO_COORDENADOR");
   });
-  it("returns APROVADO_GERENTE for level 3 (gerente é aprovação final)", () => {
+  it("returns APROVADO_GERENTE for gerente", () => {
     expect(getNextApprovalStatus("GERENTE")).toBe("APROVADO_GERENTE");
   });
-  it("returns APROVADO_GERENTE for level 4 (legado)", () => {
-    expect(getNextApprovalStatus("RH")).toBe("APROVADO_GERENTE");
+  it("returns APROVADO_DIRETOR for diretor", () => {
+    expect(getNextApprovalStatus("DIRETOR")).toBe("APROVADO_DIRETOR");
+  });
+  it("returns APROVADO_RH for RH", () => {
+    expect(getNextApprovalStatus("RH")).toBe("APROVADO_RH");
   });
 });
 
@@ -329,6 +347,9 @@ describe("getNextApprover", () => {
   });
   it("returns null for APROVADO_GERENTE (final)", () => {
     expect(getNextApprover("APROVADO_GERENTE", "FUNCIONARIO")).toBeNull();
+  });
+  it("returns null for APROVADO_DIRETOR (final)", () => {
+    expect(getNextApprover("APROVADO_DIRETOR", "FUNCIONARIO")).toBeNull();
   });
 });
 
@@ -358,28 +379,25 @@ describe("getApprovalProgress", () => {
   it("returns 1 for APROVADO_GERENTE (etapa final atual)", () => {
     expect(getApprovalProgress("APROVADO_GERENTE")).toBe(1);
   });
+  it("returns 1 for APROVADO_DIRETOR e APROVADO_RH", () => {
+    expect(getApprovalProgress("APROVADO_DIRETOR")).toBe(1);
+    expect(getApprovalProgress("APROVADO_RH")).toBe(1);
+  });
   it("returns 0 for REPROVADO", () => {
     expect(getApprovalProgress("REPROVADO")).toBe(0);
   });
 });
 
-describe("formatVacationStatusForExport", () => {
-  it("passes through non-final statuses unchanged", () => {
-    expect(formatVacationStatusForExport("PENDENTE", "COORDENADOR")).toBe("PENDENTE");
-    expect(formatVacationStatusForExport("REPROVADO", null)).toBe("REPROVADO");
+describe("isVacationApprovedStatus", () => {
+  it("returns true for all approved enum values", () => {
+    expect(isVacationApprovedStatus("APROVADO_COORDENADOR")).toBe(true);
+    expect(isVacationApprovedStatus("APROVADO_GERENTE")).toBe(true);
+    expect(isVacationApprovedStatus("APROVADO_DIRETOR")).toBe(true);
+    expect(isVacationApprovedStatus("APROVADO_RH")).toBe(true);
   });
-
-  it("maps APROVADO_GERENTE by approver role", () => {
-    expect(formatVacationStatusForExport("APROVADO_GERENTE", "COORDENADOR")).toBe("APROVADO_COORDENADOR");
-    expect(formatVacationStatusForExport("APROVADO_GERENTE", "GESTOR")).toBe("APROVADO_COORDENADOR");
-    expect(formatVacationStatusForExport("APROVADO_GERENTE", "GERENTE")).toBe("APROVADO_GERENTE");
-    expect(formatVacationStatusForExport("APROVADO_GERENTE", "DIRETOR")).toBe("APROVADO_DIRETORIA");
-    expect(formatVacationStatusForExport("APROVADO_GERENTE", "RH")).toBe("APROVADO_RH");
-  });
-
-  it("uses neutral APROVADO when final status but approver role unknown", () => {
-    expect(formatVacationStatusForExport("APROVADO_GERENTE", null)).toBe("APROVADO");
-    expect(formatVacationStatusForExport("APROVADO_GERENTE", "")).toBe("APROVADO");
+  it("returns false for PENDENTE and reprovado", () => {
+    expect(isVacationApprovedStatus("PENDENTE")).toBe(false);
+    expect(isVacationApprovedStatus("REPROVADO")).toBe(false);
   });
 });
 

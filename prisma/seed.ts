@@ -27,6 +27,14 @@ function addDays(date: Date, days: number) {
   return d;
 }
 
+/** Status aprovado coerente com quem costuma aprovar cada papel na hierarquia. */
+function seedApprovedStatus(role: string) {
+  if (role === "GERENTE") return "APROVADO_DIRETOR" as const;
+  if (role === "COORDENADOR" || role === "GESTOR") return "APROVADO_GERENTE" as const;
+  if (role === "DIRETOR" || role === "RH") return "APROVADO_RH" as const;
+  return "APROVADO_COORDENADOR" as const;
+}
+
 function randInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -215,7 +223,7 @@ async function main() {
         userId: u.id,
         startDate: pastStart,
         endDate: pastEnd,
-        status: "APROVADO_GERENTE",
+        status: seedApprovedStatus(u.role),
         notes: "Seed: ferias aleatorias aprovadas",
         abono: Math.random() < 0.25,
         thirteenth: Math.random() < 0.25,
@@ -244,7 +252,7 @@ async function main() {
       startDate: new Date("2026-03-10T00:00:00Z"),
       endDate: new Date("2026-04-08T00:00:00Z"),
       status: "APROVADO_GERENTE",
-      notes: "Seed: férias fixas do Paulo (30 dias)",
+      notes: "Seed: férias fixas do Paulo — aprovado pelo gerente (30 dias)",
       abono: false,
       thirteenth: false,
     },

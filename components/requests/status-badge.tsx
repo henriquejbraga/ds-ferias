@@ -1,4 +1,8 @@
-import { getRoleLabel } from "@/lib/vacationRules";
+import {
+  getRoleLabel,
+  getVacationStatusDisplayLabel,
+  isVacationApprovedStatus,
+} from "@/lib/vacationRules";
 
 type ChipColor = "amber" | "green" | "red" | "blue" | "indigo" | "purple" | "slate";
 
@@ -20,32 +24,19 @@ export function StatusChip({ color, label }: { color: ChipColor; label: string }
   );
 }
 
-export function StatusBadge({
-  status,
-  approvedByRole,
-}: {
-  status: string;
-  approvedByRole?: string | null;
-}) {
-  if (status === "APROVADO_COORDENADOR" || status === "APROVADO_GESTOR") {
+function approvedChipColor(status: string): ChipColor {
+  if (status === "APROVADO_COORDENADOR" || status === "APROVADO_GESTOR") return "indigo";
+  if (status === "APROVADO_GERENTE") return "purple";
+  if (status === "APROVADO_DIRETOR") return "blue";
+  if (status === "APROVADO_RH") return "green";
+  return "green";
+}
+
+export function StatusBadge({ status }: { status: string }) {
+  if (isVacationApprovedStatus(status)) {
     return (
-      <div className="flex flex-wrap items-center gap-1.5">
-        <StatusChip color="indigo" label="Aprovado Coord." />
-        <StatusChip color="amber" label="Pend. líder direto" />
-      </div>
+      <StatusChip color={approvedChipColor(status)} label={getVacationStatusDisplayLabel(status)} />
     );
-  }
-  if (status === "APROVADO_GERENTE") {
-    if (approvedByRole === "COORDENADOR" || approvedByRole === "GESTOR") {
-      return <StatusChip color="green" label="Aprovado Coordenador" />;
-    }
-    if (approvedByRole === "GERENTE") {
-      return <StatusChip color="green" label="Aprovado Gerente" />;
-    }
-    if (approvedByRole === "DIRETOR") {
-      return <StatusChip color="green" label="Aprovado Diretor" />;
-    }
-    return <StatusChip color="green" label="Aprovado" />;
   }
   const config: Record<string, { color: ChipColor; label: string }> = {
     PENDENTE: { color: "amber", label: "Pendente aprovação" },

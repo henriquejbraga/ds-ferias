@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { getRoleLevel } from "@/lib/vacationRules";
+import { getRoleLevel, isVacationApprovedStatus } from "@/lib/vacationRules";
 import { findUsersWithVacationForBalance } from "@/repositories/userRepository";
 
 /** GET: relatório de adesão — colaboradores com direito a férias que não tiraram férias no ano informado. */
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     if (!hasEntitlement) continue;
 
     const hasTakenVacationInYear = u.vacationRequests.some((r) => {
-      if (r.status !== "APROVADO_GERENTE") return false;
+      if (!isVacationApprovedStatus(r.status)) return false;
       const start = new Date(r.startDate);
       return start.getFullYear() === year;
     });

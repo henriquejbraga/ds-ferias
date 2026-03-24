@@ -1,4 +1,9 @@
-import { getApprovalSteps, getApprovalProgress, getNextApprover } from "@/lib/vacationRules";
+import {
+  getApprovalSteps,
+  getApprovalProgress,
+  getNextApprover,
+  isVacationApprovedStatus,
+} from "@/lib/vacationRules";
 
 type RequestLike = { status: string; user?: { role?: string } | null };
 
@@ -15,7 +20,7 @@ export function ApprovalProgressBar({
   const stepsToRender = steps.length > 0 ? steps : fallbackStepLabel ? [fallbackStepLabel] : [];
   const progress = getApprovalProgress(request.status);
   const isRejected = request.status === "REPROVADO" || request.status === "CANCELADO";
-  const isCompleted = request.status === "APROVADO_GERENTE";
+  const isCompleted = isVacationApprovedStatus(request.status);
   const nextApprover = getNextApprover(request.status, request.user?.role ?? "FUNCIONARIO");
 
   if (!stepsToRender.length) return null;

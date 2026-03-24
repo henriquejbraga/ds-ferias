@@ -1,4 +1,5 @@
 import type { VacationBalance } from "@/lib/vacationRules";
+import { getVacationStatusDisplayLabel, isVacationApprovedStatus } from "@/lib/vacationRules";
 import { EmptyState } from "@/components/layout/empty-state";
 import { ExportButton } from "@/components/layout/export-button";
 import { RequestCard } from "@/components/requests/request-card";
@@ -20,24 +21,9 @@ type RequestLike = {
   }>;
 };
 
-function formatUpcomingStatus(
-  status: string,
-  history?: Array<{ newStatus?: string; changedByUser?: { role?: string | null } | null }>,
-): string {
+function formatUpcomingStatus(status: string): string {
   if (status === "PENDENTE") return "Pendente aprovação";
-  if (status === "APROVADO_COORDENADOR" || status === "APROVADO_GESTOR") return "Aprovado coordenador";
-  if (status === "APROVADO_GERENTE") {
-    const approvalEntry =
-      history
-        ?.slice()
-        .reverse()
-        .find((h) => h?.newStatus === "APROVADO_GERENTE") ?? null;
-    const approverRole = approvalEntry?.changedByUser?.role ?? null;
-    if (approverRole === "COORDENADOR" || approverRole === "GESTOR") return "Aprovado coordenador";
-    if (approverRole === "GERENTE") return "Aprovado gerente";
-    if (approverRole === "DIRETOR") return "Aprovado diretor";
-    return "Aprovado";
-  }
+  if (isVacationApprovedStatus(status)) return getVacationStatusDisplayLabel(status);
   return status.replace(/_/g, " ").toLowerCase();
 }
 
@@ -67,7 +53,7 @@ export function MyRequestsList({
   const upcoming = requests
     .filter((r) => {
       const start = new Date(r.startDate);
-      return start >= today && ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GERENTE"].includes(r.status);
+      return start >= today && (r.status === "PENDENTE" || isVacationApprovedStatus(r.status));
     })
     .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
     .slice(0, 3);
@@ -180,7 +166,7 @@ export function MyRequestsList({
                       <span>{end.toLocaleDateString("pt-BR")}</span>
                     </span>
                     <span className="text-xs text-[#64748b] dark:text-slate-400">
-                      {label} · {formatUpcomingStatus(r.status, r.history)}
+                      {label} · {formatUpcomingStatus(r.status)}
                     </span>
                   </div>
                   {backWithAbono && (

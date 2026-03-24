@@ -1,8 +1,4 @@
-import {
-  canApproveRequest,
-  getApproverRelationshipStepLabel,
-  getRoleLevel,
-} from "@/lib/vacationRules";
+import { canApproveRequest, getApproverRelationshipStepLabel, getRoleLevel } from "@/lib/vacationRules";
 import { StatusBadge, RoleChip } from "@/components/requests/status-badge";
 import { ApprovalProgressBar } from "@/components/requests/approval-progress-bar";
 import { HistorySection } from "@/components/requests/history-section";
@@ -40,7 +36,7 @@ export type RequestWithUser = {
     role?: string;
     department?: string | null;
     managerId?: string | null;
-    manager?: { id?: string | null } | null;
+    manager?: { id?: string | null; name?: string | null } | null;
   } | null;
   history?: Array<{
     newStatus?: string;
@@ -76,12 +72,6 @@ export function RequestCard({
     !isOwner && !!userRole && getRoleLevel(userRole) >= 3 && request.status === "PENDENTE";
   const start = new Date(request.startDate);
   const end = new Date(request.endDate);
-  const approvalEntry =
-    request.history
-      ?.slice()
-      .reverse()
-      .find((h) => h?.newStatus === "APROVADO_GERENTE") ?? null;
-  const approvedByRole = approvalEntry?.changedByUser?.role ?? null;
   const backWithAbono =
     request.abono && !isNaN(end.getTime())
       ? new Date(end.getTime() - 10 * 24 * 60 * 60 * 1000)
@@ -159,7 +149,7 @@ export function RequestCard({
             </div>
           </div>
           <div className="w-full shrink-0 sm:w-auto">
-            <StatusBadge status={request.status} approvedByRole={approvedByRole} />
+            <StatusBadge status={request.status} />
           </div>
         </div>
 

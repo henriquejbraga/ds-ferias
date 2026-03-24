@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
-import { canApproveRequest, getNextApprovalStatus, ROLE_LEVEL, detectTeamConflicts } from "@/lib/vacationRules";
+import {
+  canApproveRequest,
+  getNextApprovalStatus,
+  isVacationApprovedStatus,
+  ROLE_LEVEL,
+  detectTeamConflicts,
+} from "@/lib/vacationRules";
 import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRule";
 import { notifyApproved } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
@@ -193,7 +199,7 @@ export async function POST(request: Request, { params }: Params) {
 
     let periodId: string | undefined;
 
-    if (nextStatus === "APROVADO_GERENTE") {
+    if (isVacationApprovedStatus(nextStatus)) {
       // FIFO: consome o período aquisitivo mais antigo que ainda tenha saldo disponível.
       // A data das férias NÃO precisa cair dentro do período — CLT permite usar dias
       // de ciclos anteriores em qualquer data futura.
@@ -210,7 +216,7 @@ export async function POST(request: Request, { params }: Params) {
       status: nextStatus,
       [noteField]: approvalNote,
     };
-    if (nextStatus === "APROVADO_GERENTE" && periodId) {
+    if (isVacationApprovedStatus(nextStatus) && periodId) {
       data.acquisitionPeriodId = periodId;
     }
 
@@ -240,7 +246,7 @@ export async function POST(request: Request, { params }: Params) {
       return;
     }
 
-    if (nextStatus === "APROVADO_GERENTE" && periodId) {
+    if (isVacationApprovedStatus(nextStatus) && periodId) {
       // Incremento atomicamente dentro da mesma transação.
       const period = await tx.acquisitionPeriod.findUnique({
         where: { id: periodId },

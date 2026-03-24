@@ -4,7 +4,6 @@ export type VacationRequestSummary = {
   startDate: Date | string;
   endDate: Date | string;
   abono?: boolean;
-  approvedByRole?: string | null;
 };
 
 export type TeamMemberInfoSerialized = {

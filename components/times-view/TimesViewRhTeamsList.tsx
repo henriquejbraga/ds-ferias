@@ -6,12 +6,6 @@ import { TeamMemberRow } from "./TeamMemberRow";
 import { Chevron } from "./Chevron";
 import { getRoleLabel } from "@/lib/vacationRules";
 
-function approvedByRoleFromRequest(r: any): string | null {
-  const h = Array.isArray(r?.history) ? r.history : [];
-  const approval = h.slice().reverse().find((x: any) => x?.newStatus === "APROVADO_GERENTE");
-  return approval?.changedByUser?.role ?? null;
-}
-
 type GerenteTeamRow = TeamDataRH["gerentes"][0]["teams"][number];
 
 /** Vários `teamKey` podem compartilhar o mesmo coordenador — um bloco na UI do gerente. */
@@ -276,7 +270,6 @@ export function TimesViewRhTeamsList({
                                       endDate: r.endDate,
                                       status: r.status,
                                       abono: r.abono,
-                                      approvedByRole: approvedByRoleFromRequest(r),
                                     }))}
                                   />
                                 )}
@@ -350,7 +343,6 @@ export function TimesViewRhTeamsList({
                                             endDate: r.endDate,
                                             status: r.status,
                                             abono: r.abono,
-                                            approvedByRole: approvedByRoleFromRequest(r),
                                           }))}
                                         />
                                       ))}

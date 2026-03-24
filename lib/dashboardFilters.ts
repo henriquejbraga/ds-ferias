@@ -1,4 +1,4 @@
-import { getRoleLevel, hasTeamVisibility } from "./vacationRules";
+import { getRoleLevel, hasTeamVisibility, isVacationApprovedStatus } from "./vacationRules";
 import type { DashboardFilters } from "@/types/dashboard";
 
 /** Itens por página na view Histórico (dashboard). */
@@ -75,13 +75,18 @@ export function filterRequests<T extends RequestForFilter>(
     if (filters.view === "inbox") {
       if (r.userId === userId) return false; // caixa de aprovação nunca mostra solicitação própria
       if (userLevel === 2 && r.status !== "PENDENTE") return false;
-      if (userLevel === 3 && !["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status)) return false;
+      if (userLevel === 3 && r.status !== "PENDENTE") return false;
       if (userLevel >= 4 && r.status !== "PENDENTE") {
         return false;
       }
     } else if (filters.view === "historico") {
-      const processed = ["APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE", "REPROVADO", "CANCELADO"];
-      if (!processed.includes(r.status)) return false;
+      if (
+        !isVacationApprovedStatus(r.status) &&
+        r.status !== "REPROVADO" &&
+        r.status !== "CANCELADO"
+      ) {
+        return false;
+      }
     }
     if (filters.query && !r.user?.name?.toLowerCase().includes(filters.query.toLowerCase())) return false;
     if (filters.status !== "TODOS" && r.status !== filters.status) return false;

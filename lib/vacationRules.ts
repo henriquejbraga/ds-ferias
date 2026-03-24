@@ -3,6 +3,8 @@
 // Hierarquia: FUNCIONARIO → COORDENADOR → GERENTE → RH
 // ============================================================
 
+import type { VacationStatus } from "@/generated/prisma/enums";
+
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 function toUtcMidnight(date: Date): Date {
@@ -69,21 +71,39 @@ export function getRoleLabel(role: string): string {
   return ROLE_LABEL[role] ?? role;
 }
 
-/**
- * Texto de status para CSV/relatórios. No banco, aprovação final de coordenador ou gerente
- * grava o mesmo valor `APROVADO_GERENTE`; aqui discriminamos pelo papel de quem aprovou.
- */
-export function formatVacationStatusForExport(
-  status: string,
-  approverRoleWhenFinal?: string | null,
-): string {
-  if (status !== "APROVADO_GERENTE") return status;
-  const level = getRoleLevel(approverRoleWhenFinal ?? "");
-  if (level === 2) return "APROVADO_COORDENADOR";
-  if (level === 3) return "APROVADO_GERENTE";
-  if (level === 4) return "APROVADO_DIRETORIA";
-  if (level >= 5) return "APROVADO_RH";
-  return "APROVADO";
+/** Estados em que a solicitação está aprovada (gozo / consome período aquisitivo). */
+const APPROVED_VACATION_LIST = [
+  "APROVADO_COORDENADOR",
+  "APROVADO_GESTOR",
+  "APROVADO_GERENTE",
+  "APROVADO_DIRETOR",
+  "APROVADO_RH",
+] as const satisfies readonly VacationStatus[];
+
+export const APPROVED_VACATION_STATUSES = APPROVED_VACATION_LIST;
+
+/** PENDENTE ou aprovado — sobreposição de períodos / limites por ciclo (tipado para Prisma). */
+export const PENDING_OR_APPROVED_VACATION_STATUSES: VacationStatus[] = ["PENDENTE", ...APPROVED_VACATION_LIST];
+
+const APPROVED_VACATION_STATUS_SET = new Set<string>(APPROVED_VACATION_LIST);
+
+export function isVacationApprovedStatus(status: string): boolean {
+  return APPROVED_VACATION_STATUS_SET.has(status);
+}
+
+/** Rótulo curto para telas e relatórios (enum → texto). */
+export function getVacationStatusDisplayLabel(status: string): string {
+  const map: Record<string, string> = {
+    PENDENTE: "Pendente aprovação",
+    APROVADO_COORDENADOR: "Aprovado (coordenador)",
+    APROVADO_GESTOR: "Aprovado (coordenador)",
+    APROVADO_GERENTE: "Aprovado (gerente)",
+    APROVADO_DIRETOR: "Aprovado (diretoria)",
+    APROVADO_RH: "Aprovado (RH)",
+    REPROVADO: "Reprovado",
+    CANCELADO: "Cancelado",
+  };
+  return map[status] ?? status.replace(/_/g, " ");
 }
 
 // ============================================================
@@ -91,13 +111,15 @@ export function formatVacationStatusForExport(
 // ============================================================
 
 /**
- * Dado o papel do aprovador, retorna o próximo status da solicitação.
- * A progressão segue a hierarquia de cargos.
+ * Dado o papel do aprovador, retorna o status gravado ao aprovar (única etapa).
  */
 export function getNextApprovalStatus(approverRole: string): string {
   const level = ROLE_LEVEL[approverRole] ?? 1;
-  // Aprovação única por líder direto.
-  return level >= 2 ? "APROVADO_GERENTE" : "PENDENTE";
+  if (level === 2) return "APROVADO_COORDENADOR";
+  if (level === 3) return "APROVADO_GERENTE";
+  if (level === 4) return "APROVADO_DIRETOR";
+  if (level >= 5) return "APROVADO_RH";
+  return "PENDENTE";
 }
 
 /**
@@ -138,14 +160,14 @@ export function canApproveRequest(
 function getRequiredApproverLevel(status: string, _requesterLevel: number): number | null {
   switch (status) {
     case "PENDENTE":
-      // Aprovação única por líder direto (nível 2+)
       return 2;
-    case "APROVADO_COORDENADOR": // legado
-    case "APROVADO_GESTOR": // legado
-    case "APROVADO_GERENTE": // final atual
+    case "APROVADO_COORDENADOR":
+    case "APROVADO_GESTOR":
+    case "APROVADO_GERENTE":
+    case "APROVADO_DIRETOR":
+    case "APROVADO_RH":
       return null;
     default:
-      // Status terminal: REPROVADO, CANCELADO
       return null;
   }
 }
@@ -190,6 +212,8 @@ export function getApprovalProgress(status: string): number {
     case "APROVADO_GERENTE":
     case "APROVADO_COORDENADOR":
     case "APROVADO_GESTOR":
+    case "APROVADO_DIRETOR":
+    case "APROVADO_RH":
       return 1;
     default:
       return 0;
@@ -310,11 +334,10 @@ export function calculateVacationBalance(
   const currentYear = today.getFullYear();
 
   if (!hireDate) {
-    // Sem data de admissão: assume entitlement completo
-    const usedDays = calcUsedDays(approvedRequests, "APROVADO_GERENTE", currentYear);
-    const pendingDays = calcUsedDays(approvedRequests, "PENDENTE", currentYear) +
-      calcUsedDays(approvedRequests, "APROVADO_COORDENADOR", currentYear) +
-      calcUsedDays(approvedRequests, "APROVADO_GESTOR", currentYear);
+    const usedDays = approvedRequests
+      .filter((r) => isVacationApprovedStatus(r.status) && new Date(r.startDate).getUTCFullYear() === currentYear)
+      .reduce((sum, r) => sum + calcDays(r.startDate, r.endDate), 0);
+    const pendingDays = calcUsedDays(approvedRequests, "PENDENTE", currentYear);
     return {
       entitledDays: 30,
       usedDays,
@@ -357,17 +380,12 @@ export function calculateVacationBalance(
   const cutoff = new Date(today);
   cutoff.setMonth(cutoff.getMonth() - cyclesCovered * 12);
 
-  // Dias já aprovados
   const totalUsed = approvedRequests
-    .filter((r) => r.status === "APROVADO_GERENTE" && new Date(r.endDate) >= cutoff)
+    .filter((r) => isVacationApprovedStatus(r.status) && new Date(r.endDate) >= cutoff)
     .reduce((sum, r) => sum + calcDays(r.startDate, r.endDate), 0);
 
-  // Dias em aprovação (pendentes)
   const totalPending = approvedRequests
-    .filter((r) =>
-      ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status) &&
-      new Date(r.endDate) >= cutoff,
-    )
+    .filter((r) => r.status === "PENDENTE" && new Date(r.endDate) >= cutoff)
     .reduce((sum, r) => sum + calcDays(r.startDate, r.endDate), 0);
 
   const available = Math.max(0, totalEntitled - totalUsed - totalPending);
@@ -498,7 +516,7 @@ export function detectTeamConflicts(
 
   const conflicting = teamMembers.filter((member) =>
     member.requests.some((r) => {
-      const isActive = ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"].includes(r.status);
+      const isActive = r.status === "PENDENTE" || isVacationApprovedStatus(r.status);
       if (!isActive) return false;
       // Overlap check: períodos se sobrepõem se start < r.end && end > r.start
       return new Date(start) < new Date(r.endDate) && new Date(end) > new Date(r.startDate);

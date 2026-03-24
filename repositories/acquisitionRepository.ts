@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { APPROVED_VACATION_STATUSES } from "@/lib/vacationRules";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -22,7 +23,7 @@ function daysBetweenInclusiveClamped(start: Date, end: Date): number {
 
 /**
  * Gera os períodos aquisitivos para o usuário e faz resync FIFO completo:
- * recalcula o usedDays de cada período a partir de TODAS as solicitações APROVADO_GERENTE,
+ * recalcula o usedDays de cada período a partir de TODAS as solicitações com status aprovado,
  * do mais antigo para o mais novo (FIFO). Isso garante que períodos mais antigos
  * sejam consumidos primeiro, independente da data das férias.
  *
@@ -122,7 +123,7 @@ export async function syncAcquisitionPeriodsForUser(
   // Isso corrige atribuições erradas geradas pelo código legado (que usava range de datas).
   const approvedRequests: Array<{ id: string; startDate: Date; endDate: Date; acquisitionPeriodId: string | null }> =
     await (prisma as any).vacationRequest.findMany({
-      where: { userId, status: "APROVADO_GERENTE" },
+      where: { userId, status: { in: [...APPROVED_VACATION_STATUSES] } },
       orderBy: { startDate: "asc" },
       select: { id: true, startDate: true, endDate: true, acquisitionPeriodId: true },
     });

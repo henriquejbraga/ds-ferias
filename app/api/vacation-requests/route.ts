@@ -7,6 +7,7 @@ import {
   validateCltPeriods,
   checkBlackoutPeriods,
   calculateVacationBalance,
+  PENDING_OR_APPROVED_VACATION_STATUSES,
 } from "@/lib/vacationRules";
 import { notifyNewRequest } from "@/lib/notifications";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -88,7 +89,7 @@ async function hasOverlappingRequest(userId: string, startDate: Date, endDate: D
     where: {
       userId,
       status: {
-        in: ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"],
+        in: [...PENDING_OR_APPROVED_VACATION_STATUSES],
       },
       AND: [{ startDate: { lt: endDate } }, { endDate: { gt: startDate } }],
     },
@@ -196,7 +197,7 @@ export async function POST(request: Request) {
     }),
   ]);
 
-  const statusesAwaitingRH = ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"] as const;
+  const statusesAwaitingRH = PENDING_OR_APPROVED_VACATION_STATUSES;
 
   // Enforcement por períodos aquisitivos adquiridos (FIFO — consome o mais antigo com saldo).
   // A data das férias NÃO precisa cair dentro do período aquisitivo: CLT permite usar dias
@@ -206,12 +207,10 @@ export async function POST(request: Request) {
     if (user.role === "GERENTE" || user.role === "DIRETOR") {
       const WORKING_DAYS_LIMIT_PER_CYCLE = 22;
       const cycle = getCurrentCycleRange(new Date(), userFull.hireDate);
-      const relevantStatuses = ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"] as const;
-
       const cycleRequests = await prisma.vacationRequest.findMany({
         where: {
           userId: user.id,
-          status: { in: [...relevantStatuses] },
+          status: { in: [...PENDING_OR_APPROVED_VACATION_STATUSES] },
           AND: [{ startDate: { lte: cycle.end } }, { endDate: { gte: cycle.start } }],
         },
         select: { startDate: true, endDate: true },

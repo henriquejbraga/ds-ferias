@@ -3,7 +3,7 @@
  * Single source of truth for "who sees which vacation requests".
  */
 
-import { getRoleLevel, hasTeamVisibility } from "./vacationRules";
+import { getRoleLevel, hasTeamVisibility, isVacationApprovedStatus } from "./vacationRules";
 
 export type DashboardFilters = {
   query?: string;
@@ -105,13 +105,18 @@ export function filterRequestsByVisibilityAndView(
     if (view === "inbox") {
       if (r.userId === userId) return false; // inbox é só para aprovar terceiros
       if (userLevel === 2 && r.status !== "PENDENTE") return false;
-      if (userLevel === 3 && !["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR"].includes(r.status)) return false;
+      if (userLevel === 3 && r.status !== "PENDENTE") return false;
       if (userLevel >= 4 && r.status !== "PENDENTE") {
         return false;
       }
     } else if (view === "historico") {
-      const processed = ["APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE", "REPROVADO", "CANCELADO"];
-      if (!processed.includes(r.status)) return false;
+      if (
+        !isVacationApprovedStatus(r.status) &&
+        r.status !== "REPROVADO" &&
+        r.status !== "CANCELADO"
+      ) {
+        return false;
+      }
     }
     if (filters.query?.trim() && !r.user?.name?.toLowerCase().includes(filters.query.trim().toLowerCase())) return false;
     if (filters.status && filters.status !== "TODOS" && r.status !== filters.status) return false;

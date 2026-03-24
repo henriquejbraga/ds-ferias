@@ -1,4 +1,4 @@
-import { getRoleLevel, calculateVacationBalance } from "@/lib/vacationRules";
+import { getRoleLevel, calculateVacationBalance, isVacationApprovedStatus } from "@/lib/vacationRules";
 import {
   findTeamMembersByManager,
   findTeamMembersByGerente,
@@ -13,7 +13,7 @@ function isOnVacationNow(
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return requests.some((r) => {
-    if (r.status !== "APROVADO_GERENTE") return false;
+    if (!isVacationApprovedStatus(r.status)) return false;
     const start = new Date(r.startDate);
     const rawEnd = new Date(r.endDate);
     const end =

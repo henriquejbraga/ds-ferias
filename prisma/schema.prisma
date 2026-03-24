@@ -32,15 +32,17 @@ enum Role {
 // ============================================================
 // STATUS DO CICLO DE APROVAÇÃO
 // ============================================================
-// PENDENTE → APROVADO_GERENTE (final)
+// PENDENTE → aprovador grava status conforme o papel:
+//   COORDENADOR/GESTOR → APROVADO_COORDENADOR | GERENTE → APROVADO_GERENTE | DIRETOR → APROVADO_DIRETOR
 // Aliases legados mantidos para compatibilidade
 // ============================================================
 enum VacationStatus {
   PENDENTE
   APROVADO_GESTOR      // legado
-  APROVADO_COORDENADOR
-  APROVADO_GERENTE
-  APROVADO_RH          // descontinuado: não usado no fluxo atual
+  APROVADO_COORDENADOR // aprovação final pelo(a) coordenador(a)
+  APROVADO_GERENTE     // aprovação final pelo(a) gerente
+  APROVADO_DIRETOR     // aprovação final pelo(a) diretor(a)
+  APROVADO_RH
   REPROVADO
   CANCELADO
 }

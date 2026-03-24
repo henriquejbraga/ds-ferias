@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
-import { ROLE_LEVEL, hasTeamVisibility } from "@/lib/vacationRules";
+import { isVacationApprovedStatus, ROLE_LEVEL, hasTeamVisibility } from "@/lib/vacationRules";
 import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRule";
 
 type Params = {
@@ -52,13 +52,10 @@ export async function POST(request: Request, { params }: Params) {
   const isApprover = ROLE_LEVEL[user.role] >= 2;
   const roleLevel = ROLE_LEVEL[user.role];
 
-  // Funcionário pode excluir enquanto não tiver aprovação final do líder direto
-  const deletableStatuses = ["PENDENTE", "APROVADO_GESTOR", "APROVADO_COORDENADOR", "APROVADO_GERENTE"];
-
   if (isOwner) {
-    if (!deletableStatuses.includes(existing.status)) {
+    if (existing.status !== "PENDENTE") {
       return NextResponse.json(
-        { error: "Você só pode excluir solicitações que ainda não foram aprovadas pelo líder direto." },
+        { error: "Você só pode excluir solicitações que ainda estão pendentes de aprovação." },
         { status: 400 },
       );
     }
@@ -73,9 +70,9 @@ export async function POST(request: Request, { params }: Params) {
 
   // Pedido aprovado final: apenas Gerente/RH deve conseguir cancelar/excluir.
   // Isso evita inconsistência de usedDays quando houver supressão por papéis menores.
-  if (!isOwner && existing.status === "APROVADO_GERENTE" && roleLevel < 3) {
+  if (!isOwner && isVacationApprovedStatus(existing.status) && roleLevel < 3) {
     return NextResponse.json(
-      { error: "Somente Gerente ou RH podem cancelar pedidos já aprovados pelo líder direto." },
+      { error: "Somente Gerente ou RH podem cancelar pedidos já aprovados." },
       { status: 403 },
     );
   }
@@ -115,7 +112,7 @@ export async function POST(request: Request, { params }: Params) {
     }
   }
 
-  if (existing.status === "APROVADO_GERENTE" && !existing.acquisitionPeriodId) {
+  if (isVacationApprovedStatus(existing.status) && !existing.acquisitionPeriodId) {
     return NextResponse.json(
       { error: "Não foi possível cancelar pois o pedido aprovado não está vinculado a um período aquisitivo." },
       { status: 409 },
@@ -127,7 +124,7 @@ export async function POST(request: Request, { params }: Params) {
   await prisma.$transaction(async (tx) => {
     // Se o pedido foi aprovado final, precisamos reverter o consumo no período aquisitivo
     // para manter consistência entre relatórios e saldo.
-    if (existing.status === "APROVADO_GERENTE") {
+    if (isVacationApprovedStatus(existing.status)) {
       const ap = await tx.acquisitionPeriod.findUnique({
         where: { id: acquisitionPeriodId! },
         select: { usedDays: true },

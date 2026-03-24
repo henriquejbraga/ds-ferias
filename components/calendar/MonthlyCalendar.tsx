@@ -14,10 +14,16 @@ type Props = {
   entries: CalendarEntry[];
 };
 
+const APPROVED_CALENDAR =
+  "bg-emerald-200 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200";
+
 const STATUS_COLOR: Record<string, string> = {
   PENDENTE: "bg-amber-200 text-amber-900 dark:bg-amber-900/60 dark:text-amber-200",
-  APROVADO_COORDENADOR: "bg-emerald-200 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200",
-  APROVADO_GERENTE: "bg-emerald-200 text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200",
+  APROVADO_COORDENADOR: APPROVED_CALENDAR,
+  APROVADO_GESTOR: APPROVED_CALENDAR,
+  APROVADO_GERENTE: APPROVED_CALENDAR,
+  APROVADO_DIRETOR: APPROVED_CALENDAR,
+  APROVADO_RH: APPROVED_CALENDAR,
   REPROVADO: "bg-red-200 text-red-900 dark:bg-red-900/60 dark:text-red-200",
   CANCELADO: "bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-200",
 };

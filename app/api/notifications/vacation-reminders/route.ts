@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyUpcomingVacationReminder } from "@/lib/notifications";
+import { APPROVED_VACATION_STATUSES } from "@/lib/vacationRules";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
 
   const reminders = await prisma.vacationRequest.findMany({
     where: {
-      status: "APROVADO_GERENTE",
+      status: { in: [...APPROVED_VACATION_STATUSES] },
       startDate: { gte: targetStart, lt: targetEnd },
       user: { managerId: { not: null } },
     },

@@ -4,30 +4,12 @@ import { useMemo, useState } from "react";
 import type { TeamMemberInfoSerialized, VacationRequestSummary } from "./types";
 import { TeamMemberStatusBadge } from "./TeamMemberStatusBadge";
 import { Chevron } from "./Chevron";
+import { getVacationStatusDisplayLabel, isVacationApprovedStatus } from "@/lib/vacationRules";
 
 function formatDateRange(start: string | Date, end: string | Date) {
   const s = new Date(start);
   const e = new Date(end);
   return `${s.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })} – ${e.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}`;
-}
-
-function statusLabel(status: string, approvedByRole?: string | null): string {
-  const map: Record<string, string> = {
-    PENDENTE: "Pendente aprovação",
-    APROVADO_COORDENADOR: "Aprovado Coord.",
-    APROVADO_GESTOR: "Aprovado Coord.",
-    APROVADO_GERENTE:
-      approvedByRole === "COORDENADOR" || approvedByRole === "GESTOR"
-        ? "Aprovado Coordenador"
-        : approvedByRole === "GERENTE"
-          ? "Aprovado Gerente"
-          : approvedByRole === "DIRETOR"
-            ? "Aprovado Diretor"
-            : "Aprovado",
-    REPROVADO: "Reprovado",
-    CANCELADO: "Cancelado",
-  };
-  return map[status] ?? status.replace(/_/g, " ");
 }
 
 export function TeamMemberRow({
@@ -128,7 +110,7 @@ export function TeamMemberRow({
                       )}
                     </div>
                     <span className={`rounded-full px-2.5 py-1 text-sm font-semibold ${statusChipClass(r.status)}`}>
-                      {statusLabel(r.status, r.approvedByRole)}
+                      {getVacationStatusDisplayLabel(r.status)}
                     </span>
                   </li>
                 );

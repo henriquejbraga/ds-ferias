@@ -20,7 +20,7 @@ describe("Workflow: approval chain (aprovação única do líder direto)", () =>
     expect(canApproveRequest("COORDENADOR", "c1", request)).toBe(true);
     expect(canApproveRequest("GERENTE", "g1", request)).toBe(true);
     expect(canApproveRequest("RH", "r1", request)).toBe(true); // função base; rota bloqueia RH
-    expect(getNextApprovalStatus("COORDENADOR")).toBe("APROVADO_GERENTE");
+    expect(getNextApprovalStatus("COORDENADOR")).toBe("APROVADO_COORDENADOR");
   });
 
   it("APROVADO_COORDENADOR é terminal no novo fluxo", () => {

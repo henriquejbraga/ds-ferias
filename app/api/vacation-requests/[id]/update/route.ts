@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/auth";
-import { checkBlackoutPeriods, getRoleLevel, hasTeamVisibility, validateCltPeriod } from "@/lib/vacationRules";
+import {
+  checkBlackoutPeriods,
+  getRoleLevel,
+  hasTeamVisibility,
+  validateCltPeriod,
+  PENDING_OR_APPROVED_VACATION_STATUSES,
+} from "@/lib/vacationRules";
 import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRule";
 import {
   syncAcquisitionPeriodsForUser,
@@ -12,8 +18,6 @@ import {
 type Params = {
   params: Promise<{ id: string }>;
 };
-
-const ACTIVE_STATUSES = ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"] as const;
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -189,18 +193,17 @@ export async function POST(request: Request, { params }: Params) {
     select: { hireDate: true, department: true, role: true },
   });
 
-  const statusesAwaitingRH = ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"] as const;
+  const statusesAwaitingRH = PENDING_OR_APPROVED_VACATION_STATUSES;
 
   if (owner?.hireDate) {
     if (owner.role === "GERENTE" || owner.role === "DIRETOR") {
       const WORKING_DAYS_LIMIT_PER_CYCLE = 22;
       const cycle = getCurrentCycleRange(new Date(), owner.hireDate);
-      const relevantStatuses = ["PENDENTE", "APROVADO_COORDENADOR", "APROVADO_GESTOR", "APROVADO_GERENTE"] as const;
 
       const cycleRequests = await prisma.vacationRequest.findMany({
         where: {
           userId: existing.userId,
-          status: { in: [...relevantStatuses] },
+          status: { in: [...PENDING_OR_APPROVED_VACATION_STATUSES] },
           id: { not: existing.id },
           AND: [{ startDate: { lte: cycle.end } }, { endDate: { gte: cycle.start } }],
         },
@@ -339,7 +342,7 @@ export async function POST(request: Request, { params }: Params) {
     where: {
       userId: existing.userId,
       id: { not: existing.id },
-      status: { in: [...ACTIVE_STATUSES] },
+      status: { in: [...PENDING_OR_APPROVED_VACATION_STATUSES] },
       AND: [
         { startDate: { lt: endDate } },
         { endDate: { gt: startDate } },

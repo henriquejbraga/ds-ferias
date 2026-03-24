@@ -23,7 +23,7 @@ export function RequestActions({
   const isPendingRH =
     request.status === "APROVADO_COORDENADOR" || request.status === "APROVADO_GESTOR";
 
-  const canOwnerCancel = isOwner && request.status !== "APROVADO_GERENTE";
+  const canOwnerCancel = isOwner && request.status === "PENDENTE";
 
   const deleteLabel = isOwner
     ? "Cancelar solicitação"

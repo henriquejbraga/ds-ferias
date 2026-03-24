@@ -2,6 +2,7 @@
 
 import { Fragment, useState } from "react";
 import type { TeamMemberInfoSerialized } from "@/components/times-view-client";
+import { isVacationApprovedStatus } from "@/lib/vacationRules";
 
 const GLOBAL_CAPACITY_KEY = "__global_capacity__";
 
@@ -42,7 +43,7 @@ function getVacationSegments(member: TeamMemberInfoSerialized, monthStart: Date,
   const monthEndMs = atMidnight(monthEnd).getTime();
 
   return member.requests
-    .filter((r) => r.status === "APROVADO_GERENTE" || r.status === "PENDENTE")
+    .filter((r) => r.status === "PENDENTE" || isVacationApprovedStatus(r.status))
     .map((r) => {
       const start = atMidnight(new Date(r.startDate));
       const rawEnd = atMidnight(new Date(r.endDate));
