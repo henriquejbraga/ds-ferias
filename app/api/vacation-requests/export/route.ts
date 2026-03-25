@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { getVacationRequestsForExport } from "@/services/vacationRequestListService";
 
@@ -8,6 +8,9 @@ export async function GET(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+  if (shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

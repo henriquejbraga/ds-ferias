@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import { ROLE_LEVEL } from "@/lib/vacationRules";
 
 // GET - lista períodos de bloqueio (qualquer usuário autenticado pode ver)
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
+  }
 
   const blackouts = await prisma.blackoutPeriod.findMany({
     include: { createdBy: { select: { name: true } } },
@@ -22,6 +25,9 @@ export async function POST(request: Request) {
 
   if (!user || ROLE_LEVEL[user.role] < 3) {
     return NextResponse.json({ error: "Apenas Gerentes e RH podem criar períodos de bloqueio." }, { status: 403 });
+  }
+  if (user && shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => null);
@@ -56,6 +62,9 @@ export async function DELETE(request: Request) {
 
   if (!user || ROLE_LEVEL[user.role] < 3) {
     return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
+  }
+  if (user && shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);

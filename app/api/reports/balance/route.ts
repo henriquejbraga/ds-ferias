@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import { getRoleLevel, getRoleLabel, calculateVacationBalance } from "@/lib/vacationRules";
 import { findUsersWithVacationForBalance } from "@/repositories/userRepository";
 
@@ -7,6 +7,9 @@ import { findUsersWithVacationForBalance } from "@/repositories/userRepository";
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
+  }
   if (getRoleLevel(user.role) < 5) {
     return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
   }

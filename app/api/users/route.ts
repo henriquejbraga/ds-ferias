@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUser, hashNewUserPassword } from "@/lib/auth";
+import { getSessionUser, hashNewUserPassword, shouldForcePasswordChange } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRoleLevel } from "@/lib/vacationRules";
 import { syncAcquisitionPeriodsForUser } from "@/repositories/acquisitionRepository";
@@ -9,6 +9,9 @@ const ROLES = ["FUNCIONARIO", "COLABORADOR", "COORDENADOR", "GESTOR", "GERENTE",
 export async function POST(request: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
+  }
   if (getRoleLevel(user.role) < 5) {
     return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
   }
@@ -50,6 +53,7 @@ export async function POST(request: Request) {
         hireDate,
         team,
         passwordHash: defaultPasswordHash,
+        mustChangePassword: true,
       },
       select: { id: true, name: true, email: true, role: true, department: true, registration: true, managerId: true, hireDate: true, team: true },
     });
@@ -71,6 +75,9 @@ export async function POST(request: Request) {
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
+  }
   if (getRoleLevel(user.role) < 5) {
     return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
   }

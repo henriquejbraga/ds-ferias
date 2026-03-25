@@ -11,7 +11,20 @@ export type SessionUser = {
   name: string;
   email: string;
   role: Role;
+  /**
+   * Quando true e a feature estiver ativa, o usuário deve trocar a senha
+   * antes de acessar o restante do sistema.
+   */
+  mustChangePassword?: boolean;
 };
+
+export function isPasswordChangeEnforced(): boolean {
+  return process.env.ENFORCE_PASSWORD_CHANGE === "true";
+}
+
+export function shouldForcePasswordChange(user: SessionUser | null): boolean {
+  return isPasswordChangeEnforced() && !!user?.mustChangePassword;
+}
 
 function getSessionSecret(): string | null {
   const secret = process.env.SESSION_SECRET;
@@ -85,6 +98,7 @@ export async function verifyCredentials(email: string, password: string) {
     name: user.name,
     email: user.email,
     role: user.role,
+    mustChangePassword: !!(user as any).mustChangePassword,
   } as SessionUser;
 }
 
@@ -109,7 +123,10 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     if (typeof data?.id !== "string" || typeof data?.email !== "string" || typeof data?.role !== "string") {
       return null;
     }
-    return data;
+    return {
+      ...data,
+      mustChangePassword: typeof data.mustChangePassword === "boolean" ? data.mustChangePassword : false,
+    };
   } catch {
     return null;
   }

@@ -53,7 +53,20 @@ Períodos em que a empresa não permite férias (blackout) são configurados pel
 - **Next.js 16** (App Router), **Prisma 7**, **PostgreSQL**, **TailwindCSS**, **shadcn/ui**, **sonner** (toasts).
 - Sessão: cookie HTTP-only; assinatura HMAC quando `SESSION_SECRET` está definido no `.env` (mín. 16 caracteres).
 - Senhas: hash SHA-256 (recomendado em produção: migrar para bcrypt/argon2).
-- Usuários criados via Backoffice recebem **senha padrão `senha123`** (mesma dos usuários seedados); isso é apenas para ambiente interno/dev.
+- Usuários criados via Backoffice recebem **senha padrão `senha123`** (mesma dos usuários seedados).
+
+### Troca obrigatória de senha (primeiro login)
+Para ambientes em produção, existe uma proteção para garantir que o usuário troque a senha inicial:
+
+- Campo no banco: `User.mustChangePassword`
+- Feature flag global: `ENFORCE_PASSWORD_CHANGE="true"`
+- Se ambas estiverem ativas (`ENFORCE_PASSWORD_CHANGE=true` e `mustChangePassword=true`):
+  - o usuário é redirecionado para `GET /change-password`
+  - o acesso ao `GET /dashboard` e `GET /admin` fica bloqueado
+  - `POST /api/logout` é bloqueado (redirect para `/change-password` quando não for JSON)
+  - a troca é feita via `POST /api/change-password`
+
+Ao trocar a senha com sucesso, o sistema grava `mustChangePassword=false`.
 
 ---
 
@@ -67,6 +80,8 @@ Períodos em que a empresa não permite férias (blackout) são configurados pel
 DATABASE_URL="postgresql://usuario:senha@host:porta/banco"
 # Recomendado: assina o cookie de sessão (mín. 16 caracteres)
 SESSION_SECRET="seu-secret-com-pelo-menos-16-caracteres"
+# Se "true", força troca obrigatória de senha para usuários com User.mustChangePassword=true
+ENFORCE_PASSWORD_CHANGE="true"
 ```
 
 Opcional:

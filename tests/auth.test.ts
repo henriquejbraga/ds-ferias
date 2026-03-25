@@ -111,6 +111,7 @@ describe("verifyCredentials", () => {
       name: "User",
       email: "u@e.com",
       role: "FUNCIONARIO",
+      mustChangePassword: false,
     });
   });
 
@@ -133,6 +134,7 @@ describe("verifyCredentials", () => {
       name: "Legacy",
       email: "legacy@e.com",
       role: "FUNCIONARIO",
+      mustChangePassword: false,
     });
   });
 });
@@ -163,7 +165,7 @@ describe("getSessionUser", () => {
   });
 
   it("returns user when cookie has valid legacy JSON (no dot)", async () => {
-    const data: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "FUNCIONARIO" };
+    const data: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "FUNCIONARIO", mustChangePassword: false };
     mockGet.mockReturnValue({ value: JSON.stringify(data) });
     const user = await getSessionUser();
     expect(user).toEqual(data);
@@ -171,7 +173,7 @@ describe("getSessionUser", () => {
 
   it("returns user when SESSION_SECRET set and cookie is signed (createSession + getSessionUser)", async () => {
     process.env.SESSION_SECRET = "a".repeat(16);
-    const data: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "RH" };
+    const data: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "RH", mustChangePassword: false };
     await createSession(data);
     const signedValue = mockSet.mock.calls[0][1];
     expect(signedValue).toContain(".");
@@ -196,7 +198,7 @@ describe("createSession", () => {
   });
 
   it("não assina payload quando SESSION_SECRET não está definido", async () => {
-    const user: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "RH" };
+    const user: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "RH", mustChangePassword: false };
     await createSession(user);
     expect(mockSet).toHaveBeenCalledWith(
       "ds-ferias-session",
@@ -207,7 +209,7 @@ describe("createSession", () => {
 
   it("assina payload quando SESSION_SECRET está definido (comprimento >= 16)", async () => {
     process.env.SESSION_SECRET = "x".repeat(16);
-    const user: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "FUNCIONARIO" };
+    const user: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "FUNCIONARIO", mustChangePassword: false };
     await createSession(user);
     const signed = mockSet.mock.calls[0][1];
     expect(signed).toContain(".");

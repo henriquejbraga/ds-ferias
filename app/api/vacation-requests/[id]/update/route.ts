@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import {
   checkBlackoutPeriods,
   getRoleLevel,
@@ -84,6 +84,9 @@ export async function POST(request: Request, { params }: Params) {
       { error: "Somente coordenadores, gerentes ou RH podem alterar pedidos de férias." },
       { status: 403 },
     );
+  }
+  if (shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
 
   const existing = await prisma.vacationRequest.findUnique({

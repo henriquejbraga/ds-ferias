@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import { isVacationApprovedStatus, ROLE_LEVEL, hasTeamVisibility } from "@/lib/vacationRules";
 import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRule";
 
@@ -28,6 +28,9 @@ export async function POST(request: Request, { params }: Params) {
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  }
+  if (shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
 
   const existing = await prisma.vacationRequest.findUnique({

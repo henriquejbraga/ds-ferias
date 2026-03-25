@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import { ROLE_LEVEL, canApproveRequest } from "@/lib/vacationRules";
 import { notifyRejected } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
@@ -16,6 +16,9 @@ export async function POST(request: Request, { params }: Params) {
 
   if (!user || ROLE_LEVEL[user.role] < 2 || ROLE_LEVEL[user.role] > 4) {
     return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
+  }
+  if (shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => null);

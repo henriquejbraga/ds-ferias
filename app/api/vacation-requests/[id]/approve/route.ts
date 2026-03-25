@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import {
   canApproveRequest,
   getNextApprovalStatus,
@@ -43,6 +43,9 @@ export async function POST(request: Request, { params }: Params) {
   // Aprovação única: apenas líderes diretos (coordenador/gestor, gerente, diretor).
   if (!user || ROLE_LEVEL[user.role] < 2 || ROLE_LEVEL[user.role] > 4) {
     return NextResponse.json({ error: "Sem permissão para aprovar solicitações." }, { status: 403 });
+  }
+  if (user && shouldForcePasswordChange(user)) {
+    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
 
   const body = await request.json().catch(() => null);

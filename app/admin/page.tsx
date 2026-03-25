@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import { getRoleLevel } from "@/lib/vacationRules";
 import { findAllUsersForAdmin, findManagersForAdmin } from "@/repositories/userRepository";
 import { BackofficeClient } from "./backoffice-client";
@@ -8,6 +8,7 @@ import { BackofficeBackButton } from "./backoffice-back-button";
 export default async function AdminPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  if (shouldForcePasswordChange(user)) redirect("/change-password");
   if (getRoleLevel(user.role) < 5) redirect("/dashboard");
 
   const [users, managers] = await Promise.all([

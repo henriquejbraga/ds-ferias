@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import { getRoleLabel, getRoleLevel } from "@/lib/vacationRules";
 import { normalizeParam } from "@/lib/utils";
 import {
@@ -33,6 +33,7 @@ export default async function DashboardPage({
 }) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
+  if (shouldForcePasswordChange(user)) redirect("/change-password");
 
   const params = await searchParams;
   const userRoleLevel = getRoleLevel(user.role);
