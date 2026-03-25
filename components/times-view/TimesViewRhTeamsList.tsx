@@ -40,12 +40,20 @@ function buildGerenteConsolidatedCalendarMembers(
   coordinatorMembers: TeamMemberInfoSerialized[] | undefined,
 ): TeamMemberInfoSerialized[] {
   const out: TeamMemberInfoSerialized[] = [];
+  // Segurança: não pode existir a mesma pessoa em duas linhas do calendário consolidado.
+  // Se por algum motivo aparecer duplicada (coordenador + time), deduplicamos por `user.id`.
+  const seenUserIds = new Set<string>();
+  const push = (m: TeamMemberInfoSerialized) => {
+    if (seenUserIds.has(m.user.id)) return;
+    seenUserIds.add(m.user.id);
+    out.push(m);
+  };
 
   const coordinators = [...(coordinatorMembers ?? [])].sort((a, b) =>
     (a.user.name ?? "").localeCompare(b.user.name ?? "", "pt-BR", { sensitivity: "base" }),
   );
   coordinators.forEach((c) => {
-    out.push({
+    push({
       ...c,
       calendarCapacityGroupKey: LIDERANCA_DIRETA_CAPACITY_KEY,
       calendarSectionOrder: 0,
@@ -65,7 +73,7 @@ function buildGerenteConsolidatedCalendarMembers(
       (a.user.name ?? "").localeCompare(b.user.name ?? "", "pt-BR", { sensitivity: "base" }),
     );
     mems.forEach((m) => {
-      out.push({
+      push({
         ...m,
         calendarCapacityGroupKey: team.teamKey,
         calendarSectionOrder: 1,

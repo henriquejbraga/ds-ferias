@@ -25,11 +25,7 @@ export function RequestActions({
 
   const canOwnerCancel = isOwner && request.status === "PENDENTE";
 
-  const deleteLabel = isOwner
-    ? "Cancelar solicitação"
-    : isPendingRH
-      ? "Excluir solicitação (pend. líder direto)"
-      : "Excluir solicitação";
+  const deleteLabel = isOwner ? "Cancelar solicitação" : "Excluir solicitação";
 
   const deleteSuccessMessage = isOwner ? "Solicitação cancelada." : "Solicitação excluída.";
 

@@ -1,4 +1,10 @@
-import { canApproveRequest, getApproverRelationshipStepLabel, getRoleLevel } from "@/lib/vacationRules";
+import {
+  canApproveRequest,
+  getApproverRelationshipStepLabel,
+  getNextApprovalStatus,
+  getRoleLevel,
+  isVacationApprovedStatus,
+} from "@/lib/vacationRules";
 import { StatusBadge, RoleChip } from "@/components/requests/status-badge";
 import { ApprovalProgressBar } from "@/components/requests/approval-progress-bar";
 import { HistorySection } from "@/components/requests/history-section";
@@ -35,6 +41,7 @@ export type RequestWithUser = {
     name?: string;
     role?: string;
     department?: string | null;
+    team?: string | null;
     managerId?: string | null;
     manager?: { id?: string | null; name?: string | null } | null;
   } | null;
@@ -72,6 +79,24 @@ export function RequestCard({
     !isOwner && !!userRole && getRoleLevel(userRole) >= 3 && request.status === "PENDENTE";
   const start = new Date(request.startDate);
   const end = new Date(request.endDate);
+
+  // Correção visual (dados legados / migração parcial):
+  // às vezes `request.status` fica como APROVADO_GERENTE mesmo quando quem aprovou era coordenador.
+  // Se houver histórico, derivamos o status de exibição pelo papel do último aprovador.
+  const lastApprovedByRole =
+    request.history
+      ?.slice()
+      .reverse()
+      .find((h) => h?.newStatus && isVacationApprovedStatus(h.newStatus))?.changedByUser
+      ?.role ?? null;
+
+  const derivedDisplayStatus = lastApprovedByRole
+    ? getNextApprovalStatus(lastApprovedByRole)
+    : request.status;
+
+  const safeDisplayStatus = isVacationApprovedStatus(derivedDisplayStatus)
+    ? derivedDisplayStatus
+    : request.status;
   const backWithAbono =
     request.abono && !isNaN(end.getTime())
       ? new Date(end.getTime() - 10 * 24 * 60 * 60 * 1000)
@@ -146,10 +171,13 @@ export function RequestCard({
               {request.user?.department && (
                 <p className="truncate text-sm text-[#94a3b8]">{request.user.department}</p>
               )}
+              {request.user?.team && (
+                <p className="truncate text-sm text-[#94a3b8]">{`Time: ${request.user.team}`}</p>
+              )}
             </div>
           </div>
           <div className="w-full shrink-0 sm:w-auto">
-            <StatusBadge status={request.status} />
+            <StatusBadge status={safeDisplayStatus} />
           </div>
         </div>
 

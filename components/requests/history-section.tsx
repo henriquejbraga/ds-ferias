@@ -1,7 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getRoleLabel, getVacationStatusDisplayLabel } from "@/lib/vacationRules";
+import {
+  getNextApprovalStatus,
+  getRoleLabel,
+  getVacationStatusDisplayLabel,
+  isVacationApprovedStatus,
+} from "@/lib/vacationRules";
 
 type HistoryEntry = {
   changedAt: Date | string;
@@ -18,19 +23,37 @@ export function HistorySection({ history }: { history: HistoryEntry[] }) {
     [],
   );
 
+  const formatChangedAt = (value: Date | string): string => {
+    const d = new Date(value);
+    // Garantimos "dia/hora" no fuso de São Paulo, independentemente de timezone do servidor.
+    return d.toLocaleString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const deriveNewStatusForDisplay = (entry: HistoryEntry): string => {
+    const role = entry.changedByUser?.role ?? null;
+    // Se o banco veio com `APROVADO_GERENTE` mas quem aprovou foi COORDENADOR,
+    // o `changedByUser.role` permite corrigir o texto exibido no histórico.
+    if (role && isVacationApprovedStatus(entry.newStatus)) {
+      const derived = getNextApprovalStatus(role);
+      return derived;
+    }
+    return entry.newStatus;
+  };
+
   return (
     <div className="mt-4 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] p-3 dark:border-[#252a35] dark:bg-[#0f1117]">
       <p className="mb-2 text-base font-semibold uppercase tracking-wide text-[#64748b] dark:text-slate-400">Histórico</p>
       <div className="space-y-1.5">
-        {history.map((h, idx) => {
+        {[...history].reverse().map((h, idx) => {
           const isOpen = openByIndex[idx] ?? false;
-          const dateLabel = new Date(h.changedAt).toLocaleString("pt-BR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          });
+          const dateLabel = formatChangedAt(h.changedAt);
 
           return (
             <div key={idx} className="rounded-md bg-white/30 p-2 dark:bg-[#0b1220]/30">
@@ -50,7 +73,7 @@ export function HistorySection({ history }: { history: HistoryEntry[] }) {
                   </span>{" "}
                   <span className="text-[#94a3b8]">→</span>{" "}
                   <span className="font-semibold text-[#0f172a] dark:text-slate-100">
-                    {labelFor(h.newStatus)}
+                    {labelFor(deriveNewStatusForDisplay(h))}
                   </span>
                 </span>
 

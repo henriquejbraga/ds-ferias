@@ -11,6 +11,7 @@ type Props = {
   filters: DashboardFilters;
   managerOptions: Array<{ id: string; name: string }>;
   deptOptions: string[];
+  teamOptions: string[];
   view: string;
 };
 
@@ -19,6 +20,7 @@ export function FilterForm({
   filters,
   managerOptions,
   deptOptions,
+  teamOptions,
   view,
 }: Props) {
   const userLevel = getRoleLevel(userRole);
@@ -33,6 +35,7 @@ export function FilterForm({
   const [q, setQ] = useState(filters.query ?? "");
   const [managerId, setManagerId] = useState(initialManagerId);
   const [department, setDepartment] = useState(filters.department ?? "");
+  const [team, setTeam] = useState(filters.team ?? "");
   const qDebounceRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -42,12 +45,19 @@ export function FilterForm({
       userLevel >= 4 && filters.managerId && filters.managerId !== "ALL" ? filters.managerId : "ALL",
     );
     setDepartment(filters.department ?? "");
-  }, [filters.query, filters.managerId, filters.department, userLevel]);
+    setTeam(filters.team ?? "");
+  }, [filters.query, filters.managerId, filters.department, filters.team, userLevel]);
 
-  const pushInbox = (next: { q?: string; managerId?: string; department?: string } = {}) => {
+  const pushInbox = (next: {
+    q?: string;
+    managerId?: string;
+    department?: string;
+    team?: string;
+  } = {}) => {
     const nextQ = typeof next.q === "string" ? next.q : q;
     const nextManagerId = typeof next.managerId === "string" ? next.managerId : managerId;
     const nextDepartment = typeof next.department === "string" ? next.department : department;
+    const nextTeam = typeof next.team === "string" ? next.team : team;
 
     const params = new URLSearchParams();
     params.set("view", "inbox");
@@ -55,6 +65,7 @@ export function FilterForm({
     if (trimmed.length >= 2) params.set("q", trimmed);
     if (userLevel >= 4 && nextManagerId && nextManagerId !== "ALL") params.set("managerId", nextManagerId);
     if (nextDepartment) params.set("department", nextDepartment);
+    if (nextTeam) params.set("team", nextTeam);
 
     router.push(`/dashboard?${params.toString()}`);
   };
@@ -138,6 +149,27 @@ export function FilterForm({
                 ))}
               </select>
             )}
+
+            {teamOptions.length > 0 && (
+              <select
+                name="team"
+                value={team}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setTeam(next);
+                  pushInbox({ team: next });
+                }}
+                aria-label="Filtrar por time"
+                className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:w-auto"
+              >
+                <option value="">Todos os times</option>
+                {teamOptions.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
       </div>
@@ -205,6 +237,22 @@ export function FilterForm({
               {deptOptions.map((d) => (
                 <option key={d} value={d}>
                   {d}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {teamOptions.length > 0 && (
+            <select
+              name="team"
+              defaultValue={filters.team ?? ""}
+              aria-label="Filtrar por time"
+              className="min-h-[44px] w-full rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-base text-[#1a1d23] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:w-auto"
+            >
+              <option value="">Todos os times</option>
+              {teamOptions.map((t) => (
+                <option key={t} value={t}>
+                  {t}
                 </option>
               ))}
             </select>

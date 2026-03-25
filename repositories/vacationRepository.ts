@@ -6,6 +6,7 @@ const vacationRequestUserSelect = {
   email: true,
   role: true,
   department: true,
+  team: true,
   hireDate: true,
   managerId: true,
   manager: {

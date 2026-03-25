@@ -68,13 +68,21 @@ export async function POST(request: Request, { params }: Params) {
     );
   }
 
-  // Pedido aprovado final: apenas Gerente/RH deve conseguir cancelar/excluir.
-  // Isso evita inconsistência de usedDays quando houver supressão por papéis menores.
+  // Pedidos já aprovados:
+  // - Coordenador pode excluir apenas o que ele aprovou como líder direto (APROVADO_COORDENADOR/legado APROVADO_GESTOR)
+  // - Gerente e RH podem excluir qualquer aprovado
   if (!isOwner && isVacationApprovedStatus(existing.status) && roleLevel < 3) {
-    return NextResponse.json(
-      { error: "Somente Gerente ou RH podem cancelar pedidos já aprovados." },
-      { status: 403 },
-    );
+    const directLeaderApprovedStatuses = ["APROVADO_COORDENADOR", "APROVADO_GESTOR"];
+    const isApprovedByThisDirectLeader =
+      directLeaderApprovedStatuses.includes(existing.status) &&
+      existing.user.managerId === user.id;
+
+    if (!isApprovedByThisDirectLeader) {
+      return NextResponse.json(
+        { error: "Somente Gerente ou RH podem cancelar pedidos já aprovados por outras lideranças." },
+        { status: 403 },
+      );
+    }
   }
 
   // Coordenador e Gerente só podem excluir solicitações da sua equipe; RH pode excluir qualquer

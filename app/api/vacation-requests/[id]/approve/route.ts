@@ -57,6 +57,7 @@ export async function POST(request: Request, { params }: Params) {
           name: true,
           email: true,
           role: true,
+          team: true,
           createdAt: true,
           managerId: true,
           manager: { select: { managerId: true } },
@@ -111,12 +112,20 @@ export async function POST(request: Request, { params }: Params) {
   let hasConflict = false;
   try {
     if (existing.user.managerId && existing.startDate && existing.endDate) {
+      const targetTeam = existing.user.team ?? null;
       const teammates = await prisma.user.findMany({
         where: {
           managerId: existing.user.managerId,
-          NOT: { id: existing.userId },
+          // Evita contar:
+          // - a própria pessoa (dona do pedido que está sendo aprovado)
+          // - e o aprovador (para não alertar conflito causado por férias do mesmo usuário)
+          id: { notIn: [existing.userId, user.id] },
+          // “Time” no domínio = squad (campo `team` / `time` no banco).
+          // Assim, um mesmo coordenador com squads diferentes não deve gerar conflito.
+          ...(targetTeam ? { team: targetTeam } : {}),
         },
         select: {
+          id: true,
           name: true,
           vacationRequests: {
             select: {
@@ -128,7 +137,11 @@ export async function POST(request: Request, { params }: Params) {
         },
       });
 
-      const teamMembers = teammates.map((t) => ({
+      // Segurança contra qualquer possível duplicidade na lista de usuários.
+      const uniqueById = new Map<string, (typeof teammates)[number]>();
+      for (const t of teammates) uniqueById.set(t.id, t);
+
+      const teamMembers = Array.from(uniqueById.values()).map((t) => ({
         name: t.name,
         requests: t.vacationRequests,
       }));
@@ -149,7 +162,8 @@ export async function POST(request: Request, { params }: Params) {
           const severity = conflict.isBlocked
             ? " Risco alto de conflito de férias no time."
             : " Avalie se esse conflito é aceitável antes de confirmar.";
-          conflictWarning = `Atenção: ${base}${severity}`;
+          const names = conflict.names?.length ? ` Conflitantes: ${conflict.names.join(", ")}` : "";
+          conflictWarning = `Atenção: ${base}${severity}${names}`;
         }
       }
     }

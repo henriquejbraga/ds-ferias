@@ -2,6 +2,7 @@ import { getRoleLevel } from "@/lib/vacationRules";
 import {
   getManagerOptions,
   getDepartmentOptions,
+  getTeamOptions,
   filterRequests,
   buildExportQuery,
   sliceHistoricoPage,
@@ -23,7 +24,13 @@ type RequestLike = {
   notes?: string | null;
   abono?: boolean;
   thirteenth?: boolean;
-  user?: { name?: string; role?: string; department?: string | null; manager?: { id: string; name: string } | null };
+  user?: {
+    name?: string;
+    role?: string;
+    department?: string | null;
+    team?: string | null;
+    manager?: { id: string; name: string } | null;
+  };
   history?: Array<{
     newStatus?: string;
     changedByUser?: { role?: string | null } | null;
@@ -48,6 +55,7 @@ export function ManagerView({
   const view = filters.view === "historico" ? "historico" : "inbox";
   const managerOptions = getManagerOptions(userRole, requests);
   const deptOptions = getDepartmentOptions(requests);
+  const teamOptions = getTeamOptions(requests);
   const filteredRequests = filterRequests(userRole, userId, requests, filters);
   const userLevel = getRoleLevel(userRole);
 
@@ -71,6 +79,7 @@ export function ManagerView({
         filters={filters}
         managerOptions={managerOptions}
         deptOptions={deptOptions}
+        teamOptions={teamOptions}
         view={view}
       />
       <div className="flex flex-wrap items-center justify-end gap-3">

@@ -11,6 +11,8 @@ export type DashboardFilters = {
   from: string;
   to: string;
   department: string;
+  /** Time/squad do colaborador (user.team). */
+  team?: string;
   /** Paginação do histórico (1-based); ignorado na caixa de aprovação. */
   page?: number;
 };
