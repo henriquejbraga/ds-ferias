@@ -73,12 +73,13 @@ export default async function DashboardPage({
             acquisitionPeriods: [],
             firstEntitlementDate: null,
             department,
+            concessiveContext: null,
           }),
         ),
     isTimesView ? getTeamMembersForTimes(user.id, user.role) : Promise.resolve(null),
   ]);
 
-  const { balance, acquisitionPeriods, firstEntitlementDate, department: userDept } = sidebarCtx;
+  const { balance, acquisitionPeriods, firstEntitlementDate, department: userDept, concessiveContext } = sidebarCtx;
 
   const visibleRequests = getVisibleRequests(user.role, user.id, managedRequests);
   const pendingCount = getPendingCount(userRoleLevel, visibleRequests);
@@ -195,6 +196,7 @@ export default async function DashboardPage({
                       balance={balance}
                       userRole={user.role}
                       firstEntitlementDate={firstEntitlementDate}
+                      concessiveContext={concessiveContext}
                     />
                   </div>
                 </div>

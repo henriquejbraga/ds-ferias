@@ -15,6 +15,7 @@ import {
   syncAcquisitionPeriodsForUser,
   findAcquisitionPeriodsForUser,
 } from "@/repositories/acquisitionRepository";
+import { validateVacationConcessiveFifo } from "@/lib/concessivePeriod";
 
 const POST_REQUESTS_MAX_PER_MINUTE = 20;
 
@@ -205,10 +206,8 @@ export async function POST(request: Request) {
 
   const statusesAwaitingRH = PENDING_OR_APPROVED_VACATION_STATUSES;
 
-  // Enforcement por períodos aquisitivos adquiridos (FIFO — consome o mais antigo com saldo).
-  // A data das férias NÃO precisa cair dentro do período aquisitivo: CLT permite usar dias
-  // de ciclos anteriores a qualquer momento, desde que dentro do prazo legal.
-  // Se não houver `hireDate` (dev legados), fazemos fallback para a lógica antiga.
+  // Períodos aquisitivos: FIFO. O gozo deve caber no período concessivo (12 meses após o fim de cada PA).
+  // Sem `hireDate` não aplicamos essa validação (legado).
   if (userFull?.hireDate) {
     if (user.role === "GERENTE" || user.role === "DIRETOR") {
       const WORKING_DAYS_LIMIT_PER_CYCLE = 22;
@@ -353,6 +352,22 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+    }
+
+    const pendingPendente = await prisma.vacationRequest.findMany({
+      where: { userId: user.id, status: "PENDENTE" },
+      orderBy: { startDate: "asc" },
+      select: { startDate: true, endDate: true },
+    });
+    const periodsForConcessive = await findAcquisitionPeriodsForUser(user.id);
+    const concessiveErr = validateVacationConcessiveFifo({
+      hireDate: userFull.hireDate,
+      acquisitionPeriods: periodsForConcessive,
+      pendingVacations: pendingPendente,
+      newVacationPeriods: periods,
+    });
+    if (concessiveErr) {
+      return NextResponse.json({ error: concessiveErr }, { status: 400 });
     }
   } else {
     // Fallback: sem hireDate não conseguimos resolver períodos aquisitivos com fidelidade.

@@ -9,11 +9,8 @@ import {
   PENDING_OR_APPROVED_VACATION_STATUSES,
 } from "@/lib/vacationRules";
 import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRule";
-import {
-  syncAcquisitionPeriodsForUser,
-  findAcquisitionPeriodForRange,
-  findAcquisitionPeriodsForUser,
-} from "@/repositories/acquisitionRepository";
+import { syncAcquisitionPeriodsForUser, findAcquisitionPeriodsForUser } from "@/repositories/acquisitionRepository";
+import { validateVacationConcessiveFifo } from "@/lib/concessivePeriod";
 
 type Params = {
   params: Promise<{ id: string }>;
@@ -29,13 +26,6 @@ function daysBetweenInclusive(start: Date, end: Date): number {
   const s = toUtcMidnight(start);
   const e = toUtcMidnight(end);
   return Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
-}
-
-function overlapDaysInclusive(start: Date, end: Date, rangeStart: Date, rangeEnd: Date): number {
-  const s = new Date(Math.max(toUtcMidnight(start).getTime(), toUtcMidnight(rangeStart).getTime()));
-  const e = new Date(Math.min(toUtcMidnight(end).getTime(), toUtcMidnight(rangeEnd).getTime()));
-  if (e < s) return 0;
-  return daysBetweenInclusive(s, e);
 }
 
 function businessDaysBetweenInclusive(start: Date, end: Date): number {
@@ -255,73 +245,59 @@ export async function POST(request: Request, { params }: Params) {
     }
 
     const allAcquisitionPeriods = await findAcquisitionPeriodsForUser(existing.userId);
-    const periodIndexById = new Map<string, number>(
-      allAcquisitionPeriods.map((p: { id: string }, i: number) => [p.id, i]),
-    );
+    const acquiredPeriods = allAcquisitionPeriods.slice(0, acquiredCount) as Array<{
+      accruedDays: number;
+      usedDays: number;
+    }>;
 
-    const acquisitionPeriod = await findAcquisitionPeriodForRange(existing.userId, startDate, endDate);
-    if (!acquisitionPeriod) {
-      return NextResponse.json(
-        {
-          error:
-            "Período fora dos ciclos aquisitivos adquiridos. Só é permitido solicitar/alterar férias dentro do período aquisitivo atual (12 meses).",
-        },
-        { status: 400 },
-      );
+    if (acquiredPeriods.length === 0) {
+      return NextResponse.json({ error: "Sem períodos aquisitivos disponíveis para este usuário." }, { status: 400 });
     }
 
-    const idx = periodIndexById.get(acquisitionPeriod.id);
-    if (idx === undefined || idx >= acquiredCount) {
-      return NextResponse.json(
-        { error: "Você ainda não adquiriu o período aquisitivo correspondente (completou os 12 meses)." },
-        { status: 400 },
-      );
-    }
+    const totalEntitled = acquiredPeriods.reduce((sum, p) => sum + p.accruedDays, 0);
+    const totalUsed = acquiredPeriods.reduce((sum, p) => sum + p.usedDays, 0);
 
-    const usedDays = acquisitionPeriod.usedDays;
-    const accruedDays = acquisitionPeriod.accruedDays;
-
-    // Pending days no mesmo período aquisitivo (exceto a própria solicitação que está sendo atualizada).
-    const pending = await prisma.vacationRequest.findMany({
+    const pendingForBalance = await prisma.vacationRequest.findMany({
       where: {
         userId: existing.userId,
         status: { in: [...statusesAwaitingRH] },
         id: { not: existing.id },
-        AND: [
-          { startDate: { lte: acquisitionPeriod.endDate } },
-          { endDate: { gte: acquisitionPeriod.startDate } },
-        ],
       },
       select: { startDate: true, endDate: true },
     });
-
-    const pendingDays = pending.reduce(
-      (sum, r) =>
-        sum + overlapDaysInclusive(r.startDate, r.endDate, acquisitionPeriod.startDate, acquisitionPeriod.endDate),
+    const totalPending = pendingForBalance.reduce(
+      (sum, r) => sum + daysBetweenInclusive(r.startDate, r.endDate),
       0,
     );
 
-    if (usedDays >= accruedDays) {
+    const totalAvailable = Math.max(0, totalEntitled - totalUsed - totalPending);
+    const requestedDays = daysBetweenInclusive(startDate, endDate);
+    if (requestedDays > totalAvailable) {
       return NextResponse.json(
         {
           error:
-            "Seu período aquisitivo atual já foi totalmente consumido. Você só poderá solicitar/alterar novas férias após a aquisição do próximo período (12 meses).",
+            totalAvailable === 0
+              ? "Seu saldo de férias está zerado. Todos os dias adquiridos já foram usados ou estão pendentes de aprovação."
+              : `Saldo insuficiente. Você tem ${totalAvailable} dia(s) disponível(is) nos ciclos aquisitivos adquiridos.`,
         },
         { status: 400 },
       );
     }
 
-    const requestedDays = daysBetweenInclusive(startDate, endDate);
-    const available = accruedDays - usedDays - pendingDays;
-    if (requestedDays > available) {
-      return NextResponse.json(
-        {
-          error: `Saldo insuficiente no período aquisitivo ${acquisitionPeriod.startDate.toISOString().slice(0, 10)}–${acquisitionPeriod.endDate.toISOString().slice(0, 10)}. Disponível: ${available} dias.`,
-        },
-        { status: 400 },
-      );
+    const pendingPendente = await prisma.vacationRequest.findMany({
+      where: { userId: existing.userId, status: "PENDENTE", id: { not: existing.id } },
+      orderBy: { startDate: "asc" },
+      select: { startDate: true, endDate: true },
+    });
+    const concessiveErr = validateVacationConcessiveFifo({
+      hireDate: owner.hireDate,
+      acquisitionPeriods: allAcquisitionPeriods,
+      pendingVacations: pendingPendente,
+      newVacationPeriods: [{ start: startDate, end: endDate }],
+    });
+    if (concessiveErr) {
+      return NextResponse.json({ error: concessiveErr }, { status: 400 });
     }
-
   }
 
   // Blackout check também para update (evita bypass do enforcement via alteração de datas).

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { VacationBalance } from "@/lib/vacationRules";
+import { validateVacationConcessiveFifo } from "@/lib/concessivePeriod";
+import type { ConcessiveClientContext } from "@/services/dashboardDataService";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,8 @@ type Props = {
   balance?: VacationBalance | null;
   userRole?: string;
   firstEntitlementDate?: Date | string | null;
+  /** Dados para validar período concessivo no cliente (mesma regra da API). */
+  concessiveContext?: ConcessiveClientContext | null;
 };
 
 type Period = {
@@ -39,7 +43,13 @@ function parseYmdLocal(value: string): Date | undefined {
   return new Date(year, month - 1, day);
 }
 
-export function NewRequestCardClient({ canRequest = true, balance, userRole, firstEntitlementDate }: Props) {
+export function NewRequestCardClient({
+  canRequest = true,
+  balance,
+  userRole,
+  firstEntitlementDate,
+  concessiveContext,
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [submitting, setSubmitting] = useState(false);
@@ -80,6 +90,34 @@ export function NewRequestCardClient({ canRequest = true, balance, userRole, fir
     ? MAX_DAYS_PER_REQUEST
     : (balance?.entitledDays ?? MAX_DAYS_PER_REQUEST);
   const cycleTotalOk = totalWithExisting <= cycleCapForTotal;
+
+  const concessiveError = useMemo(() => {
+    if (!concessiveContext?.hireDateIso) return null;
+    const filled: { start: Date; end: Date }[] = [];
+    for (const p of periods) {
+      if (!p.start || !p.end) continue;
+      const s = parseYmdLocal(p.start);
+      const e = parseYmdLocal(p.end);
+      if (!s || !e || e < s) continue;
+      filled.push({ start: s, end: e });
+    }
+    if (filled.length === 0) return null;
+    return validateVacationConcessiveFifo({
+      hireDate: new Date(concessiveContext.hireDateIso),
+      acquisitionPeriods: concessiveContext.acquisitionPeriods.map((p) => ({
+        id: p.id,
+        startDate: new Date(p.startDate),
+        endDate: new Date(p.endDate),
+        accruedDays: p.accruedDays,
+        usedDays: p.usedDays,
+      })),
+      pendingVacations: concessiveContext.pendingVacations.map((p) => ({
+        startDate: new Date(p.startDate),
+        endDate: new Date(p.endDate),
+      })),
+      newVacationPeriods: filled,
+    });
+  }, [concessiveContext, periods]);
 
   function resetForm() {
     setPeriods([
@@ -222,6 +260,9 @@ export function NewRequestCardClient({ canRequest = true, balance, userRole, fir
             isPreEntitlement
               ? "Pré-agendamento: permitido se o início das férias for após completar 12 meses de empresa"
               : null,
+            concessiveContext
+              ? "Gozo dentro do período concessivo: até 12 meses após o fim de cada período aquisitivo (validado automaticamente)"
+              : null,
           ].map((rule, i) => (
             rule ? <li key={i}>{rule}</li> : null
           ))}
@@ -230,6 +271,12 @@ export function NewRequestCardClient({ canRequest = true, balance, userRole, fir
           <p className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 dark:border-blue-800/40 dark:bg-blue-950/30 dark:text-blue-200">
             Seu 1º período aquisitivo completa em {entitlementLabel}. Você pode solicitar agora, mas o início das férias deve ser a partir dessa data.
           </p>
+        )}
+        {concessiveError && (
+          <Alert className="mt-4 border-red-200 bg-red-50/90 text-red-900 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-100">
+            <AlertTitle>Período concessivo</AlertTitle>
+            <AlertDescription>{concessiveError}</AlertDescription>
+          </Alert>
         )}
       </section>
 
@@ -435,7 +482,8 @@ export function NewRequestCardClient({ canRequest = true, balance, userRole, fir
             selectedDays <= 0 ||
             !totalOk ||
             needsPeriod14 ||
-            !cycleTotalOk
+            !cycleTotalOk ||
+            !!concessiveError
           }
           className="flex min-h-[56px] w-full flex-1 items-center justify-center gap-2 rounded-md bg-blue-600 text-xl font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
         >

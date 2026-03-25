@@ -13,6 +13,7 @@ import {
 } from "@/repositories/vacationRepository";
 import { findBlackouts } from "@/repositories/blackoutRepository";
 import { findUserWithBalance, findUserDepartment } from "@/repositories/userRepository";
+import { prisma } from "@/lib/prisma";
 import { syncAcquisitionPeriodsForUser, findAcquisitionPeriodsForUser } from "@/repositories/acquisitionRepository";
 
 export type DashboardDataParams = {
@@ -119,6 +120,18 @@ export async function getUserAcquisitionPeriods(userId: string) {
 }
 
 /** Uma leitura do usuário + sync + períodos (página Minhas Férias). */
+export type ConcessiveClientContext = {
+  hireDateIso: string;
+  acquisitionPeriods: Array<{
+    id: string;
+    startDate: string;
+    endDate: string;
+    accruedDays: number;
+    usedDays: number;
+  }>;
+  pendingVacations: Array<{ startDate: string; endDate: string }>;
+};
+
 export async function getMyVacationSidebarContext(userId: string) {
   const userFull = await findUserWithBalance(userId);
   await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);
@@ -130,11 +143,38 @@ export async function getMyVacationSidebarContext(userId: string) {
   const firstEntitlementDate = userFull?.hireDate
     ? addMonthsPreservingDay(new Date(userFull.hireDate), 12)
     : null;
+
+  const pendingPendente = await prisma.vacationRequest.findMany({
+    where: { userId, status: "PENDENTE" },
+    orderBy: { startDate: "asc" },
+    select: { startDate: true, endDate: true },
+  });
+
+  const concessiveContext: ConcessiveClientContext | null = userFull?.hireDate
+    ? {
+        hireDateIso: userFull.hireDate.toISOString(),
+        acquisitionPeriods: acquisitionPeriods.map(
+          (p: { id: string; startDate: Date; endDate: Date; accruedDays: number; usedDays: number }) => ({
+            id: p.id,
+            startDate: p.startDate.toISOString(),
+            endDate: p.endDate.toISOString(),
+            accruedDays: p.accruedDays,
+            usedDays: p.usedDays,
+          }),
+        ),
+        pendingVacations: pendingPendente.map((p) => ({
+          startDate: p.startDate.toISOString(),
+          endDate: p.endDate.toISOString(),
+        })),
+      }
+    : null;
+
   return {
     balance,
     acquisitionPeriods,
     firstEntitlementDate,
     department: userFull?.department ?? null,
+    concessiveContext,
   };
 }
 

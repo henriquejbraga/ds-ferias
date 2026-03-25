@@ -218,8 +218,7 @@ export async function POST(request: Request, { params }: Params) {
 
     if (isVacationApprovedStatus(nextStatus)) {
       // FIFO: consome o período aquisitivo mais antigo que ainda tenha saldo disponível.
-      // A data das férias NÃO precisa cair dentro do período — CLT permite usar dias
-      // de ciclos anteriores em qualquer data futura.
+      // A validação de datas no período concessivo ocorre na criação/edição da solicitação.
       const allPeriods = await tx.acquisitionPeriod.findMany({
         where: { userId: current.userId },
         orderBy: { startDate: "asc" },
