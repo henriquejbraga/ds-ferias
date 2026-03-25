@@ -11,7 +11,7 @@ Sistema interno de gestão de férias com fluxo de aprovação pelo líder diret
 - **Gerente:** aprova solicitações dos coordenadores e dos times sob sua gestão; vê **Times** agrupados por coordenador.
 - **RH:** visualização completa, Backoffice, relatórios e export CSV (sem aprovar no fluxo).
 
-Fluxo: **PENDENTE** → **Aprovação do líder direto** (`APROVADO_GERENTE`, final). Ninguém aprova a própria solicitação.
+Fluxo: **PENDENTE** → Aprovação do líder direto (status final gravado conforme o papel do aprovador: `APROVADO_COORDENADOR`, `APROVADO_GERENTE` ou `APROVADO_DIRETOR`). Ninguém aprova a própria solicitação.
 
 ---
 
@@ -28,7 +28,7 @@ Implementadas em `lib/vacationRules.ts`:
 - **Datas e timezone:** todos os cálculos de dias/semana usam datas **normalizadas em UTC** para evitar diferenças entre ambientes.
 - **Feriados nacionais:** carregados automaticamente via BrasilAPI (com cache em memória por ano), com fallback local para garantir CLT mesmo se a API externa estiver indisponível.
 - **Abono 1/3:** o colaborador pode marcar que deseja converter até 10 dias em abono. O sistema mantém o período corrido de férias (ex.: 30 dias), mas calcula e destaca visualmente o **retorno estimado 10 dias antes** em cards, Times e calendário.
-- **Adiantamento de 13º:** flag informativa na solicitação; a decisão financeira continua com o RH. Todos os aprovadores (Coord, Gerente, RH) podem aprovar a solicitação, e o card exibe chips indicando abono/13º.
+- **Adiantamento de 13º:** flag informativa na solicitação; a decisão financeira continua com o RH. A aprovação no fluxo é feita por Coordenação/Gerência/Diretoria (RH não aprova), e o card exibe chips indicando abono/13º.
 
 Períodos em que a empresa não permite férias (blackout) são configurados pelo RH e bloqueiam novas solicitações.
 
@@ -184,13 +184,14 @@ Testes em `tests/` cobrem `lib/`, `services` e `repositories` (papéis, aprovaç
 
 ## Funcionalidades implementadas
 
-- Fluxo de aprovação em 3 níveis (Coordenador → Gerente → RH) com histórico em `VacationRequestHistory`.
+- Fluxo de aprovação com status final conforme o papel do aprovador (Coordenação → Gerência → Diretoria) com histórico em `VacationRequestHistory`.
 - Validações CLT (início/fim, aviso, feriados, fracionamento, conflitos).
 - Modal de confirmacao para conflitos no time durante a aprovação (evita aprovar “por engano” em cenários conflitantes).
 - Dashboard por papel: Minhas Férias, Caixa de Aprovação, Histórico, **Times** (com filtro e expandir/colapsar por gerente e coordenador).
-- Filtros (busca, status, coordenador, departamento, período); export CSV e relatório de saldo (RH).
+- Filtros (busca, status, coordenador, time, departamento, período); export CSV e relatório de saldo (RH).
 - Períodos de bloqueio (blackout) por RH.
 - **Períodos aquisitivos**: vinculo de `VacationRequest` ao `AcquisitionPeriod`, UI em “Minhas Férias” e relatório CSV exclusivo para RH.
+- UI: indicador do **ciclo atual**, alerta quando existe **período aquisitivo vencido com saldo** e exibição do time em **“Histórico”**.
 - Backoffice (**/admin**) para usuários (nome, e‑mail, papel, matrícula, departamento, admissão, gestor), com:
   - Busca com filtro por papel.
   - Edição inline (inclusive e‑mail) com toasts de erro descritivos (ex.: e‑mail/matrícula já cadastrados).
