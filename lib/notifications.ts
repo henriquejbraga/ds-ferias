@@ -56,7 +56,6 @@ export type NotifyEvent =
 
 function logEvent(event: NotifyEvent) {
   if (process.env.NODE_ENV === "development") {
-    // eslint-disable-next-line no-console
     console.log("[notify]", event.type, event);
   }
 }
@@ -130,7 +129,14 @@ function renderApprovedEmailHtml(event: Extract<NotifyEvent, { type: "APPROVED" 
 async function sendApprovedEmail(event: Extract<NotifyEvent, { type: "APPROVED" }>): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.MAIL_FROM;
-  if (!apiKey || !from || event.toEmails.length === 0) return;
+  if (!apiKey || !from || event.toEmails.length === 0) {
+    console.log("[sendApprovedEmail] skipped", {
+      hasApiKey: Boolean(apiKey),
+      hasFrom: Boolean(from),
+      toEmailsCount: event.toEmails?.length ?? 0,
+    });
+    return;
+  }
 
   const resend = new Resend(apiKey);
   const recipients = Array.from(new Set(event.toEmails.filter(Boolean)));
@@ -138,11 +144,17 @@ async function sendApprovedEmail(event: Extract<NotifyEvent, { type: "APPROVED" 
 
   const subject = `Férias aprovadas - ${event.userName} (${event.startDate} a ${event.endDate})`;
 
-  await resend.emails.send({
+  const result = await resend.emails.send({
     from,
     to: recipients,
     subject,
     html: renderApprovedEmailHtml(event),
+  });
+
+  console.log("[sendApprovedEmail] sent", {
+    recipients,
+    recipientsCount: recipients.length,
+    result,
   });
 }
 
@@ -277,6 +289,10 @@ export async function notify(event: NotifyEvent): Promise<void> {
   const provider = getNotifyProvider();
   const shouldSendEmail = provider === "resend" || provider === "both";
   const shouldSendWebhook = provider === "webhook" || provider === "both";
+
+  if (process.env.NODE_ENV === "development") {
+    console.log("[notify] provider flags", { provider, shouldSendEmail, shouldSendWebhook });
+  }
 
   if (shouldSendEmail && event.type === "APPROVED") {
     try {
