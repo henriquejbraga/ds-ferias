@@ -16,7 +16,7 @@ import {
   findAcquisitionPeriodsForUser,
 } from "@/repositories/acquisitionRepository";
 import { validateVacationConcessiveFifo } from "@/lib/concessivePeriod";
-import { buildInclusiveOverlapConditions } from "@/lib/validation";
+import { buildInclusiveOverlapConditions, hasInternalOverlapInDateRanges } from "@/lib/validation";
 
 const POST_REQUESTS_MAX_PER_MINUTE = 20;
 
@@ -190,6 +190,13 @@ export async function POST(request: Request) {
 
   if (!periods.length) {
     return NextResponse.json({ error: "É necessário informar ao menos um período de férias." }, { status: 400 });
+  }
+
+  if (hasInternalOverlapInDateRanges(periods)) {
+    return NextResponse.json(
+      { error: "Os períodos informados se sobrepõem entre si. Ajuste as datas e tente novamente." },
+      { status: 400 },
+    );
   }
 
   // Buscar usuário e períodos de bloqueio para validações

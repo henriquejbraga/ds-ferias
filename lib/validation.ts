@@ -17,3 +17,21 @@ export function requireCuid(id: unknown): string | null {
 export function buildInclusiveOverlapConditions(startDate: Date, endDate: Date) {
   return [{ startDate: { lte: endDate } }, { endDate: { gte: startDate } }] as const;
 }
+
+type DateRange = { start: Date; end: Date };
+
+export function hasInternalOverlapInDateRanges(ranges: DateRange[]): boolean {
+  if (ranges.length <= 1) return false;
+
+  const normalized = ranges
+    .map(({ start, end }) => ({ start: start.getTime(), end: end.getTime() }))
+    .sort((a, b) => a.start - b.start);
+
+  for (let i = 1; i < normalized.length; i += 1) {
+    if (normalized[i].start <= normalized[i - 1].end) {
+      return true;
+    }
+  }
+
+  return false;
+}
