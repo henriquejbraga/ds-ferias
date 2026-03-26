@@ -7,11 +7,14 @@ const mockFindUserWithBalance = vi.fn().mockResolvedValue(null);
 const mockFindUserDepartment = vi.fn().mockResolvedValue(null);
 const mockSyncAcquisitionPeriodsForUser = vi.fn().mockResolvedValue([]);
 const mockFindAcquisitionPeriodsForUser = vi.fn().mockResolvedValue([]);
+const mockPrismaVacationFindMany = vi.fn().mockResolvedValue([]);
 const mockFilterManagedRequestsForIndirectLeaders = vi.fn(
   async (_approverId: string, requests: unknown[]) => requests,
 );
 
-vi.mock("@/lib/prisma", () => ({ prisma: {} }));
+vi.mock("@/lib/prisma", () => ({
+  prisma: { vacationRequest: { findMany: (...args: unknown[]) => mockPrismaVacationFindMany(...args) } },
+}));
 vi.mock("@/repositories/vacationRepository", () => ({
   findMyRequests: (...args: unknown[]) => mockFindMyRequests(...args),
   findManagedRequests: (...args: unknown[]) => mockFindManagedRequests(...args),
@@ -40,6 +43,8 @@ import {
   getDashboardData,
   getCurrentUserBalance,
   getCurrentUserDepartment,
+  getFirstEntitlementDate,
+  getMyVacationSidebarContext,
   getUserAcquisitionPeriods,
 } from "@/services/dashboardDataService";
 
@@ -49,6 +54,7 @@ describe("getDashboardData", () => {
     mockFindMyRequests.mockResolvedValue([]);
     mockFindManagedRequests.mockResolvedValue([]);
     mockFindBlackouts.mockResolvedValue([]);
+    mockPrismaVacationFindMany.mockResolvedValue([]);
     mockFilterManagedRequestsForIndirectLeaders.mockImplementation(async (_id, requests) => requests as any[]);
   });
 
@@ -73,6 +79,7 @@ describe("getDashboardData", () => {
     expect(out.managedRequests).toHaveLength(2);
     expect(out.teamRequests).toHaveLength(1);
     expect(out.teamRequests[0].status).toBe("APROVADO_GERENTE");
+    expect(mockFilterManagedRequestsForIndirectLeaders).not.toHaveBeenCalled();
   });
 
   it("for GERENTE, keeps direct reports and only allowed indirect reports", async () => {
@@ -140,6 +147,15 @@ describe("getDashboardData", () => {
     expect(out.managedRequests.map((r: any) => r.id)).toEqual(["r-direct-gerente", "r-indirect-allowed"]);
     expect(mockFilterManagedRequestsForIndirectLeaders).toHaveBeenCalledTimes(1);
   });
+
+  it("uses lean fetcher and skipMyRequests when approver asks", async () => {
+    await getDashboardData(
+      { userId: "ger-1", role: "GERENTE", query: "ana", status: "TODOS" },
+      { leanManaged: true, skipMyRequests: true },
+    );
+    expect(mockFindMyRequests).not.toHaveBeenCalled();
+    expect(mockFindManagedRequests).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("getCurrentUserBalance", () => {
@@ -195,6 +211,60 @@ describe("getUserAcquisitionPeriods", () => {
     const out = await getUserAcquisitionPeriods("u1");
     expect(mockSyncAcquisitionPeriodsForUser).toHaveBeenCalledWith("u1", null);
     expect(out).toEqual([{ id: "p1" }]);
+  });
+});
+
+describe("entitlement and sidebar context", () => {
+  it("getFirstEntitlementDate returns null with missing hireDate", async () => {
+    mockFindUserWithBalance.mockResolvedValueOnce(null);
+    expect(await getFirstEntitlementDate("u1")).toBeNull();
+  });
+
+  it("getFirstEntitlementDate adds 12 months preserving day", async () => {
+    mockFindUserWithBalance.mockResolvedValueOnce({ hireDate: new Date("2024-01-31T12:00:00Z") });
+    const out = await getFirstEntitlementDate("u1");
+    expect(out?.toISOString().slice(0, 10)).toBe("2025-01-31");
+  });
+
+  it("getMyVacationSidebarContext returns concessive context when hireDate exists", async () => {
+    const hireDate = new Date("2024-01-01T00:00:00Z");
+    mockFindUserWithBalance.mockResolvedValueOnce({
+      hireDate,
+      department: "Produto",
+      vacationRequests: [],
+    });
+    mockFindAcquisitionPeriodsForUser.mockResolvedValueOnce([
+      {
+        id: "p1",
+        startDate: new Date("2024-01-01T00:00:00Z"),
+        endDate: new Date("2024-12-31T23:59:59Z"),
+        accruedDays: 30,
+        usedDays: 10,
+      },
+    ]);
+    mockPrismaVacationFindMany.mockResolvedValueOnce([
+      { startDate: new Date("2026-01-05T00:00:00Z"), endDate: new Date("2026-01-19T00:00:00Z") },
+    ]);
+
+    const out = await getMyVacationSidebarContext("u1");
+    expect(mockSyncAcquisitionPeriodsForUser).toHaveBeenCalledWith("u1", hireDate);
+    expect(out.department).toBe("Produto");
+    expect(out.concessiveContext?.hireDateIso).toBe(hireDate.toISOString());
+    expect(out.concessiveContext?.acquisitionPeriods[0].id).toBe("p1");
+    expect(out.concessiveContext?.pendingVacations).toHaveLength(1);
+  });
+
+  it("getMyVacationSidebarContext returns null concessive context without hireDate", async () => {
+    mockFindUserWithBalance.mockResolvedValueOnce({
+      hireDate: null,
+      department: null,
+      vacationRequests: [],
+    });
+    mockFindAcquisitionPeriodsForUser.mockResolvedValueOnce([]);
+    mockPrismaVacationFindMany.mockResolvedValueOnce([]);
+
+    const out = await getMyVacationSidebarContext("u1");
+    expect(out.concessiveContext).toBeNull();
   });
 });
 
