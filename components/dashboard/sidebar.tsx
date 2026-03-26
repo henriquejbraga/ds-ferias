@@ -12,12 +12,16 @@ export function AppSidebar({
   activeView,
   pendingCount,
   balance,
+  acquisitionPeriods,
+  hasUpcomingVacation,
   department,
 }: {
   user: UserLike;
   activeView: string;
   pendingCount: number;
   balance: VacationBalance;
+  acquisitionPeriods?: Array<{ accruedDays: number; usedDays: number }>;
+  hasUpcomingVacation?: boolean;
   department?: string | null;
 }) {
   const level = getRoleLevel(user.role);
@@ -70,7 +74,12 @@ export function AppSidebar({
       {/* Saldo visível no mobile (no desktop fica na nav lateral) */}
       <div className="border-t border-[#e2e8f0] px-3 py-3 lg:hidden dark:border-[#252a35]">
         <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wider text-[#64748b] dark:text-slate-400">Saldo de Férias</p>
-        <SidebarBalance balance={balance} userRole={user.role} />
+        <SidebarBalance
+          balance={balance}
+          userRole={user.role}
+          acquisitionPeriods={acquisitionPeriods}
+          hasUpcomingVacation={hasUpcomingVacation}
+        />
       </div>
 
       <nav className="hidden flex-1 flex-col gap-1 px-3 py-4 lg:flex">
@@ -86,7 +95,12 @@ export function AppSidebar({
         )}
         <div className="my-2 border-t border-[#e2e8f0] dark:border-[#252a35]" />
         <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-wider text-[#64748b] dark:text-slate-400">Saldo de Férias</p>
-        <SidebarBalance balance={balance} userRole={user.role} />
+        <SidebarBalance
+          balance={balance}
+          userRole={user.role}
+          acquisitionPeriods={acquisitionPeriods}
+          hasUpcomingVacation={hasUpcomingVacation}
+        />
       </nav>
 
       {/* Botão de sair extra removido no mobile para evitar duplicação no meio da tela */}

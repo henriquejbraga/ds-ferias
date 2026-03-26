@@ -186,8 +186,6 @@ export async function POST(request: Request, { params }: Params) {
     select: { hireDate: true, department: true, role: true },
   });
 
-  const statusesAwaitingRH = PENDING_OR_APPROVED_VACATION_STATUSES;
-
   if (owner?.hireDate) {
     if (owner.role === "GERENTE" || owner.role === "DIRETOR") {
       const WORKING_DAYS_LIMIT_PER_CYCLE = 22;
@@ -260,7 +258,8 @@ export async function POST(request: Request, { params }: Params) {
     const pendingForBalance = await prisma.vacationRequest.findMany({
       where: {
         userId: existing.userId,
-        status: { in: [...statusesAwaitingRH] },
+        // Somente pendentes: aprovados já entram em `usedDays` do período aquisitivo.
+        status: "PENDENTE",
         id: { not: existing.id },
       },
       select: { startDate: true, endDate: true },

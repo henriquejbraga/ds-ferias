@@ -104,6 +104,17 @@ export function MyRequestsList({
             return { start: nextStart, end: nextEnd, index: periods.length };
           })()
         : null;
+  const periodsWithRemaining = periods.filter((p) => p.usedDays < p.accruedDays);
+  const hasUpcomingVacation = requests.some((r) => {
+    const start = new Date(r.startDate);
+    return start >= today && (r.status === "PENDENTE" || isVacationApprovedStatus(r.status));
+  });
+  const periodsToShow =
+    periodsWithRemaining.length > 0
+      ? periodsWithRemaining
+      : hasUpcomingVacation
+        ? periods.slice(-Math.min(2, periods.length))
+        : [];
 
   return (
     <div className="space-y-4">
@@ -155,37 +166,43 @@ export function MyRequestsList({
                 </div>
               </div>
             )}
-
-            <div className="grid gap-2 sm:grid-cols-2">
-            {periods.slice(0, 4).map((p) => {
-              const isExpired = p.end.getTime() < endOfTodayLocal.getTime();
-              const label = `${p.start.toLocaleDateString("pt-BR")} – ${p.end.toLocaleDateString("pt-BR")}`;
-              const status =
-                p.usedDays >= p.accruedDays
-                  ? "Completo"
-                  : p.usedDays > 0
-                    ? "Parcial"
-                    : "Ainda não utilizado";
-              return (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between rounded-md bg-[#f8fafc] px-3 py-2 text-xs dark:bg-[#020617]"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-[#0f172a] dark:text-slate-100">{label}</p>
-                    <p className="text-[11px] text-[#64748b] dark:text-slate-400">
-                      {p.usedDays}/{p.accruedDays} dias usados · {status}
-                    </p>
-                    {isExpired && (
-                      <p className="mt-0.5 text-[10px] text-[#94a3b8] dark:text-slate-500">
-                        Ciclo encerrado
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            </div>
+            {periodsToShow.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {periodsToShow.map((p) => {
+                  const isExpired = p.end.getTime() < endOfTodayLocal.getTime();
+                  const label = `${p.start.toLocaleDateString("pt-BR")} – ${p.end.toLocaleDateString("pt-BR")}`;
+                  const status =
+                    p.usedDays >= p.accruedDays
+                      ? "Completo"
+                      : p.usedDays > 0
+                        ? "Parcial"
+                        : "Ainda não utilizado";
+                  return (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between rounded-md bg-[#f8fafc] px-3 py-2 text-xs dark:bg-[#020617]"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-[#0f172a] dark:text-slate-100">{label}</p>
+                        <p className="text-[11px] text-[#64748b] dark:text-slate-400">
+                          {p.usedDays}/{p.accruedDays} dias usados · {status}
+                        </p>
+                        {isExpired && (
+                          <p className="mt-0.5 text-[10px] text-[#94a3b8] dark:text-slate-500">
+                            Ciclo encerrado
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {periodsToShow.length === 0 && (
+              <p className="text-xs text-[#64748b] dark:text-slate-400">
+                Não há ciclos com saldo disponível no momento.
+              </p>
+            )}
           </div>
         ) : (
           <div className="mt-3 space-y-2">

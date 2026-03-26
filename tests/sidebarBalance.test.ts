@@ -10,6 +10,17 @@ function renderText(balance: VacationBalance, userRole?: string): string {
   return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function renderTextWithPeriods(
+  balance: VacationBalance,
+  acquisitionPeriods: Array<{ accruedDays: number; usedDays: number }>,
+  userRole?: string,
+): string {
+  const html = renderToStaticMarkup(
+    React.createElement(SidebarBalance, { balance, userRole, acquisitionPeriods }),
+  );
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 const entitledBalance: VacationBalance = {
   entitledDays: 30,
   usedDays: 0,
@@ -62,8 +73,38 @@ describe("SidebarBalance", () => {
     });
 
     expect(text).toContain("22 dias");
-    expect(text).toContain("Usados 5 de 30 do ciclo");
+    expect(text).toContain("Usados 5 de 30 na janela atual");
     expect(text).toContain("Solicitados aguardando aprovação: 3");
+  });
+
+  it("clamps used display to total limit to avoid growth confusion", () => {
+    const text = renderText({
+      ...entitledBalance,
+      entitledDays: 60,
+      usedDays: 120,
+      pendingDays: 0,
+      availableDays: 0,
+    });
+
+    expect(text).toContain("Usados 60 de 60 na janela atual");
+  });
+
+  it("removes fully consumed cycles from side balance window", () => {
+    const text = renderTextWithPeriods(
+      {
+        ...entitledBalance,
+        entitledDays: 60,
+        usedDays: 60,
+        pendingDays: 0,
+        availableDays: 0,
+      },
+      [
+        { accruedDays: 30, usedDays: 30 },
+        { accruedDays: 30, usedDays: 30 },
+      ],
+    );
+    expect(text).toContain("0 dias");
+    expect(text).toContain("Usados 0 de 0 na janela atual");
   });
 });
 

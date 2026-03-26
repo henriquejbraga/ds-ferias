@@ -1,19 +1,59 @@
-import type { VacationBalance } from "@/lib/vacationRules";
+"use client";
 
-export function SidebarBalance({ balance, userRole }: { balance: VacationBalance; userRole?: string }) {
+import type { VacationBalance } from "@/lib/vacationRules";
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
+type AcquisitionLike = { accruedDays: number; usedDays: number };
+
+export function SidebarBalance({
+  balance,
+  userRole,
+  acquisitionPeriods = [],
+  hasUpcomingVacation = false,
+}: {
+  balance: VacationBalance;
+  userRole?: string;
+  acquisitionPeriods?: AcquisitionLike[];
+  hasUpcomingVacation?: boolean;
+}) {
   const isBusinessDaysRole = userRole === "GERENTE" || userRole === "DIRETOR";
   const cycleBusinessLimit = 22;
-  const normalizedUsed = isBusinessDaysRole
-    ? Math.min(cycleBusinessLimit, Math.max(0, balance.usedDays))
-    : Math.max(0, balance.usedDays);
+  const periodsWithRemaining = acquisitionPeriods.filter((p) => p.usedDays < p.accruedDays);
+  const entitledFromOpenPeriods = periodsWithRemaining.reduce((sum, p) => sum + p.accruedDays, 0);
+  const usedFromOpenPeriods = periodsWithRemaining.reduce((sum, p) => sum + p.usedDays, 0);
+
+  const shouldFallbackToBalanceWindow =
+    !isBusinessDaysRole && acquisitionPeriods.length > 0 && periodsWithRemaining.length === 0 && hasUpcomingVacation;
+  const totalLimit = isBusinessDaysRole
+    ? cycleBusinessLimit
+    : shouldFallbackToBalanceWindow
+      ? balance.entitledDays
+      : acquisitionPeriods.length > 0
+      ? entitledFromOpenPeriods
+      : balance.entitledDays;
+  const safeLimit = Math.max(1, totalLimit);
+  const rawUsed = isBusinessDaysRole
+    ? balance.usedDays
+    : shouldFallbackToBalanceWindow
+      ? balance.usedDays
+    : acquisitionPeriods.length > 0
+      ? usedFromOpenPeriods
+      : balance.usedDays;
+  const normalizedUsed = Math.min(totalLimit, Math.max(0, rawUsed));
   const remainingAfterUsed = isBusinessDaysRole
     ? Math.max(0, cycleBusinessLimit - normalizedUsed)
-    : Math.max(0, balance.entitledDays - normalizedUsed);
+    : Math.max(0, totalLimit - normalizedUsed);
   const normalizedPending = Math.min(Math.max(0, balance.pendingDays), remainingAfterUsed);
-  const totalLimit = isBusinessDaysRole ? cycleBusinessLimit : Math.max(1, balance.entitledDays);
   const normalizedAvailable = Math.max(0, totalLimit - normalizedUsed - normalizedPending);
-  const usedPct = Math.min(100, Math.round((normalizedUsed / totalLimit) * 100));
-  const pendingPct = Math.min(100 - usedPct, Math.round((normalizedPending / totalLimit) * 100));
+  const usedPct = Math.min(100, Math.round((normalizedUsed / safeLimit) * 100));
+  const pendingPct = Math.min(100 - usedPct, Math.round((normalizedPending / safeLimit) * 100));
 
   if (!balance.hasEntitlement) {
     return (
@@ -39,9 +79,36 @@ export function SidebarBalance({ balance, userRole }: { balance: VacationBalance
       <p className="mt-0.5 text-center text-xs font-semibold text-[#64748b] dark:text-slate-400">
         disponíveis
       </p>
-      <p className="mt-2 text-center text-xs text-[#475569] dark:text-slate-300">
-        Usados {normalizedUsed} de {totalLimit} {isBusinessDaysRole ? "úteis" : "do ciclo"}
-      </p>
+      <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-[#475569] dark:text-slate-300">
+        <p>
+          Usados {normalizedUsed} de {totalLimit} {isBusinessDaysRole ? "úteis" : "na janela atual"}
+        </p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              aria-label="Entenda o cálculo do saldo"
+              className="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full border border-[#cbd5e1] text-[10px] font-bold text-[#64748b] transition hover:bg-[#e2e8f0] dark:border-[#334155] dark:text-slate-300 dark:hover:bg-[#252a35]"
+            >
+              ?
+            </button>
+          </PopoverTrigger>
+          <PopoverContent align="center" className="w-72">
+            <PopoverHeader>
+              <PopoverTitle>Como ler este saldo</PopoverTitle>
+              <PopoverDescription>
+                <strong>Usados:</strong> dias de férias já aprovados.
+                <br />
+                <strong>Pendente:</strong> dias já solicitados, aguardando aprovação.
+                <br />
+                <strong>Disponível:</strong> o que ainda pode ser solicitado no ciclo.
+                <br />
+                <strong>Quando renova:</strong> ao completar um novo ciclo de 12 meses.
+              </PopoverDescription>
+            </PopoverHeader>
+          </PopoverContent>
+        </Popover>
+      </div>
       <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-[#e2e8f0] dark:bg-[#252a35]">
         <div className="flex h-full">
           <div className="bg-slate-500 transition-all dark:bg-slate-400" style={{ width: `${usedPct}%` }} />

@@ -80,6 +80,10 @@ export default async function DashboardPage({
   ]);
 
   const { balance, acquisitionPeriods, firstEntitlementDate, department: userDept, concessiveContext } = sidebarCtx;
+  const hasUpcomingVacation = myRequests.some((r) => {
+    const start = new Date(r.startDate);
+    return start >= new Date() && (r.status === "PENDENTE" || r.status.startsWith("APROVADO_"));
+  });
 
   const visibleRequests = getVisibleRequests(user.role, user.id, managedRequests);
   const pendingCount = getPendingCount(userRoleLevel, visibleRequests);
@@ -103,6 +107,8 @@ export default async function DashboardPage({
         activeView={isTimesView ? "times" : isMyView ? "minhas" : view}
         pendingCount={pendingCount}
         balance={balance}
+        acquisitionPeriods={acquisitionPeriods as Array<{ accruedDays: number; usedDays: number }>}
+        hasUpcomingVacation={hasUpcomingVacation}
         department={userDept}
       />
 

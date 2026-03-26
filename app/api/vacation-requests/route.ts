@@ -315,11 +315,12 @@ export async function POST(request: Request) {
       const totalEntitled = acquiredPeriods.reduce((sum, p) => sum + p.accruedDays, 0);
       const totalUsed = acquiredPeriods.reduce((sum, p) => sum + p.usedDays, 0);
 
-      // Dias em curso (pendentes de aprovação RH) — deduzidos do saldo total
+      // Dias pendentes — deduzidos do saldo total.
+      // Importante: NÃO incluir aprovados aqui, pois eles já estão em `usedDays`.
       const pendingRequests = await prisma.vacationRequest.findMany({
         where: {
           userId: user.id,
-          status: { in: [...statusesAwaitingRH] },
+          status: "PENDENTE",
         },
         select: { startDate: true, endDate: true },
       });
