@@ -18,7 +18,7 @@ function DateRangeInline({ start, end }: { start: Date | string; end: Date | str
   const startLabel = new Date(start).toLocaleDateString("pt-BR");
   const endLabel = new Date(end).toLocaleDateString("pt-BR");
   return (
-    <span className="inline-flex items-center whitespace-nowrap leading-none">
+    <span className="inline-flex flex-wrap items-center leading-none">
       <span>{startLabel}</span>
       <span className="mx-1.5 inline-flex items-center justify-center leading-none text-[#64748b] dark:text-slate-400">
         →

@@ -62,23 +62,23 @@ export default function LoginPage() {
       {/* Painel direito — formulário */}
       <div className="flex flex-1 flex-col">
         {/* Topbar */}
-        <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-6">
+        <div className="flex items-center justify-between gap-2 px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-6">
           {/* Logo só aparece no mobile */}
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-2 pr-2 lg:hidden">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-blue-600">
               <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <span className="text-base font-bold text-[#1a1d23] dark:text-white">Editora Globo - Férias</span>
+            <span className="truncate text-base font-bold text-[#1a1d23] dark:text-white">Editora Globo - Férias</span>
           </div>
-          <div className="ml-auto">
+          <div className="ml-auto shrink-0">
             <ThemeToggle />
           </div>
         </div>
 
         {/* Formulário centralizado */}
-        <div className="relative flex flex-1 items-center justify-center px-4 pb-8 sm:px-6 sm:pb-12 lg:px-8 lg:pb-12">
+        <div className="relative flex flex-1 items-start justify-center px-4 pb-8 pt-2 sm:px-6 sm:pb-12 sm:pt-4 lg:items-center lg:px-8 lg:pb-12 lg:pt-0">
           {loading && (
             <div
               className="absolute inset-0 z-10 flex items-center justify-center bg-[#f5f6f8]/90 dark:bg-[#0f1117]/90"
