@@ -34,11 +34,24 @@ export type NotifyEvent =
       userEmail: string;
       managerName: string;
       managerEmail: string;
+      toEmails?: string[];
       startDate: string;
       endDate: string;
       daysUntilStart: number;
       abono: boolean;
       thirteenth: boolean;
+    }
+  | {
+      type: "RETURN_TO_WORK_REMINDER";
+      requestId: string;
+      userName: string;
+      userEmail: string;
+      managerName: string;
+      managerEmail: string;
+      toEmails?: string[];
+      returnDate: string;
+      startDate: string;
+      endDate: string;
     };
 
 function logEvent(event: NotifyEvent) {
@@ -60,7 +73,8 @@ function escapeHtml(input: string): string {
 function renderApprovedEmailHtml(event: Extract<NotifyEvent, { type: "APPROVED" }>): string {
   const brandName = process.env.MAIL_BRAND_NAME?.trim() || "Editora Globo";
   const logoUrl = process.env.MAIL_LOGO_URL?.trim() || "";
-  const hrSignature = process.env.MAIL_HR_SIGNATURE?.trim() || "RH - Editora Globo";
+  const hrSignature =
+    process.env.MAIL_HR_SIGNATURE?.trim() || "Editora Globo - Estratégia Digital - DS-Ferias";
   const lines = [
     ["Colaborador", event.userName],
     ["E-mail do colaborador", event.userEmail],
@@ -134,7 +148,8 @@ async function sendApprovedEmail(event: Extract<NotifyEvent, { type: "APPROVED" 
 
 function renderReminderEmailHtml(event: Extract<NotifyEvent, { type: "UPCOMING_VACATION_REMINDER" }>): string {
   const brandName = process.env.MAIL_BRAND_NAME?.trim() || "Editora Globo";
-  const hrSignature = process.env.MAIL_HR_SIGNATURE?.trim() || "RH - Editora Globo";
+  const hrSignature =
+    process.env.MAIL_HR_SIGNATURE?.trim() || "Editora Globo - Estratégia Digital - DS-Ferias";
   const safeBrandName = escapeHtml(brandName);
   const safeHrSignature = escapeHtml(hrSignature);
 
@@ -158,14 +173,59 @@ function renderReminderEmailHtml(event: Extract<NotifyEvent, { type: "UPCOMING_V
 async function sendReminderEmail(event: Extract<NotifyEvent, { type: "UPCOMING_VACATION_REMINDER" }>): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.MAIL_FROM;
-  if (!apiKey || !from || !event.managerEmail) return;
+  if (!apiKey || !from) return;
 
   const resend = new Resend(apiKey);
+  const recipients = Array.from(
+    new Set((event.toEmails?.length ? event.toEmails : [event.managerEmail]).filter(Boolean)),
+  );
+  if (recipients.length === 0) return;
   await resend.emails.send({
     from,
-    to: [event.managerEmail],
+    to: recipients,
     subject: `Lembrete: ${event.userName} entra de ferias em ${event.daysUntilStart} dias`,
     html: renderReminderEmailHtml(event),
+  });
+}
+
+function renderReturnReminderEmailHtml(event: Extract<NotifyEvent, { type: "RETURN_TO_WORK_REMINDER" }>): string {
+  const brandName = process.env.MAIL_BRAND_NAME?.trim() || "Editora Globo";
+  const hrSignature =
+    process.env.MAIL_HR_SIGNATURE?.trim() || "Editora Globo - Estratégia Digital - DS-Ferias";
+  const safeBrandName = escapeHtml(brandName);
+  const safeHrSignature = escapeHtml(hrSignature);
+
+  return `
+    <div style="font-family:Arial,sans-serif;color:#1f2937;">
+      <h2 style="margin-bottom:8px;">Lembrete: retorno ao trabalho amanha</h2>
+      <p style="margin:0 0 12px 0;">As ferias abaixo se encerram hoje e o retorno ocorre amanha.</p>
+      <table style="border-collapse:collapse;width:100%;max-width:760px;">
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-weight:600;">Colaborador</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(event.userName)}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-weight:600;">Inicio</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(event.startDate)}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-weight:600;">Fim</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(event.endDate)}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-weight:600;">Retorno</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(event.returnDate)}</td></tr>
+      </table>
+      <p style="margin:14px 0 2px 0;font-size:13px;color:#4b5563;">${safeBrandName}</p>
+      <p style="margin:0;font-size:13px;color:#4b5563;">${safeHrSignature}</p>
+    </div>
+  `;
+}
+
+async function sendReturnReminderEmail(event: Extract<NotifyEvent, { type: "RETURN_TO_WORK_REMINDER" }>): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.MAIL_FROM;
+  if (!apiKey || !from) return;
+
+  const resend = new Resend(apiKey);
+  const recipients = Array.from(
+    new Set((event.toEmails?.length ? event.toEmails : [event.managerEmail]).filter(Boolean)),
+  );
+  if (recipients.length === 0) return;
+  await resend.emails.send({
+    from,
+    to: recipients,
+    subject: `Lembrete: retorno de ${event.userName} ao trabalho em 1 dia`,
+    html: renderReturnReminderEmailHtml(event),
   });
 }
 
@@ -240,6 +300,19 @@ export async function notify(event: NotifyEvent): Promise<void> {
       } catch (err) {
         console.error("[notify] reminder slack send error", err);
       }
+    }
+  }
+
+  if (event.type === "RETURN_TO_WORK_REMINDER") {
+    if (shouldSendEmail && shouldSendReminderEmail()) {
+      try {
+        await sendReturnReminderEmail(event);
+      } catch (err) {
+        console.error("[notify] return reminder email send error", err);
+      }
+    }
+    if (shouldSendReminderSlack()) {
+      // TODO: opcional no futuro, por enquanto sem webhook dedicado.
     }
   }
 
@@ -340,6 +413,7 @@ export function notifyUpcomingVacationReminder(payload: {
   userEmail: string;
   managerName: string;
   managerEmail: string;
+  toEmails?: string[];
   startDate: Date;
   endDate: Date;
   daysUntilStart: number;
@@ -353,10 +427,36 @@ export function notifyUpcomingVacationReminder(payload: {
     userEmail: payload.userEmail,
     managerName: payload.managerName,
     managerEmail: payload.managerEmail,
+    toEmails: payload.toEmails,
     startDate: payload.startDate.toISOString().slice(0, 10),
     endDate: payload.endDate.toISOString().slice(0, 10),
     daysUntilStart: payload.daysUntilStart,
     abono: payload.abono,
     thirteenth: payload.thirteenth,
+  });
+}
+
+export function notifyReturnToWorkReminder(payload: {
+  requestId: string;
+  userName: string;
+  userEmail: string;
+  managerName: string;
+  managerEmail: string;
+  toEmails?: string[];
+  returnDate: Date;
+  startDate: Date;
+  endDate: Date;
+}) {
+  return notify({
+    type: "RETURN_TO_WORK_REMINDER",
+    requestId: payload.requestId,
+    userName: payload.userName,
+    userEmail: payload.userEmail,
+    managerName: payload.managerName,
+    managerEmail: payload.managerEmail,
+    toEmails: payload.toEmails,
+    returnDate: payload.returnDate.toISOString().slice(0, 10),
+    startDate: payload.startDate.toISOString().slice(0, 10),
+    endDate: payload.endDate.toISOString().slice(0, 10),
   });
 }

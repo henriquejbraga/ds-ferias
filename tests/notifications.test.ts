@@ -6,6 +6,7 @@ import {
   notifyApproved,
   notifyRejected,
   notifyUpcomingVacationReminder,
+  notifyReturnToWorkReminder,
 } from "@/lib/notifications";
 
 const resendSendMock = vi.fn().mockResolvedValue({ id: "mail_123" });
@@ -254,6 +255,7 @@ describe("notifications", () => {
       userEmail: "colab1@empresa.com",
       managerName: "Gestor 1",
       managerEmail: "gestor1@empresa.com",
+      toEmails: ["gestor1@empresa.com", "colab1@empresa.com"],
       startDate: new Date("2026-09-04T12:00:00Z"),
       endDate: new Date("2026-09-15T12:00:00Z"),
       daysUntilStart: 7,
@@ -263,8 +265,33 @@ describe("notifications", () => {
 
     expect(resendSendMock).toHaveBeenCalledTimes(1);
     const args = resendSendMock.mock.calls[0][0];
-    expect(args.to).toEqual(["gestor1@empresa.com"]);
+    expect(args.to).toEqual(["gestor1@empresa.com", "colab1@empresa.com"]);
     expect(args.subject).toContain("entra de ferias em 7 dias");
+  });
+
+  it("sends return-to-work reminder to manager and collaborator", async () => {
+    process.env.NOTIFY_PROVIDER = "resend";
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
+    process.env.REMINDER_CHANNELS = "email";
+
+    await notifyReturnToWorkReminder({
+      requestId: "r-ret-1",
+      userName: "Colab 2",
+      userEmail: "colab2@empresa.com",
+      managerName: "Gestor 2",
+      managerEmail: "gestor2@empresa.com",
+      toEmails: ["gestor2@empresa.com", "colab2@empresa.com"],
+      startDate: new Date("2026-09-01T12:00:00Z"),
+      endDate: new Date("2026-09-10T12:00:00Z"),
+      returnDate: new Date("2026-09-11T12:00:00Z"),
+    });
+
+    expect(resendSendMock).toHaveBeenCalledTimes(1);
+    const args = resendSendMock.mock.calls[0][0];
+    expect(args.to).toEqual(["gestor2@empresa.com", "colab2@empresa.com"]);
+    expect(args.subject).toContain("retorno de Colab 2");
+    expect(args.html).toContain("retorno");
   });
 });
 

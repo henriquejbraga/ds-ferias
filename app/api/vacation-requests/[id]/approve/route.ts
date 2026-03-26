@@ -310,8 +310,8 @@ export async function POST(request: Request, { params }: Params) {
     didCommit = true;
   });
 
-  if (didCommit && updated?.user?.name && updated?.user?.email && user.name && user.email) {
-    const recipientSet = new Set<string>([user.email]);
+  if (didCommit && updated?.user?.name && updated?.user?.email && user.name) {
+    const recipientSet = new Set<string>([updated.user.email, user.email]);
 
     if (isIndirectApproval && updated.user.managerId) {
       const directLeader = await prisma.user.findUnique({
