@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUser, hashNewUserPassword, shouldForcePasswordChange } from "@/lib/auth";
+import { createSession, getSessionUser, hashNewUserPassword, shouldForcePasswordChange } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
@@ -23,6 +23,12 @@ export async function POST(request: Request) {
       passwordHash,
       mustChangePassword: false,
     },
+  });
+
+  // Atualiza sessão imediatamente para remover o bloqueio de primeiro acesso.
+  await createSession({
+    ...user,
+    mustChangePassword: false,
   });
 
   return NextResponse.json({ ok: true });

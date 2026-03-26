@@ -35,7 +35,8 @@ export function ChangePasswordForm() {
         return;
       }
       toast.success("Senha alterada com sucesso.");
-      router.push("/dashboard");
+      router.replace("/dashboard");
+      router.refresh();
     } catch {
       toast.error("Erro de conexão. Tente novamente.");
       setLoading(false);
