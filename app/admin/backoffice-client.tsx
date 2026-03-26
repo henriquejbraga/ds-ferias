@@ -33,7 +33,8 @@ type SortKey =
   | "manager";
 type SortDir = "asc" | "desc";
 const FIXED_DEPARTMENT = "Estratégia Digital";
-const TEAM_OPTIONS = ["Design System", "Plataformas", "APPs", "Inovação IA"] as const;
+const TEAM_OPTIONS = ["Design System", "Plataformas", "APPs", "Inovação IA", "Agile", "Jornais", "SGR", "Fasttrack"] as const;
+const TEAM_DATALIST_ID = "team-options-list";
 
 export function BackofficeClient({
   users,
@@ -283,16 +284,14 @@ export function BackofficeClient({
                 onChange={(e) => setCreateForm((f) => ({ ...f, hireDate: e.target.value }))}
                 className="w-40 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
               />
-              <select
+              <input
+                type="text"
                 value={createForm.team}
                 onChange={(e) => setCreateForm((f) => ({ ...f, team: e.target.value }))}
-                className="w-44 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
-              >
-                <option value="">Time (opcional)</option>
-                {TEAM_OPTIONS.map((t) => (
-                  <option key={t} value={t}>{t}</option>
-                ))}
-              </select>
+                placeholder="Time(s): ex. Design System / Plataformas"
+                list={TEAM_DATALIST_ID}
+                className="w-56 rounded-md border border-[#e2e8f0] bg-white px-2 py-1.5 text-sm text-[#1a1d23] outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+              />
               <select
                 value={createForm.managerId}
                 onChange={(e) => setCreateForm((f) => ({ ...f, managerId: e.target.value }))}
@@ -304,6 +303,11 @@ export function BackofficeClient({
                 ))}
               </select>
             </div>
+            <datalist id={TEAM_DATALIST_ID}>
+              {TEAM_OPTIONS.map((t) => (
+                <option key={t} value={t} />
+              ))}
+            </datalist>
           </div>
           <Button
             size="sm"
@@ -429,17 +433,15 @@ export function BackofficeClient({
                 </td>
                 <td className="px-4 py-3">
                   {editingId === u.id ? (
-                    <select
+                    <input
+                      type="text"
                       value={form.team ?? ""}
                       onChange={(e) => setForm((f) => ({ ...f, team: e.target.value || null }))}
+                      placeholder="Time(s)"
+                      list={TEAM_DATALIST_ID}
                       aria-label="Time"
-                      className="w-44 rounded border border-[#e2e8f0] bg-white px-2 py-1.5 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
-                    >
-                      <option value="">— Sem time —</option>
-                      {TEAM_OPTIONS.map((t) => (
-                        <option key={t} value={t}>{t}</option>
-                      ))}
-                    </select>
+                      className="w-56 rounded border border-[#e2e8f0] bg-white px-2 py-1.5 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
+                    />
                   ) : (
                     u.team ?? "—"
                   )}

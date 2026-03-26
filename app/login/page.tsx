@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { toast } from "sonner";
+import { getRoleLabel } from "@/lib/vacationRules";
+
+type LoginUserPreview = {
+  name: string;
+  email: string;
+  role: string;
+};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,6 +18,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [testUsers, setTestUsers] = useState<LoginUserPreview[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    async function loadUsers() {
+      try {
+        const res = await fetch("/api/login/users", { cache: "no-store" });
+        const data = (await res.json().catch(() => null)) as { users?: LoginUserPreview[] } | null;
+        if (!res.ok || !data?.users) return;
+        if (active) setTestUsers(data.users);
+      } finally {
+        if (active) setLoadingUsers(false);
+      }
+    }
+    void loadUsers();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -174,7 +201,7 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <TestUsersPanel />
+            <TestUsersPanel users={testUsers} loading={loadingUsers} />
           </div>
         </div>
       </div>
@@ -182,23 +209,7 @@ export default function LoginPage() {
   );
 }
 
-function TestUsersPanel() {
-  const users = [
-    { role: "RH / Admin", email: "rh1@empresa.com" },
-    { role: "Diretor(a) - Santiago", email: "santiago@empresa.com" },
-    { role: "Gerente - Mendonca", email: "mendonca@empresa.com" },
-    { role: "Gerente - Fabricio", email: "fabricio@empresa.com" },
-    { role: "Coordenador - Paulo", email: "paulo@empresa.com" },
-    { role: "Gestor - Rapha", email: "rapha@empresa.com" },
-    { role: "Gestor - Joaozinho", email: "joaozinho@empresa.com" },
-    { role: "Gestor - Loran", email: "loran@empresa.com" },
-    { role: "Colaborador - IA 1", email: "ia1@empresa.com" },
-    { role: "Colaborador - Plataforma 1", email: "p1@empresa.com" },
-    { role: "Colaborador - Design 1", email: "d1@empresa.com" },
-    { role: "Colaborador - Inovacao 1", email: "i1@empresa.com" },
-    { role: "Colaborador - Loran 1", email: "l1@empresa.com" },
-  ];
-
+function TestUsersPanel({ users, loading }: { users: LoginUserPreview[]; loading: boolean }) {
   return (
     <div className="mt-8 rounded-lg border border-[#e2e8f0] bg-white p-4 text-sm text-[#1a1d23] shadow-sm dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-slate-100">
       <div className="mb-3 flex items-center justify-between">
@@ -208,9 +219,19 @@ function TestUsersPanel() {
         </div>
       </div>
       <div className="grid gap-1 text-base">
+        {loading && (
+          <div className="rounded-md px-3 py-2 text-sm text-[#64748b] dark:text-slate-400">
+            Carregando usuários...
+          </div>
+        )}
+        {!loading && users.length === 0 && (
+          <div className="rounded-md px-3 py-2 text-sm text-[#64748b] dark:text-slate-400">
+            Nenhum usuário disponível.
+          </div>
+        )}
         {users.map((u) => (
           <div key={u.email} className="flex min-h-[44px] min-w-0 items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-[#f5f6f8] dark:hover:bg-[#0f1117]">
-            <span className="shrink-0 text-sm font-medium text-[#475569] dark:text-slate-300">{u.role}</span>
+            <span className="shrink-0 text-sm font-medium text-[#475569] dark:text-slate-300">{getRoleLabel(u.role)}</span>
             <span className="min-w-0 truncate font-mono text-sm sm:text-base" title={u.email}>{u.email}</span>
           </div>
         ))}
