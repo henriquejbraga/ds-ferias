@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { ensureNationalHolidaysLoaded, isNationalHolidayCached } from "@/lib/holidaysApi";
 
 type CalendarEntry = {
   startDate: Date | string;
@@ -43,13 +44,34 @@ export function MonthlyCalendar({ entries }: Props) {
   const [currentMonth, setCurrentMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [viewMode, setViewMode] = useState<"month" | "year">("month");
 
+  const year = currentMonth.getFullYear();
+  const [holidaysReady, setHolidaysReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    ensureNationalHolidaysLoaded(year)
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setHolidaysReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [year]);
+
   const getMonthCells = (year: number, month: number) => {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
     const firstWeekday = firstDay.getDay(); // 0 (dom) - 6 (sáb)
     const blanks = (firstWeekday + 6) % 7; // alinhar para semana começando em segunda
-    const cells: { day: number; statuses: string[]; hasAbono: boolean; hasThirteenth: boolean }[] = [];
+    const cells: {
+      day: number;
+      statuses: string[];
+      hasAbono: boolean;
+      hasThirteenth: boolean;
+      isHoliday: boolean;
+    }[] = [];
 
     for (let d = 1; d <= daysInMonth; d++) {
       const current = new Date(year, month, d);
@@ -70,13 +92,13 @@ export function MonthlyCalendar({ entries }: Props) {
         statuses: matching.map((e) => e.status),
         hasAbono: matching.some((e) => e.abono),
         hasThirteenth: matching.some((e) => e.thirteenth),
+        isHoliday: holidaysReady ? isNationalHolidayCached(new Date(Date.UTC(year, month, d))) : false,
       });
     }
 
     return { blanks, cells };
   };
 
-  const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
   const monthData = getMonthCells(year, month);
 
@@ -88,6 +110,7 @@ export function MonthlyCalendar({ entries }: Props) {
     cellMonth: number,
     cellYear: number,
     compact = false,
+    isHoliday = false,
   ) => {
     const isToday =
       day === today.getDate() &&
@@ -95,18 +118,32 @@ export function MonthlyCalendar({ entries }: Props) {
       cellYear === today.getFullYear();
     const hasStatus = statuses.length > 0;
     const mainStatus = hasStatus ? statuses[0] : "";
+    const ringClass = hasStatus
+      ? getStatusRing(mainStatus)
+      : isHoliday
+        ? "ring-1 ring-purple-500/50"
+        : "ring-0";
     return (
       <div
         key={day}
         className={[
-          "flex flex-col items-center justify-center rounded-md border",
+          "relative flex flex-col items-center justify-center rounded-md border",
           compact ? "h-7 text-[9px]" : "h-10 text-[10px]",
           isToday ? "border-blue-500" : "border-transparent",
-          hasStatus ? getStatusColor(mainStatus) : "bg-[#f5f6f8] dark:bg-[#0f1117] text-[#475569] dark:text-slate-300",
-          hasStatus ? getStatusRing(mainStatus) : "ring-0",
+          hasStatus
+            ? getStatusColor(mainStatus)
+            : isHoliday
+              ? "bg-purple-50 text-purple-900 border-purple-200 dark:bg-purple-950/30 dark:text-purple-200 dark:border-purple-900/40"
+              : "bg-[#f5f6f8] dark:bg-[#0f1117] text-[#475569] dark:text-slate-300",
+          ringClass,
         ].join(" ")}
       >
         <span className="font-semibold leading-none">{day}</span>
+        {isHoliday && (
+          <span className="absolute right-1 top-1 rounded-sm bg-purple-600 px-1 text-[8px] font-semibold text-white dark:bg-purple-500">
+            F
+          </span>
+        )}
         {hasStatus && (
           <span
             className={[
@@ -206,8 +243,8 @@ export function MonthlyCalendar({ entries }: Props) {
           {Array.from({ length: monthData.blanks }).map((_, i) => (
             <div key={`blank-${i}`} />
           ))}
-          {monthData.cells.map(({ day, statuses, hasAbono, hasThirteenth }) =>
-            renderDayCell(day, statuses, hasAbono, hasThirteenth, month, year),
+          {monthData.cells.map(({ day, statuses, hasAbono, hasThirteenth, isHoliday }) =>
+            renderDayCell(day, statuses, hasAbono, hasThirteenth, month, year, false, isHoliday),
           )}
         </div>
       ) : (
@@ -259,8 +296,8 @@ export function MonthlyCalendar({ entries }: Props) {
                   {Array.from({ length: data.blanks }).map((_, i) => (
                     <div key={`year-blank-${monthIndex}-${i}`} />
                   ))}
-                  {data.cells.map(({ day, statuses, hasAbono, hasThirteenth }) =>
-                    renderDayCell(day, statuses, hasAbono, hasThirteenth, monthIndex, year, true),
+                  {data.cells.map(({ day, statuses, hasAbono, hasThirteenth, isHoliday }) =>
+                    renderDayCell(day, statuses, hasAbono, hasThirteenth, monthIndex, year, true, isHoliday),
                   )}
                 </div>
               </div>
@@ -278,7 +315,10 @@ export function MonthlyCalendar({ entries }: Props) {
           <span className="h-1.5 w-1.5 rounded-full bg-current/80" /> Aprovado
         </span>
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-semibold text-white">
-          <span className="rounded-sm bg-white/20 px-1 text-[9px]">A</span> Dia com pedido de abono 1/3 (retorno até 10 dias antes)
+          <span className="h-1.5 w-1.5 rounded-full bg-current/80" /> Dias com abono 1/3 (retorno até 10 dias antes)
+        </span>
+        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-900 dark:bg-purple-950/30 dark:text-purple-200">
+          <span className="h-1.5 w-1.5 rounded-full bg-purple-600 dark:bg-purple-500" /> Feriado
         </span>
         <span className="inline-flex items-center gap-1 rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white">
           <span className="rounded-sm bg-white/20 px-1 text-[9px]">13</span> Dia com pedido de adiantamento de 13º

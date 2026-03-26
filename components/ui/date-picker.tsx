@@ -17,6 +17,13 @@ export function DatePicker({ value, onChange, placeholder, disabled }: Props) {
     ? value.toLocaleDateString("pt-BR")
     : placeholder ?? "Selecionar data";
 
+  // Memoriza o mês exibido para não “voltar para hoje” ao fechar/reabrir o Popover.
+  const [displayMonth, setDisplayMonth] = React.useState<Date>(() => value ?? new Date());
+
+  React.useEffect(() => {
+    if (value) setDisplayMonth(value);
+  }, [value]);
+
   return (
     <div className="flex gap-1">
       <Popover>
@@ -38,6 +45,8 @@ export function DatePicker({ value, onChange, placeholder, disabled }: Props) {
             mode="single"
             selected={value}
             onSelect={(d) => onChange(d ?? undefined)}
+            month={displayMonth}
+            onMonthChange={(m) => setDisplayMonth(m)}
             numberOfMonths={1}
             initialFocus
           />

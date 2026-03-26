@@ -79,11 +79,11 @@ export function NewRequestCardClient({
   const maxDaysThisRequest = Math.min(Math.max(0, availableDays), MAX_DAYS_PER_REQUEST);
   const effectiveMaxDaysThisRequest = isPreEntitlement ? MAX_DAYS_PER_REQUEST : maxDaysThisRequest;
   const selectedDays = isBusinessDaysRole ? stats.totalBusinessDays : stats.totalDays;
-  const requireExact30Days = !isBusinessDaysRole && abono === true;
+  const requireExact30WhenNoAbono = !isBusinessDaysRole && abono === false;
   const totalOk =
     effectiveMaxDaysThisRequest === 0
       ? selectedDays === 0
-      : requireExact30Days
+      : requireExact30WhenNoAbono
         ? selectedDays === 30
         : selectedDays > 0 && selectedDays <= effectiveMaxDaysThisRequest;
   const hasPeriod14OrMore = stats.periods.some((p) => p.days >= 14);
@@ -312,6 +312,12 @@ export function NewRequestCardClient({
             rule ? <li key={i}>{rule}</li> : null
           ))}
         </ul>
+        {requireExact30WhenNoAbono && selectedDays !== 30 && selectedDays > 0 && (
+          <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-900 dark:border-red-800/50 dark:bg-red-950/30 dark:text-red-50">
+            Pela CLT, a sua solicitação precisa totalizar <strong>30 dias</strong> (pode fracionar em até 3 períodos).
+            Atualmente você selecionou <strong>{selectedDays}</strong> dia(s). Para continuar, selecione mais <strong>{Math.max(0, 30 - selectedDays)}</strong> dia(s).
+          </p>
+        )}
         {isPreEntitlement && entitlementLabel && (
           <p className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-900 dark:border-blue-800/40 dark:bg-blue-950/30 dark:text-blue-200">
             Seu 1º período aquisitivo completa em {entitlementLabel}. Você pode solicitar agora, mas o início das férias deve ser a partir dessa data.

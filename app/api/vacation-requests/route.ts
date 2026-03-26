@@ -304,7 +304,16 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              "Com abono 1/3, a solicitação deve totalizar 30 dias (você pode fracionar em até 3 períodos). O abono antecipa o retorno, mas o total solicitado continua 30.",
+              `Com abono 1/3, a solicitação precisa totalizar exatamente 30 dias (você pode fracionar em até 3 períodos). Total selecionado: ${totalRequestedDays} dia(s).`,
+          },
+          { status: 400 },
+        );
+      }
+      if (abono !== true && isEmployee && totalRequestedDays !== 30) {
+        const missing = Math.max(0, 30 - totalRequestedDays);
+        return NextResponse.json(
+          {
+            error: `Pela CLT, a solicitação precisa totalizar <strong>30 dias</strong> (pode fracionar em até 3 períodos). Você selecionou ${totalRequestedDays} dia(s). Faltam ${missing} dia(s) para continuar.`,
           },
           { status: 400 },
         );
@@ -367,7 +376,16 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              "Com abono 1/3, a solicitação deve totalizar 30 dias (você pode fracionar em até 3 períodos). O abono antecipa o retorno, mas o total solicitado continua 30.",
+              `Com abono 1/3, a solicitação precisa totalizar exatamente 30 dias (você pode fracionar em até 3 períodos). Total selecionado: ${totalRequestedDays} dia(s).`,
+          },
+          { status: 400 },
+        );
+      }
+      if (abono !== true && isEmployee && totalRequestedDays !== 30) {
+        const missing = Math.max(0, 30 - totalRequestedDays);
+        return NextResponse.json(
+          {
+            error: `Pela CLT, a solicitação precisa totalizar <strong>30 dias</strong> (pode fracionar em até 3 períodos). Você selecionou ${totalRequestedDays} dia(s). Faltam ${missing} dia(s) para continuar.`,
           },
           { status: 400 },
         );
