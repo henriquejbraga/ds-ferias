@@ -328,6 +328,14 @@ export type VacationBalance = {
   monthsWorked: number;   // meses de trabalho até hoje
 };
 
+function getChargeableDays(start: Date, end: Date, hasAbono?: boolean): number {
+  const raw = calcDays(start, end);
+  // O período salvo representa o total solicitado no ciclo.
+  // O abono afeta o retorno (gozo), não o consumo de saldo total.
+  void hasAbono;
+  return raw;
+}
+
 /**
  * Calcula o saldo de férias de um colaborador.
  * CLT: a cada 12 meses trabalhados, o funcionário adquire 30 dias.
@@ -336,7 +344,7 @@ export type VacationBalance = {
  */
 export function calculateVacationBalance(
   hireDate: Date | null | undefined,
-  approvedRequests: { startDate: Date; endDate: Date; status: string }[],
+  approvedRequests: { startDate: Date; endDate: Date; status: string; abono?: boolean }[],
   today = new Date(),
 ): VacationBalance {
   const currentYear = today.getFullYear();
@@ -344,13 +352,15 @@ export function calculateVacationBalance(
   if (!hireDate) {
     const usedDays = approvedRequests
       .filter((r) => isVacationApprovedStatus(r.status) && new Date(r.startDate).getUTCFullYear() === currentYear)
-      .reduce((sum, r) => sum + calcDays(r.startDate, r.endDate), 0);
+      .reduce((sum, r) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
+    const normalizedUsed = Math.min(30, usedDays);
     const pendingDays = calcUsedDays(approvedRequests, "PENDENTE", currentYear);
+    const normalizedPending = Math.min(Math.max(0, 30 - normalizedUsed), pendingDays);
     return {
       entitledDays: 30,
-      usedDays,
-      pendingDays,
-      availableDays: Math.max(0, 30 - usedDays - pendingDays),
+      usedDays: normalizedUsed,
+      pendingDays: normalizedPending,
+      availableDays: Math.max(0, 30 - normalizedUsed - normalizedPending),
       cycleYear: currentYear,
       hasEntitlement: true,
       monthsWorked: 999,
@@ -390,18 +400,20 @@ export function calculateVacationBalance(
 
   const totalUsed = approvedRequests
     .filter((r) => isVacationApprovedStatus(r.status) && new Date(r.endDate) >= cutoff)
-    .reduce((sum, r) => sum + calcDays(r.startDate, r.endDate), 0);
+    .reduce((sum, r) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
 
   const totalPending = approvedRequests
     .filter((r) => r.status === "PENDENTE" && new Date(r.endDate) >= cutoff)
-    .reduce((sum, r) => sum + calcDays(r.startDate, r.endDate), 0);
+    .reduce((sum, r) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
 
-  const available = Math.max(0, totalEntitled - totalUsed - totalPending);
+  const normalizedUsed = Math.min(totalEntitled, totalUsed);
+  const normalizedPending = Math.min(Math.max(0, totalEntitled - normalizedUsed), totalPending);
+  const available = Math.max(0, totalEntitled - normalizedUsed - normalizedPending);
 
   return {
     entitledDays: totalEntitled,
-    usedDays: totalUsed,
-    pendingDays: totalPending,
+    usedDays: normalizedUsed,
+    pendingDays: normalizedPending,
     availableDays: available,
     cycleYear: currentYear,
     hasEntitlement: true,
@@ -416,13 +428,13 @@ function calcDays(start: Date, end: Date): number {
 }
 
 function calcUsedDays(
-  requests: { startDate: Date; endDate: Date; status: string }[],
+  requests: { startDate: Date; endDate: Date; status: string; abono?: boolean }[],
   status: string,
   year: number,
 ): number {
   return requests
     .filter((r) => r.status === status && new Date(r.startDate).getUTCFullYear() === year)
-    .reduce((sum, r) => sum + calcDays(r.startDate, r.endDate), 0);
+    .reduce((sum, r) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
 }
 
 // ============================================================

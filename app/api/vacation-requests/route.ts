@@ -32,6 +32,13 @@ function daysBetweenInclusive(start: Date, end: Date): number {
   return Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
 }
 
+function getChargeableDays(start: Date, end: Date, hasAbono: boolean): number {
+  const raw = daysBetweenInclusive(start, end);
+  const clamped = Math.min(Math.max(1, raw), 30);
+  void hasAbono;
+  return clamped;
+}
+
 function overlapDaysInclusive(start: Date, end: Date, rangeStart: Date, rangeEnd: Date): number {
   const s = new Date(Math.max(toUtcMidnight(start).getTime(), toUtcMidnight(rangeStart).getTime()));
   const e = new Date(Math.min(toUtcMidnight(end).getTime(), toUtcMidnight(rangeEnd).getTime()));
@@ -277,10 +284,10 @@ export async function POST(request: Request) {
           status: { in: [...statusesAwaitingRH] },
           startDate: { gte: firstEntitlementDate },
         },
-        select: { startDate: true, endDate: true },
+        select: { startDate: true, endDate: true, abono: true },
       });
       const existingDaysInCycle = pendingRequests.reduce(
-        (sum, r) => sum + daysBetweenInclusive(r.startDate, r.endDate),
+        (sum, r) => sum + getChargeableDays(r.startDate, r.endDate, !!r.abono),
         0,
       );
 
@@ -291,7 +298,7 @@ export async function POST(request: Request) {
       });
       if (cltError) return NextResponse.json({ error: cltError }, { status: 400 });
 
-      const totalRequestedDays = periods.reduce((sum, p) => sum + daysBetweenInclusive(p.start, p.end), 0);
+      const totalRequestedDays = periods.reduce((sum, p) => sum + getChargeableDays(p.start, p.end, abono), 0);
       const totalAvailable = Math.max(0, 30 - existingDaysInCycle);
       if (totalRequestedDays > totalAvailable) {
         return NextResponse.json(
@@ -325,10 +332,10 @@ export async function POST(request: Request) {
           userId: user.id,
           status: "PENDENTE",
         },
-        select: { startDate: true, endDate: true },
+        select: { startDate: true, endDate: true, abono: true },
       });
       const totalPending = pendingRequests.reduce(
-        (sum, r) => sum + daysBetweenInclusive(r.startDate, r.endDate),
+        (sum, r) => sum + getChargeableDays(r.startDate, r.endDate, !!r.abono),
         0,
       );
 
@@ -344,7 +351,7 @@ export async function POST(request: Request) {
       if (cltError) return NextResponse.json({ error: cltError }, { status: 400 });
 
       // Saldo suficiente?
-      const totalRequestedDays = periods.reduce((sum, p) => sum + daysBetweenInclusive(p.start, p.end), 0);
+      const totalRequestedDays = periods.reduce((sum, p) => sum + getChargeableDays(p.start, p.end, abono), 0);
       if (totalRequestedDays > totalAvailable) {
         return NextResponse.json(
           {

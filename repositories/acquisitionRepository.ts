@@ -21,6 +21,13 @@ function daysBetweenInclusiveClamped(start: Date, end: Date): number {
   return Math.min(Math.max(1, raw), 30);
 }
 
+function getChargeableDays(start: Date, end: Date, hasAbono: boolean): number {
+  const raw = daysBetweenInclusiveClamped(start, end);
+  // O período salvo já representa o total solicitado no ciclo.
+  void hasAbono;
+  return raw;
+}
+
 function utcMidnight(d: Date): Date {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 }
@@ -126,11 +133,17 @@ export async function syncAcquisitionPeriodsForUser(
 
   // Resync FIFO completo: recalcula usedDays de cada período a partir das solicitações aprovadas.
   // Isso corrige atribuições erradas geradas pelo código legado (que usava range de datas).
-  const approvedRequests: Array<{ id: string; startDate: Date; endDate: Date; acquisitionPeriodId: string | null }> =
+  const approvedRequests: Array<{
+    id: string;
+    startDate: Date;
+    endDate: Date;
+    acquisitionPeriodId: string | null;
+    abono: boolean;
+  }> =
     await (prisma as any).vacationRequest.findMany({
       where: { userId, status: { in: [...APPROVED_VACATION_STATUSES] } },
       orderBy: { startDate: "asc" },
-      select: { id: true, startDate: true, endDate: true, acquisitionPeriodId: true },
+      select: { id: true, startDate: true, endDate: true, acquisitionPeriodId: true, abono: true },
     });
 
   // Mapa de novos usedDays calculados via FIFO (somente períodos ganhos)
@@ -142,7 +155,7 @@ export async function syncAcquisitionPeriodsForUser(
     const target = periods.find((p) => (newUsedDays.get(p.id) ?? 0) < p.accruedDays);
     if (!target) continue;
 
-    const days = daysBetweenInclusiveClamped(req.startDate, req.endDate);
+    const days = getChargeableDays(req.startDate, req.endDate, !!req.abono);
     const current = newUsedDays.get(target.id) ?? 0;
     newUsedDays.set(target.id, Math.min(current + days, target.accruedDays));
     newPeriodIdForRequest.set(req.id, target.id);

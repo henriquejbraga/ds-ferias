@@ -27,6 +27,14 @@ function daysBetweenInclusive(start: Date, end: Date): number {
   return Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
 }
 
+function getChargeableDays(start: Date, end: Date, hasAbono: boolean): number {
+  const raw = daysBetweenInclusive(start, end);
+  const clamped = Math.min(Math.max(1, raw), 30);
+  // O período salvo já representa o total solicitado no ciclo.
+  void hasAbono;
+  return clamped;
+}
+
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setUTCDate(d.getUTCDate() + days);
@@ -270,8 +278,7 @@ export async function POST(request: Request, { params }: Params) {
       });
 
       if (period) {
-        const rawDays = daysBetweenInclusive(current.startDate, current.endDate);
-        const days = Math.min(Math.max(1, rawDays), 30);
+        const days = getChargeableDays(current.startDate, current.endDate, !!current.abono);
         await tx.acquisitionPeriod.update({
           where: { id: periodId },
           data: { usedDays: period.usedDays + days },

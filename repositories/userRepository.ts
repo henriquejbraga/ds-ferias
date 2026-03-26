@@ -31,7 +31,7 @@ export async function findUserWithBalance(userId: string) {
       hireDate: true,
       department: true,
       vacationRequests: {
-        select: { startDate: true, endDate: true, status: true },
+        select: { startDate: true, endDate: true, status: true, abono: true },
       },
     },
   });
@@ -137,7 +137,7 @@ export async function findUsersWithVacationForBalance() {
       department: true,
       hireDate: true,
       vacationRequests: {
-        select: { startDate: true, endDate: true, status: true },
+        select: { startDate: true, endDate: true, status: true, abono: true },
       },
     },
   });

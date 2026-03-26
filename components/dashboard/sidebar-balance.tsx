@@ -31,20 +31,20 @@ export function SidebarBalance({
 
   const shouldFallbackToBalanceWindow =
     !isBusinessDaysRole && acquisitionPeriods.length > 0 && periodsWithRemaining.length === 0 && hasUpcomingVacation;
+  const totalFromAcquisitionPeriods = acquisitionPeriods.length > 0 ? entitledFromOpenPeriods : balance.entitledDays;
+  const normalizedTotalFromPeriods = Math.min(balance.entitledDays, totalFromAcquisitionPeriods);
   const totalLimit = isBusinessDaysRole
     ? cycleBusinessLimit
     : shouldFallbackToBalanceWindow
       ? balance.entitledDays
-      : acquisitionPeriods.length > 0
-      ? entitledFromOpenPeriods
-      : balance.entitledDays;
+      : normalizedTotalFromPeriods;
   const safeLimit = Math.max(1, totalLimit);
   const rawUsed = isBusinessDaysRole
     ? balance.usedDays
     : shouldFallbackToBalanceWindow
       ? balance.usedDays
     : acquisitionPeriods.length > 0
-      ? usedFromOpenPeriods
+      ? Math.min(usedFromOpenPeriods, totalLimit)
       : balance.usedDays;
   const normalizedUsed = Math.min(totalLimit, Math.max(0, rawUsed));
   const remainingAfterUsed = isBusinessDaysRole
