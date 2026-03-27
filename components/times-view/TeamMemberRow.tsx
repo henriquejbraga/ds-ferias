@@ -47,7 +47,12 @@ export function TeamMemberRow({
     if (status === "PENDENTE") {
       return "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300";
     }
-    if (status === "APROVADO_GERENTE" || status === "APROVADO_COORDENADOR" || status === "APROVADO_GESTOR") {
+    if (
+      status === "APROVADO_GERENTE" ||
+      status === "APROVADO_DIRETOR" ||
+      status === "APROVADO_COORDENADOR" ||
+      status === "APROVADO_GESTOR"
+    ) {
       return "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
     }
     if (status === "REPROVADO") {
