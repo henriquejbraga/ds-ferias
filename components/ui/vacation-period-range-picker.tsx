@@ -61,11 +61,22 @@ export function VacationPeriodRangePicker({
 
   const [displayMonth, setDisplayMonth] = React.useState<Date>(() => startD ?? endD ?? new Date());
   const [hoverDate, setHoverDate] = React.useState<Date | undefined>();
+  const [open, setOpen] = React.useState(false);
+  /** true = falta só o fim do intervalo; não fechar o popover até o usuário escolher fora/ESC */
+  const rangeIncompleteRef = React.useRef(false);
+  /** true = clique fora ou ESC (fechamento intencional) */
+  const allowCloseRef = React.useRef(false);
 
   React.useEffect(() => {
     if (startD) setDisplayMonth(startD);
     else if (endD) setDisplayMonth(endD);
   }, [start, end]);
+
+  React.useEffect(() => {
+    if (!startD && !endD) {
+      rangeIncompleteRef.current = false;
+    }
+  }, [startD, endD]);
 
   const selected: DateRange | undefined =
     startD || endD ? { from: startD, to: endD } : undefined;
@@ -82,19 +93,50 @@ export function VacationPeriodRangePicker({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-1">
-        <Popover>
+        <Popover
+          modal={false}
+          open={open}
+          onOpenChange={(next) => {
+            if (next) {
+              allowCloseRef.current = false;
+              setOpen(true);
+              return;
+            }
+            if (rangeIncompleteRef.current && !allowCloseRef.current) {
+              setOpen(true);
+              return;
+            }
+            allowCloseRef.current = false;
+            setOpen(false);
+          }}
+        >
           <PopoverTrigger asChild>
             <Button
               type="button"
               variant="outline"
               disabled={disabled}
               className="flex-1 justify-between text-left font-normal min-h-[44px]"
+              onClick={() => {
+                if (open) {
+                  allowCloseRef.current = true;
+                }
+              }}
             >
               <span className={startD && endD ? "" : "text-[#94a3b8]"}>{label}</span>
               <span className="ml-2 text-xs text-[#64748b] dark:text-slate-400">Abrir</span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
+          <PopoverContent
+            className="w-auto p-0"
+            align="start"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+            onInteractOutside={() => {
+              allowCloseRef.current = true;
+            }}
+            onEscapeKeyDown={() => {
+              allowCloseRef.current = true;
+            }}
+          >
             <Calendar
               mode="range"
               month={displayMonth}
@@ -102,12 +144,15 @@ export function VacationPeriodRangePicker({
               selected={selected}
               onSelect={(range) => {
                 if (!range) {
+                  rangeIncompleteRef.current = false;
                   onRangeChange("", "");
                   return;
                 }
                 const from = range.from ? formatYmdLocal(range.from) : "";
                 const to = range.to ? formatYmdLocal(range.to) : "";
+                rangeIncompleteRef.current = Boolean(from && !to);
                 onRangeChange(from, to);
+                setOpen(true);
               }}
               onDayMouseEnter={(date) => setHoverDate(date)}
               onDayMouseLeave={() => setHoverDate(undefined)}
@@ -146,7 +191,7 @@ export function VacationPeriodRangePicker({
         )}
       </div>
       <p className="text-xs text-[#64748b] dark:text-slate-500">
-        Depois de escolher o primeiro dia, passe o mouse no calendário para ver o intervalo até o dia do término; clique para confirmar.
+        Escolha o dia inicial e, com o calendário ainda aberto, o dia final. Pode passar o mouse para pré-visualizar o intervalo. Clique fora ou pressione Esc para fechar.
       </p>
     </div>
   );

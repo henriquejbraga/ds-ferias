@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { prisma } from "./prisma";
 import { type Role } from "../generated/prisma/enums";
 import crypto from "crypto";
@@ -104,10 +105,32 @@ export async function verifyCredentials(email: string, password: string) {
   } as SessionUser;
 }
 
+/**
+ * Valores de cookie HTTP devem ser ASCII (RFC 6265); JSON com UTF-8 (acentos em nomes)
+ * fazia o browser rejeitar o Set-Cookie — o cookie nem aparecia no DevTools.
+ * Formato novo: base64url(inner), onde inner é JSON ou JSON.assinatura.
+ * Legado: inner em texto começando com "{".
+ */
+function decodeSessionCookieRaw(stored: string): string | null {
+  if (stored.startsWith("{")) {
+    return stored;
+  }
+  try {
+    const buf = Buffer.from(stored, "base64url");
+    if (buf.length === 0) return null;
+    return buf.toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
 export async function getSessionUser(): Promise<SessionUser | null> {
   const cookieStore = await cookies();
   const raw = cookieStore.get(SESSION_COOKIE)?.value;
   if (!raw) return null;
+
+  const inner = decodeSessionCookieRaw(raw);
+  if (inner === null) return null;
 
   try {
     let payload: string;
@@ -116,10 +139,10 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     // Se SESSION_SECRET está definido, exigimos assinatura válida.
     // O fallback para 'raw' sem verificação só ocorre se não houver segredo configurado.
     if (secret) {
-      payload = verifyPayload(raw) ?? "";
+      payload = verifyPayload(inner) ?? "";
       if (!payload) return null;
     } else {
-      payload = raw;
+      payload = inner;
     }
     const data = JSON.parse(payload) as SessionUser;
     if (typeof data?.id !== "string") {
@@ -152,17 +175,42 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   }
 }
 
-export async function createSession(user: SessionUser) {
-  const cookieStore = await cookies();
-  const payload = JSON.stringify(user);
-  const signed = signPayload(payload);
-  cookieStore.set(SESSION_COOKIE, signed, {
+function getSessionCookieOptions() {
+  return {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_MAX_AGE,
-  });
+  };
+}
+
+/**
+ * Só o id vai no cookie: `avatarUrl` pode ser uma data URL enorme (foto em base64)
+ * e cookies costumam ter teto ~4KB — o browser recusa o Set-Cookie e o login falha.
+ * O restante (nome, foto, papel) vem sempre do Prisma em getSessionUser().
+ */
+function sessionPayloadForCookie(user: SessionUser): string {
+  return JSON.stringify({ id: user.id });
+}
+
+/** Valor do cookie: base64url(ASCII) do payload interno (JSON ou JSON.assinatura). */
+export function getSessionCookieValue(user: SessionUser): string {
+  const inner = signPayload(sessionPayloadForCookie(user));
+  return Buffer.from(inner, "utf8").toString("base64url");
+}
+
+/**
+ * Grava o cookie de sessão na resposta HTTP. Em Route Handlers, preferir isto a
+ * `cookies().set()`, pois em alguns cenários o cookie não é enviado ao cliente.
+ */
+export function setSessionCookieOnResponse(response: NextResponse, user: SessionUser) {
+  response.cookies.set(SESSION_COOKIE, getSessionCookieValue(user), getSessionCookieOptions());
+}
+
+export async function createSession(user: SessionUser) {
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, getSessionCookieValue(user), getSessionCookieOptions());
 }
 
 export async function destroySession() {

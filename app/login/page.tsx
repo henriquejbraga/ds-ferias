@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { toast } from "sonner";
 import { getRoleLabel } from "@/lib/vacationRules";
+import { encryptPasswordForLogin } from "@/lib/login-encrypt-password";
 
 type LoginUserPreview = {
   name: string;
@@ -13,13 +13,36 @@ type LoginUserPreview = {
 };
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [testUsers, setTestUsers] = useState<LoginUserPreview[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  /** undefined = ainda não carregou; string = SPKI para RSA-OAEP; null = dev sem chave (senha em texto) */
+  const [loginSpkiBase64Url, setLoginSpkiBase64Url] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    let active = true;
+    async function loadPublicKey() {
+      try {
+        const r = await fetch("/api/login/public-key", { cache: "no-store" });
+        if (!active) return;
+        if (r.ok) {
+          const d = (await r.json().catch(() => null)) as { spkiBase64Url?: string } | null;
+          setLoginSpkiBase64Url(d?.spkiBase64Url ?? null);
+        } else {
+          setLoginSpkiBase64Url(null);
+        }
+      } catch {
+        if (active) setLoginSpkiBase64Url(null);
+      }
+    }
+    void loadPublicKey();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -44,10 +67,23 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      let spki = loginSpkiBase64Url;
+      if (spki === undefined) {
+        const r = await fetch("/api/login/public-key", { cache: "no-store" });
+        spki = r.ok ? ((await r.json().catch(() => null)) as { spkiBase64Url?: string } | null)?.spkiBase64Url ?? null : null;
+        setLoginSpkiBase64Url(spki);
+      }
+
+      const payload =
+        spki != null && spki.length > 0
+          ? { email, encryptedPassword: await encryptPasswordForLogin(spki, password) }
+          : { email, password };
+
       const res = await fetch("/api/login", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -57,8 +93,9 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/dashboard");
-      // Loading permanece ativo até a troca de tela
+      // Navegação completa: o router.push após fetch deixava o RSC do /dashboard correr
+      // antes do cookie de sessão estar disponível para o servidor em alguns casos.
+      window.location.assign("/dashboard");
     } catch {
       toast.error("Erro de conexão. Tente novamente.");
       setLoading(false);

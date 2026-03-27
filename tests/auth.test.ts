@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { hashNewUserPassword, verifyCredentials, getSessionUser, createSession, destroySession } from "@/lib/auth";
+import {
+  hashNewUserPassword,
+  verifyCredentials,
+  getSessionUser,
+  createSession,
+  destroySession,
+  getSessionCookieValue,
+} from "@/lib/auth";
 import type { SessionUser } from "@/lib/auth";
 
 vi.mock("@/lib/prisma", () => ({
@@ -199,7 +206,8 @@ describe("getSessionUser", () => {
     const data: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "RH", mustChangePassword: false };
     await createSession(data);
     const signedValue = mockSet.mock.calls[0][1];
-    expect(signedValue).toContain(".");
+    const inner = Buffer.from(signedValue, "base64url").toString("utf8");
+    expect(inner).toContain(".");
     mockGet.mockReturnValue({ value: signedValue });
     const { prisma } = await import("@/lib/prisma");
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
@@ -247,7 +255,7 @@ describe("createSession", () => {
     await createSession(user);
     expect(mockSet).toHaveBeenCalledWith(
       "ds-ferias-session",
-      JSON.stringify(user),
+      getSessionCookieValue(user),
       expect.objectContaining({ httpOnly: true, maxAge: 60 * 60 * 8 })
     );
   });
@@ -256,10 +264,10 @@ describe("createSession", () => {
     process.env.SESSION_SECRET = "x".repeat(16);
     const user: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "FUNCIONARIO", mustChangePassword: false };
     await createSession(user);
-    const signed = mockSet.mock.calls[0][1];
-    expect(signed).toContain(".");
-    // O prefixo antes do primeiro ponto deve ser o JSON do usuário
-    const prefix = signed.split(".")[0];
+    const encoded = mockSet.mock.calls[0][1];
+    const inner = Buffer.from(encoded, "base64url").toString("utf8");
+    expect(inner).toContain(".");
+    const prefix = inner.split(".")[0];
     expect(prefix.startsWith("{\"id\":\"u1\"")).toBe(true);
   });
 });
