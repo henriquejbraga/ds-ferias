@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import type { VacationBalance } from "@/lib/vacationRules";
 import { validateVacationConcessiveFifo } from "@/lib/concessivePeriod";
 import type { ConcessiveClientContext } from "@/services/dashboardDataService";
-import { VacationPeriodRangePicker } from "@/components/ui/vacation-period-range-picker";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -40,60 +40,6 @@ function parseYmdLocal(value: string): Date | undefined {
   const day = Number(m[3]);
   if (!year || !month || !day) return undefined;
   return new Date(year, month - 1, day);
-}
-
-// ============================================================================
-// BLOCO DE PERÍODO
-// ============================================================================
-
-function PeriodBlock({
-  label,
-  required = false,
-  period,
-  stat,
-  onRangeChange,
-  isBusinessDaysRole,
-}: {
-  label?: string;
-  required?: boolean;
-  period: Period;
-  stat: { days: number; businessDays: number; isValid: boolean; range: { start: string; end: string } | null };
-  onRangeChange: (start: string, end: string) => void;
-  isBusinessDaysRole: boolean;
-}) {
-  return (
-    <div className="space-y-2">
-      {label && (
-        <p className="text-base font-semibold text-[#1a1d23] dark:text-white">
-          {label} {required && <span className="text-red-500">*</span>}
-        </p>
-      )}
-      <div className="space-y-1">
-        <label className="block text-base font-medium text-[#475569] dark:text-slate-300">
-          Início e término
-        </label>
-        <VacationPeriodRangePicker
-          start={period.start}
-          end={period.end}
-          onRangeChange={onRangeChange}
-          placeholder="Selecione o intervalo de férias"
-        />
-      </div>
-      {stat.days > 0 && (
-        <div className="flex items-center justify-between rounded-md bg-[#f5f6f8] px-3 py-2 dark:bg-[#0f1117]">
-          <span className="text-base font-medium text-[#64748b] dark:text-slate-400">Duração</span>
-          <span
-            className={`text-base font-bold ${stat.isValid ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
-              }`}
-          >
-            {isBusinessDaysRole
-              ? `${stat.businessDays} ${stat.businessDays === 1 ? "dia útil" : "dias úteis"}`
-              : `${stat.days} ${stat.days === 1 ? "dia" : "dias"}`}
-          </span>
-        </div>
-      )}
-    </div>
-  );
 }
 
 export function NewRequestCardClient({
@@ -219,9 +165,9 @@ export function NewRequestCardClient({
     }
   }, [selectedDays, wasOver30, MAX_DAYS_PER_REQUEST]);
 
-  function updatePeriodRange(index: number, start: string, end: string) {
+  function updatePeriod(index: number, field: "start" | "end", value: string) {
     const next = [...periods];
-    next[index] = { start, end };
+    next[index][field] = value;
     setPeriods(next);
   }
 
@@ -390,7 +336,7 @@ export function NewRequestCardClient({
           required
           period={periods[0]}
           stat={stats.periods[0]}
-          onRangeChange={(s, e) => updatePeriodRange(0, s, e)}
+          onChange={(f, v) => updatePeriod(0, f, v)}
           isBusinessDaysRole={isBusinessDaysRole}
         />
 
@@ -418,7 +364,7 @@ export function NewRequestCardClient({
             <PeriodBlock
               period={periods[1]}
               stat={stats.periods[1]}
-              onRangeChange={(s, e) => updatePeriodRange(1, s, e)}
+              onChange={(f, v) => updatePeriod(1, f, v)}
               isBusinessDaysRole={isBusinessDaysRole}
             />
           </div>
@@ -448,7 +394,7 @@ export function NewRequestCardClient({
             <PeriodBlock
               period={periods[2]}
               stat={stats.periods[2]}
-              onRangeChange={(s, e) => updatePeriodRange(2, s, e)}
+              onChange={(f, v) => updatePeriod(2, f, v)}
               isBusinessDaysRole={isBusinessDaysRole}
             />
           </div>
@@ -610,14 +556,14 @@ export function NewRequestCardClient({
     required = false,
     period,
     stat,
-    onRangeChange,
+    onChange,
     isBusinessDaysRole,
   }: {
     label?: string;
     required?: boolean;
     period: Period;
     stat: { days: number; businessDays: number; isValid: boolean; range: { start: string; end: string } | null };
-    onRangeChange: (start: string, end: string) => void;
+    onChange: (field: "start" | "end", value: string) => void;
     isBusinessDaysRole: boolean;
   }) {
     return (
@@ -627,16 +573,24 @@ export function NewRequestCardClient({
             {label} {required && <span className="text-red-500">*</span>}
           </p>
         )}
-        <div className="space-y-1">
-          <label className="block text-base font-medium text-[#475569] dark:text-slate-300">
-            Início e término
-          </label>
-          <VacationPeriodRangePicker
-            start={period.start}
-            end={period.end}
-            onRangeChange={onRangeChange}
-            placeholder="Selecione o intervalo de férias"
-          />
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="space-y-1">
+            <label className="block text-base font-medium text-[#475569] dark:text-slate-300">Início</label>
+            <DatePicker
+              value={period.start ? parseYmdLocal(period.start) : undefined}
+              onChange={(d) => onChange("start", d ? formatYmdLocal(d) : "")}
+              placeholder="Selecionar início"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="block text-base font-medium text-[#475569] dark:text-slate-300">Término</label>
+            <DatePicker
+              value={period.end ? parseYmdLocal(period.end) : undefined}
+              onChange={(d) => onChange("end", d ? formatYmdLocal(d) : "")}
+              placeholder="Selecionar término"
+              focusMonth={parseYmdLocal(period.start)}
+            />
+          </div>
         </div>
         {stat.days > 0 && (
           <div className="flex items-center justify-between rounded-md bg-[#f5f6f8] px-3 py-2 dark:bg-[#0f1117]">
