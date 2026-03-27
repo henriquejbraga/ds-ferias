@@ -8,8 +8,9 @@ import {
   notifyUpcomingVacationReminder,
   notifyReturnToWorkReminder,
 } from "@/lib/notifications";
+import { logger } from "@/lib/logger";
 
-const resendSendMock = vi.fn().mockResolvedValue({ id: "mail_123" });
+const resendSendMock = vi.fn().mockResolvedValue({ data: { id: "mail_123" }, error: null });
 
 vi.mock("resend", () => {
   class ResendMock {
@@ -27,6 +28,8 @@ describe("notifications", () => {
     vi.restoreAllMocks();
     resendSendMock.mockClear();
     process.env = { ...originalEnv };
+    // Garante que o provedor padrão seja 'both' para os testes
+    delete process.env.NOTIFY_PROVIDER;
   });
 
   afterEach(() => {
@@ -195,7 +198,7 @@ describe("notifications", () => {
       status: 500,
       text: async () => "fail",
     } as any);
-    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
 
     await notifyRejected({
       requestId: "r3",
@@ -205,24 +208,24 @@ describe("notifications", () => {
       note: "x",
     });
 
-    expect(errSpy).toHaveBeenCalledWith("[notify] webhook failed", 500, "fail");
+    expect(errSpy).toHaveBeenCalledWith("[notify] webhook failed", expect.objectContaining({ status: 500, text: "fail" }));
   });
 
   it("logs webhook error when fetch throws", async () => {
     process.env.NOTIFY_WEBHOOK_URL = "https://example.test/webhook";
     vi.spyOn(globalThis, "fetch" as any).mockRejectedValue(new Error("net"));
-    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const errSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
 
     await notifyNewRequest({
       requestId: "r4",
       userName: "U4",
       userEmail: "u4@example.com",
-      managerEmail: null,
+      managerEmail: "m@example.com",
       startDate: new Date("2026-06-01T12:00:00Z"),
       endDate: new Date("2026-06-10T12:00:00Z"),
     });
 
-    expect(errSpy).toHaveBeenCalledWith("[notify] webhook error", expect.any(Error));
+    expect(errSpy).toHaveBeenCalledWith("[notify] webhook error", expect.objectContaining({ error: expect.any(String) }));
   });
 
   it("logs event in development mode", async () => {

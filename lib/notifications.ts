@@ -4,6 +4,7 @@
  */
 
 import { Resend } from "resend";
+import { logger } from "@/lib/logger";
 
 type NotifyProvider = "resend" | "webhook" | "both" | "none";
 
@@ -69,6 +70,92 @@ function escapeHtml(input: string): string {
     .replaceAll("'", "&#39;");
 }
 
+function renderNewRequestEmailHtml(event: Extract<NotifyEvent, { type: "NEW_REQUEST" }>): string {
+  const brandName = process.env.MAIL_BRAND_NAME?.trim() || "Editora Globo";
+  const safeBrandName = escapeHtml(brandName);
+  const hrSignature = process.env.MAIL_HR_SIGNATURE?.trim() || "Editora Globo - Estratégia Digital - DS-Ferias";
+  const safeHrSignature = escapeHtml(hrSignature);
+
+  return `
+    <div style="font-family:Arial,sans-serif;color:#1f2937;padding:20px;border:1px solid #ddd;border-radius:8px;">
+      <h2 style="color:#0a3d91;">Nova solicitacao de ferias</h2>
+      <p>O colaborador <strong>${escapeHtml(event.userName)}</strong> enviou uma nova solicitacao de ferias.</p>
+      <table style="border-collapse:collapse;width:100%;margin:16px 0;">
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-weight:600;">Inicio</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(event.startDate)}</td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd;background:#f9f9f9;font-weight:600;">Fim</td><td style="padding:8px;border:1px solid #ddd;">${escapeHtml(event.endDate)}</td></tr>
+      </table>
+      <p>Acesse o dashboard para revisar e aprovar.</p>
+      <hr style="border:0;border-top:1px solid #eee;margin:20px 0;" />
+      <p style="font-size:12px;color:#6b7280;">${safeBrandName} - ${safeHrSignature}</p>
+    </div>
+  `;
+}
+
+async function sendNewRequestEmail(event: Extract<NotifyEvent, { type: "NEW_REQUEST" }>): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.MAIL_FROM?.trim();
+  if (!apiKey || !from || !event.managerEmail) return;
+
+  const resend = new Resend(apiKey);
+  try {
+    const { data, error } = await resend.emails.send({
+      from,
+      to: [event.managerEmail],
+      subject: `Nova solicitação de férias - ${event.userName}`,
+      html: renderNewRequestEmailHtml(event),
+    });
+    if (error) {
+      logger.error("[sendNewRequestEmail] resend error", { error, to: event.managerEmail });
+      return;
+    }
+    logger.info("[sendNewRequestEmail] sent", { id: data?.id, to: event.managerEmail });
+  } catch (err) {
+    logger.error("[sendNewRequestEmail] exception", { error: String(err), to: event.managerEmail });
+  }
+}
+
+function renderRejectedEmailHtml(event: Extract<NotifyEvent, { type: "REJECTED" }>): string {
+  const brandName = process.env.MAIL_BRAND_NAME?.trim() || "Editora Globo";
+  const safeBrandName = escapeHtml(brandName);
+  const hrSignature = process.env.MAIL_HR_SIGNATURE?.trim() || "Editora Globo - Estratégia Digital - DS-Ferias";
+  const safeHrSignature = escapeHtml(hrSignature);
+
+  return `
+    <div style="font-family:Arial,sans-serif;color:#1f2937;padding:20px;border:1px solid #ddd;border-radius:8px;">
+      <h2 style="color:#dc2626;">Solicitacao de ferias reprovada</h2>
+      <p>Ola <strong>${escapeHtml(event.userName)}</strong>,</p>
+      <p>Sua solicitacao de ferias foi reprovada por <strong>${escapeHtml(event.approverName)}</strong>.</p>
+      ${event.note ? `<p><strong>Motivo/Observacao:</strong> ${escapeHtml(event.note)}</p>` : ""}
+      <p>Caso tenha duvidas, entre em contato com seu gestor.</p>
+      <hr style="border:0;border-top:1px solid #eee;margin:20px 0;" />
+      <p style="font-size:12px;color:#6b7280;">${safeBrandName} - ${safeHrSignature}</p>
+    </div>
+  `;
+}
+
+async function sendRejectedEmail(event: Extract<NotifyEvent, { type: "REJECTED" }>): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.MAIL_FROM?.trim();
+  if (!apiKey || !from || !event.userEmail) return;
+
+  const resend = new Resend(apiKey);
+  try {
+    const { data, error } = await resend.emails.send({
+      from,
+      to: [event.userEmail],
+      subject: `Solicitação de férias reprovada - ${event.userName}`,
+      html: renderRejectedEmailHtml(event),
+    });
+    if (error) {
+      logger.error("[sendRejectedEmail] resend error", { error, to: event.userEmail });
+      return;
+    }
+    logger.info("[sendRejectedEmail] sent", { id: data?.id, to: event.userEmail });
+  } catch (err) {
+    logger.error("[sendRejectedEmail] exception", { error: String(err), to: event.userEmail });
+  }
+}
+
 function renderApprovedEmailHtml(event: Extract<NotifyEvent, { type: "APPROVED" }>): string {
   const brandName = process.env.MAIL_BRAND_NAME?.trim() || "Editora Globo";
   const logoUrl = process.env.MAIL_LOGO_URL?.trim() || "";
@@ -127,10 +214,11 @@ function renderApprovedEmailHtml(event: Extract<NotifyEvent, { type: "APPROVED" 
 }
 
 async function sendApprovedEmail(event: Extract<NotifyEvent, { type: "APPROVED" }>): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.MAIL_FROM;
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.MAIL_FROM?.trim();
+
   if (!apiKey || !from || event.toEmails.length === 0) {
-    console.log("[sendApprovedEmail] skipped", {
+    logger.warn("[sendApprovedEmail] skipped - config missing", {
       hasApiKey: Boolean(apiKey),
       hasFrom: Boolean(from),
       toEmailsCount: event.toEmails?.length ?? 0,
@@ -140,22 +228,43 @@ async function sendApprovedEmail(event: Extract<NotifyEvent, { type: "APPROVED" 
 
   const resend = new Resend(apiKey);
   const recipients = Array.from(new Set(event.toEmails.filter(Boolean)));
-  if (recipients.length === 0) return;
+  if (recipients.length === 0) {
+    logger.warn("[sendApprovedEmail] skipped - no valid recipients", { originalEmails: event.toEmails });
+    return;
+  }
 
   const subject = `Férias aprovadas - ${event.userName} (${event.startDate} a ${event.endDate})`;
 
-  const result = await resend.emails.send({
-    from,
-    to: recipients,
-    subject,
-    html: renderApprovedEmailHtml(event),
-  });
+  try {
+    const { data, error } = await resend.emails.send({
+      from,
+      to: recipients,
+      subject,
+      html: renderApprovedEmailHtml(event),
+    });
 
-  console.log("[sendApprovedEmail] sent", {
-    recipients,
-    recipientsCount: recipients.length,
-    result,
-  });
+    if (error) {
+      logger.error("[sendApprovedEmail] resend error", {
+        error,
+        recipients,
+        from,
+        subject,
+      });
+      return;
+    }
+
+    logger.info("[sendApprovedEmail] sent successfully", {
+      id: data?.id,
+      recipients,
+      recipientsCount: recipients.length,
+    });
+  } catch (err) {
+    logger.error("[sendApprovedEmail] exception thrown", {
+      error: String(err),
+      recipients,
+      from,
+    });
+  }
 }
 
 function renderReminderEmailHtml(event: Extract<NotifyEvent, { type: "UPCOMING_VACATION_REMINDER" }>): string {
@@ -224,8 +333,8 @@ function renderReturnReminderEmailHtml(event: Extract<NotifyEvent, { type: "RETU
 }
 
 async function sendReturnReminderEmail(event: Extract<NotifyEvent, { type: "RETURN_TO_WORK_REMINDER" }>): Promise<void> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.MAIL_FROM;
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.MAIL_FROM?.trim();
   if (!apiKey || !from) return;
 
   const resend = new Resend(apiKey);
@@ -233,12 +342,23 @@ async function sendReturnReminderEmail(event: Extract<NotifyEvent, { type: "RETU
     new Set((event.toEmails?.length ? event.toEmails : [event.managerEmail]).filter(Boolean)),
   );
   if (recipients.length === 0) return;
-  await resend.emails.send({
-    from,
-    to: recipients,
-    subject: `Lembrete: retorno de ${event.userName} ao trabalho em 1 dia`,
-    html: renderReturnReminderEmailHtml(event),
-  });
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from,
+      to: recipients,
+      subject: `Lembrete: retorno de ${event.userName} ao trabalho em 1 dia`,
+      html: renderReturnReminderEmailHtml(event),
+    });
+
+    if (error) {
+      logger.error("[sendReturnReminderEmail] resend error", { error, recipients });
+      return;
+    }
+    logger.info("[sendReturnReminderEmail] sent", { id: data?.id, recipients });
+  } catch (err) {
+    logger.error("[sendReturnReminderEmail] exception", { error: String(err), recipients });
+  }
 }
 
 function shouldSendReminderEmail(): boolean {
@@ -275,7 +395,6 @@ function getNotifyProvider(): NotifyProvider {
   if (raw === "resend" || raw === "webhook" || raw === "both" || raw === "none") {
     return raw;
   }
-  // Retrocompatibilidade: sem configuração explícita, mantém comportamento atual.
   return "both";
 }
 
@@ -290,15 +409,19 @@ export async function notify(event: NotifyEvent): Promise<void> {
   const shouldSendEmail = provider === "resend" || provider === "both";
   const shouldSendWebhook = provider === "webhook" || provider === "both";
 
-  if (process.env.NODE_ENV === "development") {
-    console.log("[notify] provider flags", { provider, shouldSendEmail, shouldSendWebhook });
-  }
-
-  if (shouldSendEmail && event.type === "APPROVED") {
-    try {
-      await sendApprovedEmail(event);
-    } catch (err) {
-      console.error("[notify] email send error", err);
+  if (shouldSendEmail) {
+    if (event.type === "APPROVED") {
+      await sendApprovedEmail(event).catch((err) =>
+        logger.error("[notify] approved email error", { error: String(err) }),
+      );
+    } else if (event.type === "NEW_REQUEST") {
+      await sendNewRequestEmail(event).catch((err) =>
+        logger.error("[notify] new request email error", { error: String(err) }),
+      );
+    } else if (event.type === "REJECTED") {
+      await sendRejectedEmail(event).catch((err) =>
+        logger.error("[notify] rejected email error", { error: String(err) }),
+      );
     }
   }
 
@@ -307,14 +430,14 @@ export async function notify(event: NotifyEvent): Promise<void> {
       try {
         await sendReminderEmail(event);
       } catch (err) {
-        console.error("[notify] reminder email send error", err);
+        logger.error("[notify] reminder email send error", { error: String(err) });
       }
     }
     if (shouldSendReminderSlack()) {
       try {
         await sendReminderSlack(event);
       } catch (err) {
-        console.error("[notify] reminder slack send error", err);
+        logger.error("[notify] reminder slack send error", { error: String(err) });
       }
     }
   }
@@ -324,7 +447,7 @@ export async function notify(event: NotifyEvent): Promise<void> {
       try {
         await sendReturnReminderEmail(event);
       } catch (err) {
-        console.error("[notify] return reminder email send error", err);
+        logger.error("[notify] return reminder email send error", { error: String(err) });
       }
     }
     if (shouldSendReminderSlack()) {
@@ -345,10 +468,10 @@ export async function notify(event: NotifyEvent): Promise<void> {
         }),
       });
       if (!res.ok) {
-        console.error("[notify] webhook failed", res.status, await res.text());
+        logger.error("[notify] webhook failed", { status: res.status, text: await res.text() });
       }
     } catch (err) {
-      console.error("[notify] webhook error", err);
+      logger.error("[notify] webhook error", { error: String(err) });
     }
   }
 }
