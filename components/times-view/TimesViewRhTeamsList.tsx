@@ -136,6 +136,11 @@ export function TimesViewRhTeamsList({
               </span>
               <div>
                 <h2 className="text-lg font-semibold text-[#1a1d23] dark:text-white">{g.gerenteName}</h2>
+                {(g as any).originalGerenteName && (
+                  <p className="text-xs text-[#94a3b8] dark:text-slate-500">
+                    Gerente: {(g as any).originalGerenteName}
+                  </p>
+                )}
                 <p className="text-sm text-[#64748b] dark:text-slate-400">
                   {g.teams.length} time(s) · {totalMembers} colaborador(es) + {coordinatorCount}{" "}
                   coordenação(ões) distinta{coordinatorCount === 1 ? "" : "s"} ({totalPeople} pessoas)
@@ -212,6 +217,11 @@ export function TimesViewRhTeamsList({
                                 <h3 className="truncate text-sm font-semibold text-[#1a1d23] dark:text-white">
                                   {group.coordinatorName}
                                 </h3>
+                                {(group.teams[0] as any)?.originalCoordinatorName && (
+                                  <p className="truncate text-[11px] text-[#94a3b8] dark:text-slate-500">
+                                    Responsável: {(group.teams[0] as any).originalCoordinatorName}
+                                  </p>
+                                )}
                                 <p className="truncate text-xs text-[#64748b] dark:text-slate-400" title={teamNames}>
                                   {group.teams.length} time(s) · {totalCollab} colaborador(es) · {teamNames}
                                 </p>
@@ -313,6 +323,11 @@ export function TimesViewRhTeamsList({
                                 <h3 className="truncate text-sm font-semibold text-[#1a1d23] dark:text-white">
                                   Coordenação: {team.coordinatorName}
                                 </h3>
+                                {(team as any).originalCoordinatorName && (
+                                  <p className="truncate text-[11px] text-[#94a3b8] dark:text-slate-500">
+                                    Responsável: {(team as any).originalCoordinatorName}
+                                  </p>
+                                )}
                                 <p className="truncate text-xs text-[#64748b] dark:text-slate-400">
                                   Time: {team.teamName}
                                 </p>
@@ -364,6 +379,29 @@ export function TimesViewRhTeamsList({
                           </div>
                         );
                       })}
+                  {showConsolidatedOverview && g.teams.length === 0 && (g.coordinatorMembers?.length ?? 0) > 0 && (
+                    <div className="rounded-lg border border-dashed border-[#e2e8f0] bg-[#f8fafc] p-3 dark:border-[#252a35] dark:bg-[#141720]">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#64748b] dark:text-slate-400">
+                        Coordenações sem colaboradores no filtro atual
+                      </p>
+                      <div className="space-y-2">
+                        {(g.coordinatorMembers ?? []).map((coord) => (
+                          <TeamMemberRow
+                            key={coord.user.id}
+                            member={coord as TeamMemberInfoSerialized}
+                            requestsSummary={(
+                              coord.requests as VacationRequestSummary[]
+                            ).map((r) => ({
+                              startDate: r.startDate,
+                              endDate: r.endDate,
+                              status: r.status,
+                              abono: r.abono,
+                            }))}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

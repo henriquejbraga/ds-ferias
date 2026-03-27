@@ -35,7 +35,9 @@ export function TimesViewFilterBar({
 }) {
   return (
     <div className="rounded-lg border border-[#e2e8f0] bg-white p-4 dark:border-[#252a35] dark:bg-[#1a1d23]">
-      <p className="mb-3 text-sm font-medium text-[#475569] dark:text-slate-400">Filtrar times</p>
+      <p className="mb-3 text-sm font-medium text-[#475569] dark:text-slate-400">
+        Filtros: colaborador, gerência, coordenação e time
+      </p>
       <div className="flex flex-wrap gap-3">
         <input
           type="search"
@@ -43,7 +45,7 @@ export function TimesViewFilterBar({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           className="h-10 min-w-0 flex-1 rounded-md border border-[#e2e8f0] bg-[#f5f6f8] px-3 text-sm text-[#1a1d23] placeholder:text-[#94a3b8] focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white sm:min-w-[200px]"
-          aria-label="Buscar colaborador"
+          aria-label="Buscar por colaborador ou departamento"
         />
         <select
           value={statusFilter}
@@ -105,7 +107,7 @@ export function TimesViewFilterBar({
             onClick={onExportCsv}
             className="h-10 rounded-md border border-[#cbd5e1] bg-white px-3 text-sm font-semibold text-[#334155] hover:bg-[#f8fafc] dark:border-[#334155] dark:bg-[#0f1117] dark:text-slate-200 dark:hover:bg-[#1e2330]"
           >
-            Exportar times (CSV)
+            Exportar lista (CSV)
           </button>
         )}
       </div>

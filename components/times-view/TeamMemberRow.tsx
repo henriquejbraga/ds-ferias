@@ -1,9 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { TeamMemberInfoSerialized, VacationRequestSummary } from "./types";
 import { TeamMemberStatusBadge } from "./TeamMemberStatusBadge";
-import { Chevron } from "./Chevron";
 import { getVacationStatusDisplayLabel, isVacationApprovedStatus } from "@/lib/vacationRules";
 
 function formatDateRange(start: string | Date, end: string | Date) {
@@ -20,7 +19,6 @@ export function TeamMemberRow({
   requestsSummary: VacationRequestSummary[];
 }) {
   const { user } = member;
-  const [expanded, setExpanded] = useState(false);
   const sortedRequests = useMemo(
     () =>
       [...requestsSummary].sort(
@@ -60,16 +58,7 @@ export function TeamMemberRow({
 
   return (
     <div className="rounded-lg border border-[#e2e8f0] bg-white dark:border-[#252a35] dark:bg-[#1a1d23]">
-      <button
-        type="button"
-        onClick={() => hasRequests && setExpanded((v) => !v)}
-        className="flex w-full flex-wrap items-center gap-3 p-4 text-left transition-colors hover:bg-[#f8fafc] sm:flex-nowrap dark:hover:bg-[#141720]"
-        aria-expanded={hasRequests ? expanded : undefined}
-        aria-label={hasRequests ? (expanded ? `Ocultar ${user.name}` : `Expandir ${user.name}`) : user.name}
-      >
-        {hasRequests && (
-          <Chevron open={expanded} />
-        )}
+      <div className="flex w-full flex-wrap items-center gap-3 p-4 sm:flex-nowrap">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-base font-bold text-slate-600 dark:bg-slate-700 dark:text-slate-300">
           {user.name.charAt(0).toUpperCase()}
         </span>
@@ -80,9 +69,9 @@ export function TeamMemberRow({
         <span className="w-full shrink-0 sm:w-auto">
           <TeamMemberStatusBadge member={member} />
         </span>
-      </button>
+      </div>
 
-      {hasRequests && expanded && (
+      {hasRequests && (
         <div className="border-t border-[#e2e8f0] dark:border-[#252a35]">
           <div className="space-y-2 p-4 pt-3">
             <p className="text-sm font-semibold uppercase tracking-wide text-[#94a3b8] dark:text-slate-500">

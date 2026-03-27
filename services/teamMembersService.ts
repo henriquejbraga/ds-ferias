@@ -1,4 +1,5 @@
 import { getRoleLevel, calculateVacationBalance, isVacationApprovedStatus } from "@/lib/vacationRules";
+import { prisma } from "@/lib/prisma";
 import {
   findTeamMembersByManager,
   findTeamMembersByGerente,
@@ -8,6 +9,47 @@ import {
   findAllGerentes,
 } from "@/repositories/userRepository";
 import type { TeamMemberInfo, TeamDataCoord, TeamDataRH } from "@/types/dashboard";
+
+/** Nó mínimo da cadeia manager → manager (inclui `role` para não confundir diretor com gerente). */
+type ManagerChainNode = {
+  id: string;
+  name: string;
+  role: string;
+  managerId?: string | null;
+  manager?: ManagerChainNode | null;
+};
+
+function findAncestorByRole(
+  start: ManagerChainNode | null | undefined,
+  targetRole: string,
+): ManagerChainNode | null {
+  let cur: ManagerChainNode | null | undefined = start;
+  while (cur) {
+    if (cur.role === targetRole) return cur;
+    cur = cur.manager ?? null;
+  }
+  return null;
+}
+
+async function attachDiretoriaToGerentes(gerentes: TeamDataRH["gerentes"]): Promise<TeamDataRH["gerentes"]> {
+  const ids = [...new Set(gerentes.map((g) => g.gerenteId))].filter((id) => id !== "sem-gerente");
+  if (ids.length === 0) return gerentes;
+  const rows = await prisma.user.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      manager: { select: { id: true, name: true, role: true } },
+    },
+  });
+  const managerByGerente = new Map(rows.map((r) => [r.id, r.manager]));
+  return gerentes.map((g) => {
+    const m = managerByGerente.get(g.gerenteId);
+    if (m?.role === "DIRETOR") {
+      return { ...g, diretorId: m.id, diretorName: m.name };
+    }
+    return { ...g, diretorId: null, diretorName: null };
+  });
+}
 
 function isOnVacationNow(
   requests: Array<{ status: string; startDate: Date; endDate: Date; abono?: boolean }>
@@ -152,7 +194,8 @@ export async function getTeamMembersForTimes(
   });
 
   coordinators.forEach((c, i) => {
-    const gerenteId = c.managerId ?? "sem-gerente";
+    const gerenteNode = findAncestorByRole((c as { manager?: ManagerChainNode }).manager, "GERENTE");
+    const gerenteId = gerenteNode?.id ?? "sem-gerente";
     const bucket = byGerente.get(gerenteId);
     if (!bucket) return;
     bucket.coordinatorMembers.push(coordinatorMembers[i]);
@@ -160,13 +203,14 @@ export async function getTeamMembersForTimes(
 
   users.forEach((u, i) => {
     const m = members[i];
-    const gerenteId = (u as { manager?: { manager?: { id: string; name: string } } }).manager?.manager?.id ?? "sem-gerente";
+    const gerenteNode = findAncestorByRole((u as { manager?: ManagerChainNode }).manager, "GERENTE");
+    const gerenteId = gerenteNode?.id ?? "sem-gerente";
     const coordId = (u as { manager?: { id: string; name: string } }).manager?.id ?? "sem-coord";
     const teamName = (u as any).team ?? "Sem time";
     const teamKey = `${coordId}__${teamName}`;
     if (!byGerente.has(gerenteId)) {
       byGerente.set(gerenteId, {
-        gerenteName: (u as { manager?: { manager?: { name?: string } } }).manager?.manager?.name ?? "Sem gerente",
+        gerenteName: gerenteNode?.name ?? "Sem gerente",
         byCoord: new Map<string, TeamMemberInfo[]>(),
         coordinatorMembers: [],
       });
@@ -198,5 +242,6 @@ export async function getTeamMembersForTimes(
     });
   });
   gerentes.sort((a, b) => a.gerenteName.localeCompare(b.gerenteName, "pt-BR"));
-  return { kind: "rh", gerentes };
+  const gerentesComDiretoria = await attachDiretoriaToGerentes(gerentes);
+  return { kind: "rh", gerentes: gerentesComDiretoria };
 }

@@ -163,7 +163,7 @@ export default async function DashboardPage({
               }
             >
               {isTimesView ? (
-                <TimesView userRole={user.role} userId={user.id} teamData={teamData} />
+                <TimesView userRole={user.role} teamData={teamData} />
               ) : isApprover && (view === "inbox" || view === "historico") ? (
                 <ManagerView
                   userRole={user.role}

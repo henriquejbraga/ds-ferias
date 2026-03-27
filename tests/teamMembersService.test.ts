@@ -6,6 +6,15 @@ const mockFindCoordinatorsByGerente = vi.fn().mockResolvedValue([]);
 const mockFindAllEmployees = vi.fn().mockResolvedValue([]);
 const mockFindAllCoordinatorsForRh = vi.fn().mockResolvedValue([]);
 const mockFindAllGerentes = vi.fn().mockResolvedValue([]);
+const mockPrismaFindMany = vi.fn().mockResolvedValue([]);
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    user: {
+      findMany: (...args: unknown[]) => mockPrismaFindMany(...args),
+    },
+  },
+}));
 
 vi.mock("@/repositories/userRepository", () => ({
   findTeamMembersByManager: (...args: unknown[]) => mockFindTeamMembersByManager(...args),
@@ -27,6 +36,8 @@ describe("getTeamMembersForTimes", () => {
     mockFindAllEmployees.mockClear();
     mockFindAllCoordinatorsForRh.mockClear();
     mockFindAllGerentes.mockClear();
+    mockPrismaFindMany.mockClear();
+    mockPrismaFindMany.mockResolvedValue([]);
   });
 
   it("level 2 (coordenador): returns coord structure with one team e calcula isOnVacationNow com/sem abono", async () => {
@@ -81,7 +92,13 @@ describe("getTeamMembersForTimes", () => {
         hireDate: new Date("2024-01-01"),
         role: "FUNCIONARIO",
         managerId: "c1",
-        manager: { id: "c1", name: "Coord A", managerId: "ger-1", manager: null },
+        manager: {
+          id: "c1",
+          name: "Coord A",
+          role: "COORDENADOR",
+          managerId: "ger-1",
+          manager: { id: "ger-1", name: "Ger", role: "GERENTE", managerId: null, manager: null },
+        },
         vacationRequests: [],
       },
       {
@@ -91,7 +108,13 @@ describe("getTeamMembersForTimes", () => {
         hireDate: new Date("2024-01-01"),
         role: "FUNCIONARIO",
         managerId: "c1",
-        manager: { id: "c1", name: "Coord A", managerId: "ger-1", manager: null },
+        manager: {
+          id: "c1",
+          name: "Coord A",
+          role: "COORDENADOR",
+          managerId: "ger-1",
+          manager: { id: "ger-1", name: "Ger", role: "GERENTE", managerId: null, manager: null },
+        },
         vacationRequests: [],
       },
     ]);
@@ -129,7 +152,7 @@ describe("getTeamMembersForTimes", () => {
         hireDate: new Date("2023-01-01"),
         role: "COORDENADOR",
         managerId: "ger-1",
-        manager: { id: "ger-1", name: "Gerente", managerId: null, manager: null },
+        manager: { id: "ger-1", name: "Gerente", role: "GERENTE", managerId: null, manager: null },
         vacationRequests: [],
       },
     ]);
@@ -144,8 +167,9 @@ describe("getTeamMembersForTimes", () => {
         manager: {
           id: "c1",
           name: "Coord",
+          role: "COORDENADOR",
           managerId: "ger-1",
-          manager: { id: "ger-1", name: "Gerente", managerId: null },
+          manager: { id: "ger-1", name: "Gerente", role: "GERENTE", managerId: null, manager: null },
         },
         vacationRequests: [],
       },
@@ -159,8 +183,9 @@ describe("getTeamMembersForTimes", () => {
         manager: {
           id: "c1",
           name: "Coord",
+          role: "COORDENADOR",
           managerId: "ger-1",
-          manager: { id: "ger-1", name: "Gerente", managerId: null },
+          manager: { id: "ger-1", name: "Gerente", role: "GERENTE", managerId: null, manager: null },
         },
         vacationRequests: [],
       },

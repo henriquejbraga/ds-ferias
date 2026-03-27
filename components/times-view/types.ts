@@ -45,6 +45,8 @@ export type TeamDataRH = {
   gerentes: {
     gerenteId: string;
     gerenteName: string;
+    diretorId?: string | null;
+    diretorName?: string | null;
     coordinatorMembers?: TeamMemberInfoSerialized[];
     teams: {
       coordinatorId: string;

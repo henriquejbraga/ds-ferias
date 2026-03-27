@@ -63,6 +63,9 @@ export type TeamDataRH = {
   gerentes: Array<{
     gerenteId: string;
     gerenteName: string;
+    /** Gestor da diretoria (quando o gerente reporta a um diretor). */
+    diretorId?: string | null;
+    diretorName?: string | null;
     /** Reportes diretos do gerente (coordenadores) — inclusos na visão consolidada de férias */
     coordinatorMembers?: TeamMemberInfo[];
     teams: Array<{

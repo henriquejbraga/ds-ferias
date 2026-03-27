@@ -1,30 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { TeamDataSerialized, TeamMemberInfoSerialized } from "./types";
 import { matchesFilter } from "./filters";
 import { TimesViewFilterBar } from "./TimesViewFilterBar";
 import { TimesViewCoordTeamsList } from "./TimesViewCoordTeamsList";
-import { TimesViewRhTeamsList } from "./TimesViewRhTeamsList";
+import { TeamCalendar } from "@/components/calendar/TeamCalendar";
+import { buildRhDirectorateCalendarMembers } from "./buildRhCalendarMembers";
 
 type Props = {
   teamData: TeamDataSerialized;
-  userId: string;
-  userRole: string;
-  level: number;
 };
 
-export function TimesViewClient({ teamData, level }: Props) {
+export function TimesViewClient({ teamData }: Props) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("TODOS");
   const [managerFilter, setManagerFilter] = useState<string>("ALL");
   const [coordinatorFilter, setCoordinatorFilter] = useState<string>("ALL");
   const [teamFilter, setTeamFilter] = useState<string>("ALL");
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
-  const toggle = (key: string) => {
-    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
 
   const filterMembers = (members: TeamMemberInfoSerialized[]) => members.filter((m) => matchesFilter(m, query, statusFilter));
 
@@ -139,12 +132,13 @@ export function TimesViewClient({ teamData, level }: Props) {
             exportRowsToCsv(rows);
           }}
         />
-        <TimesViewCoordTeamsList teams={teamsFiltered} expanded={expanded} toggle={toggle} />
+        <TimesViewCoordTeamsList teams={teamsFiltered} />
       </div>
     );
   }
 
   const gerentesComNomesFuncionais = teamData.gerentes.map((g, i) => {
+    const originalGerenteName = g.gerenteName;
     const coordenadoresUnicos = Array.from(
       new Set([
         ...g.teams.map((t) => t.coordinatorId),
@@ -158,9 +152,15 @@ export function TimesViewClient({ teamData, level }: Props) {
     return {
       ...g,
       gerenteName: getGerenciaLabel(i),
+      originalGerenteName,
       teams: g.teams.map((t) => ({
         ...t,
+        originalCoordinatorName: t.coordinatorName,
         coordinatorName: coordLabelById.get(t.coordinatorId) ?? "Coordenação",
+      })),
+      coordinatorMembers: g.coordinatorMembers?.map((c) => ({
+        ...c,
+        originalCoordinationName: c.user.name,
       })),
     };
   });
@@ -191,6 +191,14 @@ export function TimesViewClient({ teamData, level }: Props) {
     ...Array.from(teamMap.entries()).map(([value, label]) => ({ value, label })),
   ];
 
+  const diretorNomesDestaque = Array.from(
+    new Set(
+      gerentesComNomesFuncionais
+        .map((g) => g.diretorName)
+        .filter((n): n is string => Boolean(n)),
+    ),
+  );
+
   const gerentesFiltered = gerentesComNomesFuncionais
     .filter((g) => managerFilter === "ALL" || g.gerenteId === managerFilter)
     .map((g) => ({
@@ -212,8 +220,13 @@ export function TimesViewClient({ teamData, level }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-[#dbeafe] bg-[#eff6ff] px-4 py-3 text-sm font-semibold text-[#1e3a8a] dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
-        Diretoria: Estratégia Digital
+      <div className="rounded-lg border border-[#dbeafe] bg-[#eff6ff] px-4 py-3 text-sm text-[#1e3a8a] dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
+        <div className="font-semibold">Diretoria: Estratégia Digital</div>
+        {diretorNomesDestaque.length > 0 && (
+          <p className="mt-1 text-xs font-normal text-[#1e40af] dark:text-blue-300/90">
+            Diretor(a): {diretorNomesDestaque.join(" · ")}
+          </p>
+        )}
       </div>
       <TimesViewFilterBar
         query={query}
@@ -230,8 +243,23 @@ export function TimesViewClient({ teamData, level }: Props) {
         setTeamFilter={setTeamFilter}
         teamOptions={teamOptions}
         onExportCsv={() => {
-          const rows = gerentesFiltered.flatMap((g) =>
-            g.teams.flatMap((team) =>
+          const rows = gerentesFiltered.flatMap((g) => {
+            const fromCoords = (g.coordinatorMembers ?? []).map((m) => ({
+              gerente: g.gerenteName,
+              coordenador: "—",
+              time: "Coordenação",
+              colaborador: m.user.name,
+              papel: m.user.role,
+              departamento: m.user.department ?? "",
+              status: m.isOnVacationNow
+                ? "EM_FERIAS"
+                : hasFutureVacation(m)
+                  ? "FERIAS_MARCADAS"
+                  : "FERIAS_A_TIRAR",
+              saldoDisponivel: m.balance.availableDays,
+              pendente: m.balance.pendingDays,
+            }));
+            const fromTeams = g.teams.flatMap((team) =>
               team.members.map((m) => ({
                 gerente: g.gerenteName,
                 coordenador: team.coordinatorName,
@@ -247,18 +275,52 @@ export function TimesViewClient({ teamData, level }: Props) {
                 saldoDisponivel: m.balance.availableDays,
                 pendente: m.balance.pendingDays,
               })),
-            ),
-          );
+            );
+            return [...fromCoords, ...fromTeams];
+          });
           exportRowsToCsv(rows);
         }}
       />
-      <TimesViewRhTeamsList
-        gerentes={gerentesFiltered}
-        expanded={expanded}
-        toggle={toggle}
-        showConsolidatedOverview={level >= 3}
-      />
+      <RhDirectorateCalendarSection gerentesFiltered={gerentesFiltered} />
     </div>
+  );
+}
+
+function RhDirectorateCalendarSection({
+  gerentesFiltered,
+}: {
+  gerentesFiltered: Parameters<typeof buildRhDirectorateCalendarMembers>[0];
+}) {
+  const calendarMembers = useMemo(
+    () => buildRhDirectorateCalendarMembers(gerentesFiltered),
+    [gerentesFiltered],
+  );
+
+  if (calendarMembers.length === 0) {
+    return (
+      <div className="rounded-xl border border-dashed border-[#e2e8f0] bg-white py-12 text-center dark:border-[#252a35] dark:bg-[#1a1d23]">
+        <p className="text-[#64748b] dark:text-slate-400">
+          Nenhum colaborador ou coordenação no filtro atual.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <h2 className="text-lg font-semibold text-[#1a1d23] dark:text-white">
+          Visão geral — time completo
+        </h2>
+        <p className="mt-1 text-sm text-[#64748b] dark:text-slate-400">
+          Calendário da diretoria com coordenadores e colaboradores por time. Use os filtros acima (nome,
+          gerência, coordenação, time). No calendário, alterne mês/ano e use{" "}
+          <span className="font-medium text-[#475569] dark:text-slate-300">Exportar férias (CSV)</span> para
+          o período visível.
+        </p>
+      </div>
+      <TeamCalendar members={calendarMembers} capacityScopedByGroup showExportCsv />
+    </section>
   );
 }
 

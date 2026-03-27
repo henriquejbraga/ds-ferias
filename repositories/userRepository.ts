@@ -8,8 +8,25 @@ const baseInclude = {
     select: {
       id: true,
       name: true,
+      role: true,
       managerId: true,
-      manager: { select: { id: true, name: true } },
+      manager: {
+        select: {
+          id: true,
+          name: true,
+          role: true,
+          managerId: true,
+          manager: {
+            select: {
+              id: true,
+              name: true,
+              role: true,
+              managerId: true,
+              manager: { select: { id: true, name: true, role: true } },
+            },
+          },
+        },
+      },
     },
   },
   vacationRequests: {

@@ -5,11 +5,9 @@ import type { TeamDataForTimes } from "@/types/dashboard";
 
 export function TimesView({
   userRole,
-  userId,
   teamData,
 }: {
   userRole: string;
-  userId: string;
   teamData: TeamDataForTimes | null;
 }) {
   const level = getRoleLevel(userRole);
@@ -50,30 +48,27 @@ export function TimesView({
     <div className="space-y-6 lg:space-y-7">
       {level === 2 && (
         <p className="text-base text-[#64748b] dark:text-slate-400">
-          Todos os colaboradores do seu time, com status de férias explícito. Use o filtro e expanda ou recolha cada time.
+          Calendário e detalhes por squad. Use o filtro por time e a busca por colaborador.
         </p>
       )}
       {level === 3 && (
         <p className="text-base text-[#64748b] dark:text-slate-400">
-          No topo: <span className="font-medium text-[#475569] dark:text-slate-300">visão geral</span> com calendário de
-          todo o time. Abaixo: <span className="font-medium text-[#475569] dark:text-slate-300">por coordenador</span>, com
-          calendário e detalhes de cada time. Use o filtro e expanda &quot;Minha gestão&quot; e cada equipe (coordenador com
-          um ou mais times).
+          Calendário consolidado da sua gestão (coordenações e times). Filtre por nome, coordenação ou time; exporte lista
+          ou férias do período no calendário.
         </p>
       )}
       {level === 4 && teamData.kind === "rh" && (
         <p className="text-base text-[#64748b] dark:text-slate-400">
-          Todos os times agrupados por <span className="font-medium text-[#475569] dark:text-slate-300">gerente</span> e{" "}
-          <span className="font-medium text-[#475569] dark:text-slate-300">coordenador(a)</span>. Use o filtro e expanda
-          cada gerente ou time.
+          Diretoria: calendário único com todas as gerências, coordenações e squads. Filtre por gerência, coordenação ou
+          time e exporte o recorte ou as férias do mês/ano no calendário.
         </p>
       )}
       {level >= 5 && teamData.kind === "rh" && (
         <p className="text-base text-[#64748b] dark:text-slate-400">
-          Visão global: todos os times por gerente e coordenador(a). Filtre e expanda cada gerente ou time para navegar.
+          Visão global da organização: um calendário consolidado. Filtre e exporte conforme o RH precisar.
         </p>
       )}
-      <TimesViewClient teamData={teamData as Parameters<typeof TimesViewClient>[0]["teamData"]} userId={userId} userRole={userRole} level={level} />
+      <TimesViewClient teamData={teamData as Parameters<typeof TimesViewClient>[0]["teamData"]} />
     </div>
   );
 }

@@ -10,6 +10,8 @@ type Props = {
   members: TeamMemberInfoSerialized[];
   /** Se true, vermelho (2+ no dia) só dentro do mesmo calendarCapacityGroupKey. */
   capacityScopedByGroup?: boolean;
+  /** Exporta férias do período visível (mês ou ano) em CSV. */
+  showExportCsv?: boolean;
 };
 
 function capacityGroupKey(member: TeamMemberInfoSerialized, scoped: boolean): string {
@@ -62,7 +64,86 @@ function getVacationSegments(member: TeamMemberInfoSerialized, monthStart: Date,
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
-export function TeamCalendar({ members, capacityScopedByGroup = false }: Props) {
+function exportVacationsForVisiblePeriod(opts: {
+  viewMode: "month" | "year";
+  anchor: Date;
+  members: TeamMemberInfoSerialized[];
+}) {
+  const { viewMode, anchor, members } = opts;
+  let rangeStart: Date;
+  let rangeEnd: Date;
+  if (viewMode === "month") {
+    const y = anchor.getFullYear();
+    const m = anchor.getMonth();
+    rangeStart = new Date(y, m, 1);
+    rangeEnd = new Date(y, m + 1, 0);
+  } else {
+    const y = anchor.getFullYear();
+    rangeStart = new Date(y, 0, 1);
+    rangeEnd = new Date(y, 11, 31);
+  }
+  rangeStart.setHours(0, 0, 0, 0);
+  rangeEnd.setHours(0, 0, 0, 0);
+
+  const rows: string[][] = [
+    [
+      "Colaborador",
+      "Papel",
+      "Seção",
+      "Time ou coordenação",
+      "Início",
+      "Fim",
+      "Status",
+    ],
+  ];
+
+  for (const member of members) {
+    const displayName = (member.calendarDisplayName ?? member.user.name).split("·")[0]?.trim() ?? member.user.name;
+    const section = member.calendarSectionTitle ?? "";
+    const sub = member.calendarSubsectionTitle ?? "";
+    for (const r of member.requests) {
+      if (r.status !== "PENDENTE" && !isVacationApprovedStatus(r.status)) continue;
+      const start = atMidnight(new Date(r.startDate));
+      const rawEnd = atMidnight(new Date(r.endDate));
+      const end =
+        r.abono && !Number.isNaN(rawEnd.getTime())
+          ? atMidnight(new Date(rawEnd.getTime() - 10 * 24 * 60 * 60 * 1000))
+          : rawEnd;
+      if (end.getTime() < rangeStart.getTime() || start.getTime() > rangeEnd.getTime()) continue;
+      rows.push([
+        displayName,
+        member.user.role,
+        section,
+        sub,
+        start.toLocaleDateString("pt-BR"),
+        end.toLocaleDateString("pt-BR"),
+        r.status,
+      ]);
+    }
+  }
+
+  const y = anchor.getFullYear();
+  const file =
+    viewMode === "month"
+      ? `ferias-calendario-${y}-${String(anchor.getMonth() + 1).padStart(2, "0")}.csv`
+      : `ferias-calendario-${y}-ano.csv`;
+
+  const blob = new Blob([`\uFEFF${rows.map((r) => r.join(";")).join("\n")}`], {
+    type: "text/csv;charset=utf-8;",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = file;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function TeamCalendar({
+  members,
+  capacityScopedByGroup = false,
+  showExportCsv = false,
+}: Props) {
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(
     () => new Date(today.getFullYear(), today.getMonth(), 1),
@@ -178,7 +259,18 @@ export function TeamCalendar({ members, capacityScopedByGroup = false }: Props) 
                 : `Uma linha por colaborador — ${yearMemberSegments.length} com férias em ${year}.`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {showExportCsv && (
+            <button
+              type="button"
+              className="rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-semibold text-emerald-900 hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-200 dark:hover:bg-emerald-950/70"
+              onClick={() =>
+                exportVacationsForVisiblePeriod({ viewMode, anchor: currentMonth, members })
+              }
+            >
+              Exportar férias (CSV)
+            </button>
+          )}
           <button
             type="button"
             className="rounded-md border border-[#e2e8f0] px-2.5 py-1 text-sm font-semibold text-[#475569] hover:bg-[#f5f6f8] dark:border-[#252a35] dark:text-slate-200 dark:hover:bg-[#1e2330]"
