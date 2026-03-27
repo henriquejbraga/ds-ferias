@@ -12,8 +12,8 @@ export async function POST(request: Request) {
   if (shouldForcePasswordChange(user)) {
     return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
-  if (getRoleLevel(user.role) < 5) {
-    return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
+  if (getRoleLevel(user.role) < 2) {
+    return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
   }
 
   const body = await request.json().catch(() => ({}));
@@ -78,8 +78,8 @@ export async function GET() {
   if (shouldForcePasswordChange(user)) {
     return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
-  if (getRoleLevel(user.role) < 5) {
-    return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
+  if (getRoleLevel(user.role) < 2) {
+    return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
   }
 
   const users = await prisma.user.findMany({

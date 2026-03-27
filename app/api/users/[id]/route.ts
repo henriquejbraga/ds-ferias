@@ -13,8 +13,8 @@ export async function PATCH(
 ) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (getRoleLevel(user.role) < 5) {
-    return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
+  if (getRoleLevel(user.role) < 2) {
+    return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
   }
   if (shouldForcePasswordChange(user)) {
     return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
@@ -52,8 +52,8 @@ export async function DELETE(
 ) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  if (getRoleLevel(user.role) < 5) {
-    return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
+  if (getRoleLevel(user.role) < 2) {
+    return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
   }
   if (shouldForcePasswordChange(user)) {
     return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });

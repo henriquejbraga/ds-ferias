@@ -9,7 +9,7 @@ export default async function AdminPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login");
   if (shouldForcePasswordChange(user)) redirect("/change-password");
-  if (getRoleLevel(user.role) < 5) redirect("/dashboard");
+  if (getRoleLevel(user.role) < 2) redirect("/dashboard");
 
   const [users, managers] = await Promise.all([
     findAllUsersForAdmin(),
