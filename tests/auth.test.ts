@@ -324,3 +324,17 @@ describe("isPasswordChangeEnforced", () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe("getSessionUser (edge cases)", () => {
+  it("returns null if session cookie is not present", async () => {
+    mockGet.mockReturnValue(undefined);
+    expect(await getSessionUser()).toBeNull();
+  });
+});
+
+describe("verifyCredentials (edge cases)", () => {
+  it("returns null if email or password is empty", async () => {
+    expect(await verifyCredentials("", "")).toBeNull();
+    expect(await verifyCredentials("a@b.com", "")).toBeNull();
+  });
+});

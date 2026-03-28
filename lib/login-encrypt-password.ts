@@ -22,15 +22,21 @@ function uint8ArrayToBase64Url(bytes: Uint8Array): string {
 /**
  * Cifra a senha com RSA-OAEP SHA-256 (mesmo algoritmo que `decryptLoginPassword` no servidor).
  */
-export async function encryptPasswordForLogin(spkiDerBase64Url: string, password: string): Promise<string> {
-  const spki = base64UrlToUint8Array(spkiDerBase64Url);
-  const key = await crypto.subtle.importKey(
-    "spki",
-    spki.buffer as ArrayBuffer,
-    { name: "RSA-OAEP", hash: "SHA-256" },
-    false,
-    ["encrypt"],
-  );
-  const ciphertext = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, key, new TextEncoder().encode(password));
-  return uint8ArrayToBase64Url(new Uint8Array(ciphertext));
+export async function encryptPasswordForLogin(spkiDerBase64Url: string, password: string): Promise<string | null> {
+  if (typeof crypto === "undefined" || !crypto.subtle) return null;
+  try {
+    const spki = base64UrlToUint8Array(spkiDerBase64Url);
+    const key = await crypto.subtle.importKey(
+      "spki",
+      spki.buffer as ArrayBuffer,
+      { name: "RSA-OAEP", hash: "SHA-256" },
+      false,
+      ["encrypt"],
+    );
+    const ciphertext = await crypto.subtle.encrypt({ name: "RSA-OAEP" }, key, new TextEncoder().encode(password));
+    return uint8ArrayToBase64Url(new Uint8Array(ciphertext));
+  } catch (err) {
+    console.error("[encryptPasswordForLogin] failed", err);
+    return null;
+  }
 }
