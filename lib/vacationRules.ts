@@ -478,15 +478,14 @@ function isSaoPauloHoliday(date: Date): boolean {
 
   const movables = [carnival, goodFriday, corpusChristi];
   return movables.some((h) => {
-    const hd = new Date(h);
-    hd.setHours(0, 0, 0, 0);
-    return hd.getTime() === d.getTime();
+    // h já é toUtcMidnight ou Date.UTC
+    return h.getTime() === d.getTime();
   });
 }
 
 function addDays(base: Date, days: number): Date {
-  const d = new Date(base);
-  d.setDate(d.getDate() + days);
+  const d = toUtcMidnight(base);
+  d.setUTCDate(d.getUTCDate() + days);
   return d;
 }
 
@@ -506,7 +505,7 @@ function getEasterSunday(year: number): Date {
   const m = Math.floor((a + 11 * h + 22 * l) / 451);
   const month = Math.floor((h + l - 7 * m + 114) / 31); // 3=mar, 4=abr
   const day = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(year, month - 1, day);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 // ============================================================

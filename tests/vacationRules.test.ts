@@ -16,6 +16,7 @@ import {
   isVacationApprovedStatus,
   detectTeamConflicts,
   checkBlackoutPeriods,
+  getVacationStatusDisplayLabel,
 } from "@/lib/vacationRules";
 
 describe("validateCltPeriod (aviso prévio)", () => {
@@ -594,5 +595,60 @@ describe("calculateVacationBalance (null hireDate)", () => {
     const balance = calculateVacationBalance(undefined, requests);
     expect(balance.pendingDays).toBe(15);
     expect(balance.availableDays).toBeLessThan(30);
+  });
+});
+
+describe("getVacationStatusDisplayLabel", () => {
+  it("returns human-friendly labels for all statuses", () => {
+    expect(getVacationStatusDisplayLabel("PENDENTE")).toBe("Pendente aprovação");
+    expect(getVacationStatusDisplayLabel("APROVADO_COORDENADOR")).toContain("coordenador");
+    expect(getVacationStatusDisplayLabel("APROVADO_GERENTE")).toContain("gerente");
+    expect(getVacationStatusDisplayLabel("APROVADO_DIRETOR")).toContain("diretoria");
+    expect(getVacationStatusDisplayLabel("APROVADO_RH")).toContain("diretoria");
+    expect(getVacationStatusDisplayLabel("REPROVADO")).toBe("Reprovado");
+    expect(getVacationStatusDisplayLabel("CANCELADO")).toBe("Cancelado");
+    expect(getVacationStatusDisplayLabel("UNKNOWN_STATUS")).toBe("UNKNOWN STATUS");
+  });
+});
+
+describe("detectTeamConflicts (blocked)", () => {
+  it("returns isBlocked true when > 50% of team has overlap", () => {
+    const start = new Date("2026-07-01");
+    const end = new Date("2026-07-10");
+    const team = [
+      { name: "A", requests: [{ startDate: new Date("2026-07-05"), endDate: new Date("2026-07-15"), status: "PENDENTE" }] },
+      { name: "B", requests: [{ startDate: new Date("2026-07-01"), endDate: new Date("2026-07-05"), status: "APROVADO_GERENTE" }] },
+      { name: "C", requests: [] },
+    ];
+    // 2 de 3 = 66% > 50%
+    const r = detectTeamConflicts(start, end, team);
+    expect(r.conflictingCount).toBe(2);
+    expect(r.isBlocked).toBe(true);
+  });
+});
+
+describe("calculateVacationBalance (large monthsWorked)", () => {
+  it("handles exactly 12 months", () => {
+    const hireDate = new Date();
+    hireDate.setMonth(hireDate.getMonth() - 12);
+    // Ajustar para não falhar por causa do dia do mês
+    hireDate.setDate(hireDate.getDate() - 1);
+    const balance = calculateVacationBalance(hireDate, []);
+    expect(balance.hasEntitlement).toBe(true);
+    expect(balance.entitledDays).toBe(30);
+  });
+});
+
+describe("validateCltPeriods (holiday mobile)", () => {
+  it("rejects start 2 days before Good Friday (Carnival/Easter logic)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T12:00:00Z"));
+    // 2026 Good Friday is April 3rd. 
+    // April 1st (Wednesday) is 2 days before.
+    const start = new Date(Date.UTC(2026, 3, 1)); // 2026-04-01
+    const end = new Date(Date.UTC(2026, 3, 15));
+    const err = validateCltPeriods([{ start, end }], { checkAdvanceNotice: true });
+    expect(err).toContain("feriado");
+    vi.useRealTimers();
   });
 });

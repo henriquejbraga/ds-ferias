@@ -11,6 +11,7 @@ import {
 import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRule";
 import { notifyApproved } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
+import { sanitizeText } from "@/lib/validation";
 import type { VacationStatus } from "@/generated/prisma/enums";
 
 type Params = { params: Promise<{ id: string }> };
@@ -189,7 +190,7 @@ export async function POST(request: Request, { params }: Params) {
     );
   }
 
-  const approvalNote = body?.note ?? null;
+  const approvalNote = sanitizeText(body?.note);
   let didCommit = false;
   let updated: any = null;
 

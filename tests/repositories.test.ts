@@ -477,4 +477,11 @@ describe("userRepository", () => {
       })
     );
   });
+
+  it("findUserWithBalance returns null if prisma returns null", async () => {
+    const { prisma } = await import("@/lib/prisma");
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce(null);
+    const res = await findUserWithBalance("u-none");
+    expect(res).toBeNull();
+  });
 });

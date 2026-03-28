@@ -26,6 +26,16 @@ export async function POST(request: Request) {
   }
 
   const email = body.email;
+
+  // Rate limit por e-mail (além do por IP/ClientId)
+  if (!checkRateLimit(`login-email:${email}`, 5)) {
+    logger.warn("Rate limit: login por e-mail excedido", { email });
+    return NextResponse.json(
+      { error: "Muitas tentativas para este e-mail. Tente novamente mais tarde." },
+      { status: 429 },
+    );
+  }
+
   const passwordPlain = typeof body.password === "string" ? body.password : "";
   const passwordCipher = typeof body.encryptedPassword === "string" ? body.encryptedPassword : "";
 

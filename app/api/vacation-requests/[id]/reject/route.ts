@@ -4,6 +4,7 @@ import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import { ROLE_LEVEL, canApproveRequest } from "@/lib/vacationRules";
 import { notifyRejected } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
+import { sanitizeText } from "@/lib/validation";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -62,13 +63,13 @@ export async function POST(request: Request, { params }: Params) {
     where: { id },
     data: {
       status: "REPROVADO",
-      [noteField]: body?.note ?? null,
+      [noteField]: sanitizeText(body?.note),
       history: {
         create: {
           previousStatus: existing.status,
           newStatus: "REPROVADO",
           changedByUserId: user.id,
-          note: body?.note ?? null,
+          note: sanitizeText(body?.note),
         },
       },
     },

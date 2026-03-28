@@ -269,7 +269,7 @@ describe("notifications", () => {
     expect(resendSendMock).toHaveBeenCalledTimes(1);
     const args = resendSendMock.mock.calls[0][0];
     expect(args.to).toEqual(["gestor1@empresa.com", "colab1@empresa.com"]);
-    expect(args.subject).toContain("entra de ferias em 7 dias");
+    expect(args.subject).toContain("entra de férias em 7 dias");
   });
 
   it("sends return-to-work reminder to manager and collaborator", async () => {
@@ -295,6 +295,99 @@ describe("notifications", () => {
     expect(args.to).toEqual(["gestor2@empresa.com", "colab2@empresa.com"]);
     expect(args.subject).toContain("retorno de Colab 2");
     expect(args.html).toContain("retorno");
+  });
+
+  it("obfuscates emails in logs", async () => {
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
+    const infoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
+
+    await notifyNewRequest({
+      requestId: "r-log-1",
+      userName: "U1",
+      userEmail: "colaborador@test.com",
+      managerEmail: "gestor@test.com",
+      startDate: new Date("2026-10-01T12:00:00Z"),
+      endDate: new Date("2026-10-10T12:00:00Z"),
+    });
+
+    // Procura por log que contenha o e-mail (que deve estar ofuscado)
+    const logCall = infoSpy.mock.calls.find(call => call[1]?.to && typeof call[1].to === "string");
+    expect(logCall).toBeDefined();
+    const loggedEmail = logCall![1].to;
+    expect(loggedEmail).not.toBe("gestor@test.com");
+    expect(loggedEmail).toContain("ge****@test.com");
+  });
+
+  it("logs error when resend fails with error object", async () => {
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
+    resendSendMock.mockResolvedValueOnce({ data: null, error: { message: "API Error" } });
+    const errSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+
+    await notifyApproved({
+      requestId: "r-resend-fail",
+      userName: "U",
+      userEmail: "u@e.com",
+      approverName: "A",
+      status: "APROVADO_GERENTE",
+      toEmails: ["u@e.com"],
+      startDate: new Date(),
+      endDate: new Date(),
+      returnDate: new Date(),
+      abono: false,
+      thirteenth: false,
+    });
+
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("resend error"), expect.objectContaining({
+      error: expect.objectContaining({ message: "API Error" })
+    }));
+  });
+
+  it("sends slack reminder when configured", async () => {
+    process.env.REMINDER_CHANNELS = "slack";
+    process.env.SLACK_WEBHOOK_URL = "https://slack.test/webhook";
+    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({ ok: true } as any);
+
+    await notifyUpcomingVacationReminder({
+      requestId: "r-slack",
+      userName: "User Slack",
+      userEmail: "s@e.com",
+      managerName: "M",
+      managerEmail: "m@e.com",
+      startDate: new Date(),
+      endDate: new Date(),
+      daysUntilStart: 5,
+      abono: false,
+      thirteenth: false,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith("https://slack.test/webhook", expect.objectContaining({
+      method: "POST",
+      body: expect.stringContaining("User Slack")
+    }));
+  });
+
+  it("logs error when slack reminder fails", async () => {
+    process.env.REMINDER_CHANNELS = "slack";
+    process.env.SLACK_WEBHOOK_URL = "https://slack.test/webhook";
+    vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({ ok: false, status: 500, text: async () => "error" } as any);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await notifyUpcomingVacationReminder({
+      requestId: "r-slack-fail",
+      userName: "User Slack",
+      userEmail: "s@e.com",
+      managerName: "M",
+      managerEmail: "m@e.com",
+      startDate: new Date(),
+      endDate: new Date(),
+      daysUntilStart: 5,
+      abono: false,
+      thirteenth: false,
+    });
+
+    expect(consoleSpy).toHaveBeenCalledWith("[notify] slack reminder failed", 500, "error");
   });
 });
 

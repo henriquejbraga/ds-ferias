@@ -35,3 +35,12 @@ export function hasInternalOverlapInDateRanges(ranges: DateRange[]): boolean {
 
   return false;
 }
+
+/**
+ * Sanitiza texto removendo tags HTML básicas para prevenir XSS persistente.
+ */
+export function sanitizeText(text: unknown): string | null {
+  if (typeof text !== "string") return null;
+  // Remove tags HTML
+  return text.replace(/<[^>]*>?/gm, "").trim() || null;
+}

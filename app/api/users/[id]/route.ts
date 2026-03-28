@@ -13,6 +13,7 @@ export async function PATCH(
 ) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  // Coordenadores, Gerentes, Diretores e RH (nível 2+) podem gerenciar usuários.
   if (getRoleLevel(user.role) < 2) {
     return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
   }
@@ -52,6 +53,7 @@ export async function DELETE(
 ) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  // Coordenadores, Gerentes, Diretores e RH (nível 2+) podem gerenciar usuários.
   if (getRoleLevel(user.role) < 2) {
     return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
   }

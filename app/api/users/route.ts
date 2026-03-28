@@ -78,6 +78,7 @@ export async function GET() {
   if (shouldForcePasswordChange(user)) {
     return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
+  // Coordenadores, Gestores, Gerentes, Diretores e RH (nível 2+) podem ver a listagem.
   if (getRoleLevel(user.role) < 2) {
     return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
   }

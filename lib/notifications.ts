@@ -105,12 +105,12 @@ async function sendNewRequestEmail(event: Extract<NotifyEvent, { type: "NEW_REQU
       html: renderNewRequestEmailHtml(event),
     });
     if (error) {
-      logger.error("[sendNewRequestEmail] resend error", { error, to: event.managerEmail });
+      logger.error("[sendNewRequestEmail] resend error", { error, to: obfuscateEmail(event.managerEmail) });
       return;
     }
-    logger.info("[sendNewRequestEmail] sent", { id: data?.id, to: event.managerEmail });
+    logger.info("[sendNewRequestEmail] sent", { id: data?.id, to: obfuscateEmail(event.managerEmail) });
   } catch (err) {
-    logger.error("[sendNewRequestEmail] exception", { error: String(err), to: event.managerEmail });
+    logger.error("[sendNewRequestEmail] exception", { error: String(err), to: obfuscateEmail(event.managerEmail) });
   }
 }
 
@@ -147,12 +147,12 @@ async function sendRejectedEmail(event: Extract<NotifyEvent, { type: "REJECTED" 
       html: renderRejectedEmailHtml(event),
     });
     if (error) {
-      logger.error("[sendRejectedEmail] resend error", { error, to: event.userEmail });
+      logger.error("[sendRejectedEmail] resend error", { error, to: obfuscateEmail(event.userEmail) });
       return;
     }
-    logger.info("[sendRejectedEmail] sent", { id: data?.id, to: event.userEmail });
+    logger.info("[sendRejectedEmail] sent", { id: data?.id, to: obfuscateEmail(event.userEmail) });
   } catch (err) {
-    logger.error("[sendRejectedEmail] exception", { error: String(err), to: event.userEmail });
+    logger.error("[sendRejectedEmail] exception", { error: String(err), to: obfuscateEmail(event.userEmail) });
   }
 }
 
@@ -213,6 +213,13 @@ function renderApprovedEmailHtml(event: Extract<NotifyEvent, { type: "APPROVED" 
   `;
 }
 
+function obfuscateEmail(email: string): string {
+  const [user, domain] = email.split("@");
+  if (!domain) return email;
+  const masked = user.length > 2 ? user.slice(0, 2) + "****" : user + "****";
+  return `${masked}@${domain}`;
+}
+
 async function sendApprovedEmail(event: Extract<NotifyEvent, { type: "APPROVED" }>): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.MAIL_FROM?.trim();
@@ -229,10 +236,9 @@ async function sendApprovedEmail(event: Extract<NotifyEvent, { type: "APPROVED" 
   const resend = new Resend(apiKey);
   const recipients = Array.from(new Set(event.toEmails.filter(Boolean)));
   if (recipients.length === 0) {
-    logger.warn("[sendApprovedEmail] skipped - no valid recipients", { originalEmails: event.toEmails });
+    logger.warn("[sendApprovedEmail] skipped - no valid recipients", { originalEmails: event.toEmails.map(obfuscateEmail) });
     return;
   }
-
   const subject = `Férias aprovadas - ${event.userName} (${event.startDate} a ${event.endDate})`;
 
   try {
@@ -246,8 +252,8 @@ async function sendApprovedEmail(event: Extract<NotifyEvent, { type: "APPROVED" 
     if (error) {
       logger.error("[sendApprovedEmail] resend error", {
         error,
-        recipients,
-        from,
+        recipients: recipients.map(obfuscateEmail),
+        from: obfuscateEmail(from),
         subject,
       });
       return;
@@ -255,14 +261,14 @@ async function sendApprovedEmail(event: Extract<NotifyEvent, { type: "APPROVED" 
 
     logger.info("[sendApprovedEmail] sent successfully", {
       id: data?.id,
-      recipients,
+      recipients: recipients.map(obfuscateEmail),
       recipientsCount: recipients.length,
     });
   } catch (err) {
     logger.error("[sendApprovedEmail] exception thrown", {
       error: String(err),
-      recipients,
-      from,
+      recipients: recipients.map(obfuscateEmail),
+      from: obfuscateEmail(from),
     });
   }
 }
@@ -301,12 +307,23 @@ async function sendReminderEmail(event: Extract<NotifyEvent, { type: "UPCOMING_V
     new Set((event.toEmails?.length ? event.toEmails : [event.managerEmail]).filter(Boolean)),
   );
   if (recipients.length === 0) return;
-  await resend.emails.send({
-    from,
-    to: recipients,
-    subject: `Lembrete: ${event.userName} entra de férias em ${event.daysUntilStart} dias`,
-    html: renderReminderEmailHtml(event),
-  });
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from,
+      to: recipients,
+      subject: `Lembrete: ${event.userName} entra de férias em ${event.daysUntilStart} dias`,
+      html: renderReminderEmailHtml(event),
+    });
+
+    if (error) {
+      logger.error("[sendReminderEmail] resend error", { error, recipients: recipients.map(obfuscateEmail) });
+      return;
+    }
+    logger.info("[sendReminderEmail] sent", { id: data?.id, recipients: recipients.map(obfuscateEmail) });
+  } catch (err) {
+    logger.error("[sendReminderEmail] exception", { error: String(err), recipients: recipients.map(obfuscateEmail) });
+  }
 }
 
 function renderReturnReminderEmailHtml(event: Extract<NotifyEvent, { type: "RETURN_TO_WORK_REMINDER" }>): string {
@@ -352,12 +369,12 @@ async function sendReturnReminderEmail(event: Extract<NotifyEvent, { type: "RETU
     });
 
     if (error) {
-      logger.error("[sendReturnReminderEmail] resend error", { error, recipients });
+      logger.error("[sendReturnReminderEmail] resend error", { error, recipients: recipients.map(obfuscateEmail) });
       return;
     }
-    logger.info("[sendReturnReminderEmail] sent", { id: data?.id, recipients });
+    logger.info("[sendReturnReminderEmail] sent", { id: data?.id, recipients: recipients.map(obfuscateEmail) });
   } catch (err) {
-    logger.error("[sendReturnReminderEmail] exception", { error: String(err), recipients });
+    logger.error("[sendReturnReminderEmail] exception", { error: String(err), recipients: recipients.map(obfuscateEmail) });
   }
 }
 

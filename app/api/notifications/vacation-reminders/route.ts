@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { notifyUpcomingVacationReminder, notifyReturnToWorkReminder } from "@/lib/notifications";
 import { APPROVED_VACATION_STATUSES } from "@/lib/vacationRules";
+import { logger } from "@/lib/logger";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -23,8 +24,14 @@ function isAuthorized(request: Request): boolean {
   return parseCronAuth(request) === expected;
 }
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
+  logger.info("[cron] Iniciando processamento de lembretes de férias");
+  
   if (!isAuthorized(request)) {
+    logger.warn("[cron] Tentativa de execução não autorizada", {
+      authHeader: request.headers.get("authorization") ? "present" : "missing",
+      cronHeader: request.headers.get("x-cron-secret") ? "present" : "missing",
+    });
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 

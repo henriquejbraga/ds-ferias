@@ -6,6 +6,8 @@ import {
   createSession,
   destroySession,
   getSessionCookieValue,
+  shouldForcePasswordChange,
+  isPasswordChangeEnforced,
 } from "@/lib/auth";
 import type { SessionUser } from "@/lib/auth";
 
@@ -13,6 +15,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: {
       findUnique: vi.fn(),
+      update: vi.fn().mockResolvedValue({}),
     },
   },
 }));
@@ -42,7 +45,8 @@ describe("hashNewUserPassword", () => {
 describe("verifyCredentials", () => {
   beforeEach(async () => {
     const { prisma } = await import("@/lib/prisma");
-    vi.mocked(prisma.user.findUnique).mockReset();
+    vi.mocked(prisma.user.findUnique).mockClear();
+    vi.mocked(prisma.user.update).mockClear();
   });
 
   it("returns null when user not found", async () => {
@@ -73,8 +77,7 @@ describe("verifyCredentials", () => {
 
   it("logs warning in development when password does not match", async () => {
     const { prisma } = await import("@/lib/prisma");
-    const prevEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "development";
+    vi.stubEnv("NODE_ENV", "development");
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const hashed = hashNewUserPassword("correta");
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
@@ -90,11 +93,14 @@ describe("verifyCredentials", () => {
       updatedAt: new Date(),
     } as never);
 
-    const result = await verifyCredentials("u@e.com", "errada");
-    expect(result).toBeNull();
-    expect(warnSpy).toHaveBeenCalledWith("[auth] Invalid credentials for", "u@e.com");
-
-    process.env.NODE_ENV = prevEnv;
+    try {
+      const result = await verifyCredentials("u@e.com", "errada");
+      expect(result).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith("[auth] Invalid credentials for", "u@e.com");
+    } finally {
+      warnSpy.mockRestore();
+      vi.unstubAllEnvs();
+    }
   });
 
   it("returns session user when password matches", async () => {
@@ -145,6 +151,13 @@ describe("verifyCredentials", () => {
       avatarUrl: null,
       mustChangePassword: false,
     });
+    // Verifica se houve upgrade automático de hash
+    expect(vi.mocked(prisma.user.update)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "u2" },
+        data: { passwordHash: expect.stringMatching(/^scrypt\./) },
+      })
+    );
   });
 });
 
@@ -277,5 +290,37 @@ describe("destroySession", () => {
     mockDelete.mockReset();
     await destroySession();
     expect(mockDelete).toHaveBeenCalledWith("ds-ferias-session");
+  });
+});
+
+describe("shouldForcePasswordChange", () => {
+  it("returns true if enforced and user has mustChangePassword", () => {
+    vi.stubEnv("ENFORCE_PASSWORD_CHANGE", "true");
+    const user: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "FUNCIONARIO", mustChangePassword: true };
+    expect(shouldForcePasswordChange(user)).toBe(true);
+    vi.unstubAllEnvs();
+  });
+
+  it("returns false if not enforced", () => {
+    vi.stubEnv("ENFORCE_PASSWORD_CHANGE", "false");
+    const user: SessionUser = { id: "u1", name: "U", email: "u@e.com", role: "FUNCIONARIO", mustChangePassword: true };
+    expect(shouldForcePasswordChange(user)).toBe(false);
+    vi.unstubAllEnvs();
+  });
+
+  it("returns false if user is null", () => {
+    vi.stubEnv("ENFORCE_PASSWORD_CHANGE", "true");
+    expect(shouldForcePasswordChange(null)).toBe(false);
+    vi.unstubAllEnvs();
+  });
+});
+
+describe("isPasswordChangeEnforced", () => {
+  it("reads from env", () => {
+    vi.stubEnv("ENFORCE_PASSWORD_CHANGE", "true");
+    expect(isPasswordChangeEnforced()).toBe(true);
+    vi.stubEnv("ENFORCE_PASSWORD_CHANGE", "false");
+    expect(isPasswordChangeEnforced()).toBe(false);
+    vi.unstubAllEnvs();
   });
 });

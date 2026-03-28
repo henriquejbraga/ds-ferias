@@ -16,7 +16,7 @@ import {
   findAcquisitionPeriodsForUser,
 } from "@/repositories/acquisitionRepository";
 import { validateVacationConcessiveFifo } from "@/lib/concessivePeriod";
-import { buildInclusiveOverlapConditions, hasInternalOverlapInDateRanges } from "@/lib/validation";
+import { buildInclusiveOverlapConditions, hasInternalOverlapInDateRanges, sanitizeText } from "@/lib/validation";
 import { logger } from "@/lib/logger";
 
 const POST_REQUESTS_MAX_PER_MINUTE = 20;
@@ -137,7 +137,14 @@ export async function GET(request: Request) {
 
   const requests = await prisma.vacationRequest.findMany({
     where: where as Record<string, unknown>,
-    include: { user: { select: { name: true, email: true } } },
+    include: {
+      user: {
+        select: {
+          name: true,
+          email: true,
+        },
+      },
+    },
     orderBy: { startDate: "desc" },
   });
 
@@ -171,7 +178,7 @@ export async function POST(request: Request) {
     periodsRaw = Array.isArray(body?.periods) ? body.periods : null;
     startDateRaw = body?.startDate ?? null;
     endDateRaw = body?.endDate ?? null;
-    notes = body?.notes ?? null;
+    notes = sanitizeText(body?.notes);
     abono = Boolean(body?.abono);
     thirteenth = Boolean(body?.thirteenth);
   } else {

@@ -95,6 +95,18 @@ export async function verifyCredentials(email: string, password: string) {
     return null;
   }
 
+  // Upgrade automático de hash: se a senha for válida mas o hash for legado (não começa com scrypt.),
+  // re-criptografa com scrypt e salva no banco.
+  if (!user.passwordHash.startsWith("scrypt.")) {
+    const newHash = hashPassword(password);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: newHash },
+    }).catch(() => {
+      // Ignora erro de persistência do hash para não bloquear o login
+    });
+  }
+
   return {
     id: user.id,
     name: user.name,
