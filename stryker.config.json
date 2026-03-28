@@ -24,6 +24,8 @@
     "break": 85
   },
   "coverageAnalysis": "perTest",
+  "timeoutMS": 15000,
+  "timeoutFactor": 4,
   "reporters": [
     "clear-text",
     "html",

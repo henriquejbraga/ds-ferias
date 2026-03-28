@@ -443,7 +443,7 @@ function calcUsedDays(
 // FERIADOS – SÃO PAULO (NACIONAL + ESTADUAL/MUNICIPAL)
 // ============================================================
 
-function isSaoPauloHoliday(date: Date): boolean {
+export function isSaoPauloHoliday(date: Date): boolean {
   const d = toUtcMidnight(date);
   const year = d.getUTCFullYear();
   const month = d.getUTCMonth() + 1; // 1-12

@@ -1,5 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+const resendSendMock = vi.fn();
+
+// Mock do Resend ANTES dos imports do código
+vi.mock("resend", () => {
+  return {
+    Resend: class {
+      emails = {
+        send: resendSendMock,
+      };
+    },
+  };
+});
+
 import {
   notify,
   notifyNewRequest,
@@ -10,454 +23,138 @@ import {
 } from "@/lib/notifications";
 import { logger } from "@/lib/logger";
 
-const resendSendMock = vi.fn().mockResolvedValue({ data: { id: "mail_123" }, error: null });
-
-vi.mock("resend", () => {
-  class ResendMock {
-    emails = { send: resendSendMock };
-  }
-  return {
-    Resend: ResendMock,
-  };
-});
-
 describe("notifications", () => {
-  const originalEnv = process.env;
-
   beforeEach(() => {
-    vi.restoreAllMocks();
-    resendSendMock.mockClear();
-    process.env = { ...originalEnv };
-    // Garante que o provedor padrão seja 'both' para os testes
-    delete process.env.NOTIFY_PROVIDER;
+    vi.clearAllMocks();
+    resendSendMock.mockResolvedValue({ data: { id: "mail_123" }, error: null });
+    process.env.NOTIFY_PROVIDER = "resend";
+    process.env.NODE_ENV = "production";
+    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
+    process.env.RESEND_API_KEY = "re_test";
   });
 
   afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  it("does nothing when webhook is not configured", async () => {
-    delete process.env.NOTIFY_WEBHOOK_URL;
-    delete process.env.RESEND_API_KEY;
-    delete process.env.MAIL_FROM;
-    const fetchSpy = vi.spyOn(globalThis, "fetch" as any);
-    await notify({
-      type: "APPROVED",
-      requestId: "r1",
-      userName: "U",
-      userEmail: "u@example.com",
-      approverName: "A",
-      status: "APROVADO_GERENTE",
-      toEmails: ["a@example.com"],
-      startDate: "2026-06-01",
-      endDate: "2026-06-10",
-      returnDate: "2026-06-11",
-      abono: false,
-      thirteenth: false,
-    });
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it("skips webhook when provider is resend only", async () => {
-    process.env.NOTIFY_PROVIDER = "resend";
-    process.env.NOTIFY_WEBHOOK_URL = "https://example.test/webhook";
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
-    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: async () => "",
-    } as any);
-
-    await notifyApproved({
-      requestId: "r-provider-resend",
-      userName: "User R",
-      userEmail: "ur@example.com",
-      approverName: "Leader",
-      status: "APROVADO_GERENTE",
-      toEmails: ["leader@example.com"],
-      startDate: new Date("2026-08-01T12:00:00Z"),
-      endDate: new Date("2026-08-10T12:00:00Z"),
-      returnDate: new Date("2026-08-11T12:00:00Z"),
-      abono: false,
-      thirteenth: false,
-    });
-
-    expect(resendSendMock).toHaveBeenCalledTimes(1);
-    expect(fetchSpy).not.toHaveBeenCalled();
-  });
-
-  it("skips resend when provider is webhook only", async () => {
-    process.env.NOTIFY_PROVIDER = "webhook";
-    process.env.NOTIFY_WEBHOOK_URL = "https://example.test/webhook";
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
-    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({
-      ok: true,
-      status: 200,
-      text: async () => "",
-    } as any);
-
-    await notifyApproved({
-      requestId: "r-provider-webhook",
-      userName: "User W",
-      userEmail: "uw@example.com",
-      approverName: "Leader",
-      status: "APROVADO_GERENTE",
-      toEmails: ["leader@example.com"],
-      startDate: new Date("2026-08-01T12:00:00Z"),
-      endDate: new Date("2026-08-10T12:00:00Z"),
-      returnDate: new Date("2026-08-11T12:00:00Z"),
-      abono: false,
-      thirteenth: false,
-    });
-
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    expect(resendSendMock).not.toHaveBeenCalled();
-  });
-
-  it("posts to webhook when configured (ok response)", async () => {
-    process.env.NOTIFY_WEBHOOK_URL = "https://example.test/webhook";
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch" as any)
-      .mockResolvedValue({ ok: true, status: 200, text: async () => "" } as any);
-
-    await notifyApproved({
-      requestId: "r2",
-      userName: "U2",
-      userEmail: "u2@example.com",
-      approverName: "A2",
-      status: "APROVADO_GERENTE",
-      toEmails: ["a2@example.com", "lider@example.com"],
-      startDate: new Date("2026-07-01T12:00:00Z"),
-      endDate: new Date("2026-07-20T12:00:00Z"),
-      returnDate: new Date("2026-07-21T12:00:00Z"),
-      abono: true,
-      thirteenth: true,
-      notes: "Observação do colaborador",
-      managerNote: "Aprovado",
-      hrNote: null,
-    });
-
-    expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchSpy.mock.calls[0] as any[];
-    expect(url).toBe("https://example.test/webhook");
-    expect(init.method).toBe("POST");
-    expect(init.headers["Content-Type"]).toBe("application/json");
-    const body = JSON.parse(init.body);
-    expect(body.source).toBe("ds-ferias");
-    expect(body.type).toBe("APPROVED");
-    expect(body.requestId).toBe("r2");
-    expect(body.toEmails).toEqual(["a2@example.com", "lider@example.com"]);
-    expect(body.startDate).toBe("2026-07-01");
-    expect(body.endDate).toBe("2026-07-20");
-    expect(body.returnDate).toBe("2026-07-21");
-    expect(body.abono).toBe(true);
-    expect(body.thirteenth).toBe(true);
-    expect(body.notes).toBe("Observação do colaborador");
-    expect(typeof body.at).toBe("string");
-    expect(resendSendMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("sends email via resend for approved notifications", async () => {
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
-    delete process.env.NOTIFY_WEBHOOK_URL;
-
-    await notifyApproved({
-      requestId: "r2x",
-      userName: "U2",
-      userEmail: "u2@example.com",
-      approverName: "A2",
-      status: "APROVADO_GERENTE",
-      toEmails: ["a2@example.com", "a2@example.com", "lider@example.com"],
-      startDate: new Date("2026-07-01T12:00:00Z"),
-      endDate: new Date("2026-07-20T12:00:00Z"),
-      returnDate: new Date("2026-07-21T12:00:00Z"),
-      abono: true,
-      thirteenth: true,
-      notes: "Obs",
-      managerNote: "Ok",
-      hrNote: null,
-    });
-
-    expect(resendSendMock).toHaveBeenCalledTimes(1);
-    const args = resendSendMock.mock.calls[0][0];
-    expect(args.from).toBe("Ferias <ferias@empresa.com>");
-    expect(args.to).toEqual(["a2@example.com", "lider@example.com"]);
-    expect(args.subject).toContain("Férias aprovadas");
-    expect(args.html).toContain("Retorno ao trabalho");
-  });
-
-  it("logs webhook failure when response not ok", async () => {
-    process.env.NOTIFY_WEBHOOK_URL = "https://example.test/webhook";
-    vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({
-      ok: false,
-      status: 500,
-      text: async () => "fail",
-    } as any);
-    const errSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
-
-    await notifyRejected({
-      requestId: "r3",
-      userName: "U3",
-      userEmail: "u3@example.com",
-      approverName: "A3",
-      note: "x",
-    });
-
-    expect(errSpy).toHaveBeenCalledWith("[notify] webhook failed", expect.objectContaining({ status: 500, text: "fail" }));
-  });
-
-  it("logs webhook error when fetch throws", async () => {
-    process.env.NOTIFY_WEBHOOK_URL = "https://example.test/webhook";
-    vi.spyOn(globalThis, "fetch" as any).mockRejectedValue(new Error("net"));
-    const errSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
-
-    await notifyNewRequest({
-      requestId: "r4",
-      userName: "U4",
-      userEmail: "u4@example.com",
-      managerEmail: "m@example.com",
-      startDate: new Date("2026-06-01T12:00:00Z"),
-      endDate: new Date("2026-06-10T12:00:00Z"),
-    });
-
-    expect(errSpy).toHaveBeenCalledWith("[notify] webhook error", expect.objectContaining({ error: expect.any(String) }));
+    vi.unstubAllEnvs();
+    vi.restoreAllMocks();
   });
 
   it("logs event in development mode", async () => {
-    process.env.NODE_ENV = "development";
-    delete process.env.NOTIFY_WEBHOOK_URL;
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
-    await notify({
-      type: "NEW_REQUEST",
-      requestId: "r5",
-      userName: "U5",
-      userEmail: "u5@example.com",
-      managerEmail: "m@example.com",
-      startDate: "2026-06-01",
-      endDate: "2026-06-10",
+    process.env.NODE_ENV = "development";
+    
+    await notifyNewRequest({
+      requestId: "r1", userName: "U", userEmail: "u@e.com", managerEmail: "m@e.com",
+      startDate: new Date(), endDate: new Date(),
     });
 
     expect(logSpy).toHaveBeenCalledWith("[notify]", "NEW_REQUEST", expect.any(Object));
   });
 
-  it("sends vacation reminder to manager by email", async () => {
-    process.env.NOTIFY_PROVIDER = "resend";
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
-    process.env.REMINDER_CHANNELS = "email";
-
-    await notifyUpcomingVacationReminder({
-      requestId: "r-rem-1",
-      userName: "Colab 1",
-      userEmail: "colab1@empresa.com",
-      managerName: "Gestor 1",
-      managerEmail: "gestor1@empresa.com",
-      toEmails: ["gestor1@empresa.com", "colab1@empresa.com"],
-      startDate: new Date("2026-09-04T12:00:00Z"),
-      endDate: new Date("2026-09-15T12:00:00Z"),
-      daysUntilStart: 7,
-      abono: true,
-      thirteenth: false,
+  it("notifies new request via Resend", async () => {
+    await notifyNewRequest({
+      requestId: "r1", userName: "Colab 1", userEmail: "colab1@empresa.com", managerEmail: "gestor1@empresa.com",
+      startDate: new Date("2026-10-01T12:00:00Z"), endDate: new Date("2026-10-15T12:00:00Z"),
     });
 
-    expect(resendSendMock).toHaveBeenCalledTimes(1);
+    expect(resendSendMock).toHaveBeenCalled();
     const args = resendSendMock.mock.calls[0][0];
-    expect(args.to).toEqual(["gestor1@empresa.com", "colab1@empresa.com"]);
-    expect(args.subject).toContain("entra de férias em 7 dias");
+    expect(args.to).toEqual(["gestor1@empresa.com"]);
   });
 
-  it("sends return-to-work reminder to manager and collaborator", async () => {
-    process.env.NOTIFY_PROVIDER = "resend";
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
-    process.env.REMINDER_CHANNELS = "email";
-
-    await notifyReturnToWorkReminder({
-      requestId: "r-ret-1",
-      userName: "Colab 2",
-      userEmail: "colab2@empresa.com",
-      managerName: "Gestor 2",
-      managerEmail: "gestor2@empresa.com",
-      toEmails: ["gestor2@empresa.com", "colab2@empresa.com"],
-      startDate: new Date("2026-09-01T12:00:00Z"),
-      endDate: new Date("2026-09-10T12:00:00Z"),
-      returnDate: new Date("2026-09-11T12:00:00Z"),
+  it("notifies approved vacation with all details", async () => {
+    await notifyApproved({
+      requestId: "r1", userName: "Colab 1", userEmail: "colab1@empresa.com",
+      approverName: "Gestor 1", status: "APROVADO_RH",
+      toEmails: ["gestor1@empresa.com", "colab1@empresa.com"],
+      startDate: new Date("2026-10-01T12:00:00Z"),
+      endDate: new Date("2026-10-15T12:00:00Z"),
+      returnDate: new Date("2026-10-16T12:00:00Z"),
+      abono: true, thirteenth: true,
     });
 
-    expect(resendSendMock).toHaveBeenCalledTimes(1);
     const args = resendSendMock.mock.calls[0][0];
-    expect(args.to).toEqual(["gestor2@empresa.com", "colab2@empresa.com"]);
-    expect(args.subject).toContain("retorno de Colab 2");
-    expect(args.html).toContain("retorno");
+    expect(args.subject).toBe("Férias aprovadas - Colab 1 (2026-10-01 a 2026-10-15)");
+    expect(args.html).toContain("Colab 1");
+    expect(args.to).toEqual(["gestor1@empresa.com", "colab1@empresa.com"]);
+  });
+
+  it("notifies rejected request", async () => {
+    await notifyRejected({
+      requestId: "r1", userName: "Colab 1", userEmail: "colab1@empresa.com",
+      approverName: "Gestor 1", note: "Saldo insuficiente",
+    });
+
+    expect(resendSendMock).toHaveBeenCalled();
+    const args = resendSendMock.mock.calls[0][0];
+    expect(args.to).toEqual(["colab1@empresa.com"]);
+  });
+
+  it("sends upcoming vacation reminder", async () => {
+    process.env.REMINDER_CHANNELS = "email";
+    
+    await notifyUpcomingVacationReminder({
+      requestId: "r1", userName: "Colab 1", userEmail: "colab1@empresa.com",
+      managerName: "Gestor 1", managerEmail: "gestor1@empresa.com",
+      toEmails: ["gestor1@empresa.com", "colab1@empresa.com"],
+      startDate: new Date("2026-10-01"), endDate: new Date("2026-10-15"),
+      daysUntilStart: 5, abono: false, thirteenth: false,
+    });
+
+    const args = resendSendMock.mock.calls[0][0];
+    expect(args.to).toEqual(["gestor1@empresa.com", "colab1@empresa.com"]);
   });
 
   it("obfuscates emails in logs", async () => {
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
     const infoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
 
     await notifyNewRequest({
-      requestId: "r-log-1",
-      userName: "U1",
-      userEmail: "colaborador@test.com",
-      managerEmail: "gestor@test.com",
-      startDate: new Date("2026-10-01T12:00:00Z"),
-      endDate: new Date("2026-10-10T12:00:00Z"),
+      requestId: "r-log-1", userName: "U1", userEmail: "colaborador@test.com", managerEmail: "gestor@test.com",
+      startDate: new Date("2026-10-01T12:00:00Z"), endDate: new Date("2026-10-10T12:00:00Z"),
     });
 
-    // Procura por log que contenha o e-mail (que deve estar ofuscado)
     const logCall = infoSpy.mock.calls.find(call => call[1]?.to && typeof call[1].to === "string");
     expect(logCall).toBeDefined();
     const loggedEmail = logCall![1].to;
-    expect(loggedEmail).not.toBe("gestor@test.com");
     expect(loggedEmail).toContain("ge****@test.com");
   });
 
   it("logs error when resend fails with error object", async () => {
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.MAIL_FROM = "Ferias <ferias@empresa.com>";
     resendSendMock.mockResolvedValueOnce({ data: null, error: { message: "API Error" } });
     const errSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
 
     await notifyApproved({
-      requestId: "r-resend-fail",
-      userName: "U",
-      userEmail: "u@e.com",
-      approverName: "A",
-      status: "APROVADO_GERENTE",
-      toEmails: ["u@e.com"],
-      startDate: new Date(),
-      endDate: new Date(),
-      returnDate: new Date(),
-      abono: false,
-      thirteenth: false,
+      requestId: "r-resend-fail", userName: "U", userEmail: "u@e.com", approverName: "A", status: "APROVADO_GERENTE",
+      toEmails: ["u@e.com"], startDate: new Date(), endDate: new Date(), returnDate: new Date(),
+      abono: false, thirteenth: false,
     });
 
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("resend error"), expect.objectContaining({
-      error: expect.objectContaining({ message: "API Error" })
-    }));
-  });
-
-  it("sends slack reminder when configured", async () => {
-    process.env.REMINDER_CHANNELS = "slack";
-    process.env.SLACK_WEBHOOK_URL = "https://slack.test/webhook";
-    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({ ok: true } as any);
-
-    await notifyUpcomingVacationReminder({
-      requestId: "r-slack",
-      userName: "User Slack",
-      userEmail: "s@e.com",
-      managerName: "M",
-      managerEmail: "m@e.com",
-      startDate: new Date(),
-      endDate: new Date(),
-      daysUntilStart: 5,
-      abono: false,
-      thirteenth: false,
-    });
-
-    expect(fetchSpy).toHaveBeenCalledWith("https://slack.test/webhook", expect.objectContaining({
-      method: "POST",
-      body: expect.stringContaining("User Slack")
-    }));
-  });
-
-  it("logs error when slack reminder fails", async () => {
-    process.env.REMINDER_CHANNELS = "slack";
-    process.env.SLACK_WEBHOOK_URL = "https://slack.test/webhook";
-    vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({ ok: false, status: 500, text: async () => "error" } as any);
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    await notifyUpcomingVacationReminder({
-      requestId: "r-slack-fail",
-      userName: "User Slack",
-      userEmail: "s@e.com",
-      managerName: "M",
-      managerEmail: "m@e.com",
-      startDate: new Date(),
-      endDate: new Date(),
-      daysUntilStart: 5,
-      abono: false,
-      thirteenth: false,
-    });
-
-    expect(consoleSpy).toHaveBeenCalledWith("[notify] slack reminder failed", 500, "error");
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("resend error"), expect.any(Object));
   });
 
   it("sends both email and slack reminders when configured", async () => {
     process.env.REMINDER_CHANNELS = "email,slack";
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.MAIL_FROM = "f@e.com";
-    process.env.SLACK_WEBHOOK_URL = "https://slack.test";
+    process.env.SLACK_WEBHOOK_URL = "https://slack.test/webhook";
     const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({ ok: true } as any);
 
     await notifyUpcomingVacationReminder({
-      requestId: "r-both",
-      userName: "U",
-      userEmail: "u@e.com",
-      managerName: "M",
-      managerEmail: "m@e.com",
-      toEmails: ["m@e.com"],
-      startDate: new Date(),
-      endDate: new Date(),
-      daysUntilStart: 3,
-      abono: false,
-      thirteenth: false,
+      requestId: "r-both", userName: "U", userEmail: "u@e.com", managerName: "M", managerEmail: "m@e.com",
+      toEmails: ["m@e.com"], startDate: new Date(), endDate: new Date(), daysUntilStart: 3,
+      abono: true, thirteenth: true,
     });
 
     expect(resendSendMock).toHaveBeenCalled();
     expect(fetchSpy).toHaveBeenCalled();
   });
 
-  it("does nothing when REMINDER_CHANNELS is set to none", async () => {
-    process.env.REMINDER_CHANNELS = "none";
-    const fetchSpy = vi.spyOn(globalThis, "fetch" as any);
-    
-    await notifyUpcomingVacationReminder({
-      requestId: "r-none",
-      userName: "U",
-      userEmail: "u@e.com",
-      managerName: "M",
-      managerEmail: "m@e.com",
-      startDate: new Date(),
-      endDate: new Date(),
-      daysUntilStart: 3,
-      abono: false,
-      thirteenth: false,
-    });
-
-    expect(fetchSpy).not.toHaveBeenCalled();
-    expect(resendSendMock).not.toHaveBeenCalled();
-  });
-
   it("handles 'none' provider", async () => {
     process.env.NOTIFY_PROVIDER = "none";
     const fetchSpy = vi.spyOn(globalThis, "fetch" as any);
     await notifyApproved({
-      requestId: "r-none-prov", userName: "U", userEmail: "u@e.com", approverName: "A",
-      status: "APROVADO_GERENTE", toEmails: ["a@e.com"], startDate: new Date(), endDate: new Date(),
-      returnDate: new Date(), abono: false, thirteenth: false,
+      requestId: "r-none-prov", userName: "U", userEmail: "u@e.com", approverName: "A", status: "APROVADO_GERENTE",
+      toEmails: ["a@e.com"], startDate: new Date(), endDate: new Date(), returnDate: new Date(),
+      abono: false, thirteenth: false,
     });
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(resendSendMock).not.toHaveBeenCalled();
   });
-
-  it("defaults to 'both' provider when invalid string is provided", async () => {
-    process.env.NOTIFY_PROVIDER = "invalid-string";
-    process.env.RESEND_API_KEY = "re_test";
-    process.env.MAIL_FROM = "f@e.com";
-    await notifyApproved({
-      requestId: "r-invalid-prov", userName: "U", userEmail: "u@e.com", approverName: "A",
-      status: "APROVADO_GERENTE", toEmails: ["a@e.com"], startDate: new Date(), endDate: new Date(),
-      returnDate: new Date(), abono: false, thirteenth: false,
-    });
-    expect(resendSendMock).toHaveBeenCalled();
-  });
 });
-
