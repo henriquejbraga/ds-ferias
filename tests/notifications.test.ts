@@ -389,5 +389,75 @@ describe("notifications", () => {
 
     expect(consoleSpy).toHaveBeenCalledWith("[notify] slack reminder failed", 500, "error");
   });
+
+  it("sends both email and slack reminders when configured", async () => {
+    process.env.REMINDER_CHANNELS = "email,slack";
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.MAIL_FROM = "f@e.com";
+    process.env.SLACK_WEBHOOK_URL = "https://slack.test";
+    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({ ok: true } as any);
+
+    await notifyUpcomingVacationReminder({
+      requestId: "r-both",
+      userName: "U",
+      userEmail: "u@e.com",
+      managerName: "M",
+      managerEmail: "m@e.com",
+      toEmails: ["m@e.com"],
+      startDate: new Date(),
+      endDate: new Date(),
+      daysUntilStart: 3,
+      abono: false,
+      thirteenth: false,
+    });
+
+    expect(resendSendMock).toHaveBeenCalled();
+    expect(fetchSpy).toHaveBeenCalled();
+  });
+
+  it("does nothing when REMINDER_CHANNELS is set to none", async () => {
+    process.env.REMINDER_CHANNELS = "none";
+    const fetchSpy = vi.spyOn(globalThis, "fetch" as any);
+    
+    await notifyUpcomingVacationReminder({
+      requestId: "r-none",
+      userName: "U",
+      userEmail: "u@e.com",
+      managerName: "M",
+      managerEmail: "m@e.com",
+      startDate: new Date(),
+      endDate: new Date(),
+      daysUntilStart: 3,
+      abono: false,
+      thirteenth: false,
+    });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(resendSendMock).not.toHaveBeenCalled();
+  });
+
+  it("handles 'none' provider", async () => {
+    process.env.NOTIFY_PROVIDER = "none";
+    const fetchSpy = vi.spyOn(globalThis, "fetch" as any);
+    await notifyApproved({
+      requestId: "r-none-prov", userName: "U", userEmail: "u@e.com", approverName: "A",
+      status: "APROVADO_GERENTE", toEmails: ["a@e.com"], startDate: new Date(), endDate: new Date(),
+      returnDate: new Date(), abono: false, thirteenth: false,
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(resendSendMock).not.toHaveBeenCalled();
+  });
+
+  it("defaults to 'both' provider when invalid string is provided", async () => {
+    process.env.NOTIFY_PROVIDER = "invalid-string";
+    process.env.RESEND_API_KEY = "re_test";
+    process.env.MAIL_FROM = "f@e.com";
+    await notifyApproved({
+      requestId: "r-invalid-prov", userName: "U", userEmail: "u@e.com", approverName: "A",
+      status: "APROVADO_GERENTE", toEmails: ["a@e.com"], startDate: new Date(), endDate: new Date(),
+      returnDate: new Date(), abono: false, thirteenth: false,
+    });
+    expect(resendSendMock).toHaveBeenCalled();
+  });
 });
 

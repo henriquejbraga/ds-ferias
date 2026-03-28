@@ -236,4 +236,104 @@ describe("getTeamMembersForTimes", () => {
     expect(mockFindAllCoordinatorsForRh).toHaveBeenCalled();
     expect(mockFindAllGerentesForTimes).toHaveBeenCalled();
   });
+
+  it("handles members without a coordinator reporting directly to a manager", async () => {
+    mockFindUserWithTimesVacations.mockResolvedValueOnce({
+      id: "ger-1", name: "Ger", role: "GERENTE", department: "TI", hireDate: null, vacationRequests: [], manager: null
+    });
+    mockFindTeamMembersByGerente.mockResolvedValueOnce([
+      {
+        id: "u1", name: "Direct Report", department: "TI", hireDate: new Date(), role: "FUNCIONARIO", 
+        managerId: "ger-1", 
+        manager: { id: "ger-1", name: "Ger", role: "GERENTE", managerId: null, manager: null },
+        vacationRequests: []
+      }
+    ]);
+    mockFindCoordinatorsByGerente.mockResolvedValueOnce([]); // No coordinators
+
+    const result = await getTeamMembersForTimes("ger-1", "GERENTE");
+    expect(result.kind).toBe("rh");
+    expect(result.gerentes[0].teams[0].members[0].user.name).toBe("Direct Report");
+  });
+
+  it("returns empty structure when user is not found", async () => {
+    mockFindUserWithTimesVacations.mockResolvedValueOnce(null);
+    const result = await getTeamMembersForTimes("ghost", "COORDENADOR");
+    expect(result.kind).toBe("coord");
+    expect(result.teams).toHaveLength(0);
+  });
+
+  it("identifies member on vacation when today is exactly endDate", async () => {
+    mockFindUserWithTimesVacations.mockResolvedValueOnce({ id: "c1", role: "COORDENADOR" } as any);
+    const today = new Date();
+    today.setHours(12, 0, 0, 0);
+    
+    mockFindTeamMembersByManager.mockResolvedValueOnce([
+      {
+        id: "u1", name: "Vacationer", role: "FUNCIONARIO", managerId: "c1",
+        vacationRequests: [{ status: "APROVADO_RH", startDate: new Date(today.getTime() - 86400000), endDate: today }]
+      }
+    ]);
+
+    const result = await getTeamMembersForTimes("c1", "COORDENADOR");
+    expect(result.teams[0].members[0].isOnVacationNow).toBe(true);
+  });
+
+  it("handles RH structure with managers reporting to directors", async () => {
+    mockFindAllGerentesForTimes.mockResolvedValueOnce([
+      { id: "ger-1", name: "Gerente 1", role: "GERENTE", managerId: "dir-1" }
+    ]);
+    mockFindAllCoordinatorsForRh.mockResolvedValueOnce([]);
+    mockFindAllEmployees.mockResolvedValueOnce([
+      { 
+        id: "u1", name: "Worker", role: "FUNCIONARIO", 
+        manager: { id: "c1", name: "Coord", role: "COORDENADOR", manager: { id: "ger-1", name: "Ger 1", role: "GERENTE" } } 
+      }
+    ]);
+    mockPrismaFindMany.mockResolvedValueOnce([
+      { id: "ger-1", manager: { id: "dir-1", name: "Diretor Top", role: "DIRETOR" } }
+    ]);
+
+    const result = await getTeamMembersForTimes("rh-1", "RH");
+    expect(result.kind).toBe("rh");
+    expect(result.gerentes[0].diretorName).toBe("Diretor Top");
+  });
+
+  it("handles case where manager is not a director in attachDiretoriaToGerentes", async () => {
+    mockFindAllGerentesForTimes.mockResolvedValueOnce([{ id: "g1", name: "G1", role: "GERENTE" }]);
+    mockFindAllCoordinatorsForRh.mockResolvedValueOnce([]);
+    mockFindAllEmployees.mockResolvedValueOnce([]);
+    mockPrismaFindMany.mockResolvedValueOnce([
+      { id: "g1", manager: { id: "m1", name: "Outro Gerente", role: "GERENTE" } }
+    ]);
+
+    const result = await getTeamMembersForTimes("rh-1", "RH");
+    expect(result.gerentes[0].diretorId).toBeNull();
+  });
+
+  it("handles complex RH data with mixed management structures", async () => {
+    // Gerente 1 com Coordenador 1
+    // Gerente 2 sem Coordenador
+    // Usuário sem Gerente
+    mockFindAllGerentesForTimes.mockResolvedValueOnce([
+      { id: "g1", name: "Gerente 1", role: "GERENTE" },
+      { id: "g2", name: "Gerente 2", role: "GERENTE" }
+    ]);
+    mockFindAllCoordinatorsForRh.mockResolvedValueOnce([
+      { id: "c1", name: "Coord 1", role: "COORDENADOR", manager: { id: "g1", role: "GERENTE" } }
+    ]);
+    mockFindAllEmployees.mockResolvedValueOnce([
+      { id: "u1", name: "User 1", role: "FUNCIONARIO", manager: { id: "c1", role: "COORDENADOR", manager: { id: "g1", role: "GERENTE" } } },
+      { id: "u2", name: "User 2", role: "FUNCIONARIO", manager: { id: "g2", role: "GERENTE" } },
+      { id: "u3", name: "User 3", role: "FUNCIONARIO", manager: null }
+    ]);
+    mockPrismaFindMany.mockResolvedValueOnce([]); // No Directors
+
+    const result = await getTeamMembersForTimes("rh-1", "RH");
+    expect(result.kind).toBe("rh");
+    const gIds = result.gerentes.map(g => g.gerenteId);
+    expect(gIds).toContain("g1");
+    expect(gIds).toContain("g2");
+    expect(gIds).toContain("sem-gerente");
+  });
 });

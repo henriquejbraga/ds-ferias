@@ -48,4 +48,25 @@ describe("loginCrypto", () => {
     const b64url = encrypted.toString("base64url");
     expect(decryptLoginPassword(b64url)).toBe(secret);
   });
+
+  it("retorna falso quando a chave é malformada", () => {
+    process.env.LOGIN_RSA_PRIVATE_KEY = "chave-muito-curta-que-vai-ser-rejeitada-pelo-check-inicial-ou-pelo-createPrivateKey";
+    // Menor que 80 caracteres cai no primeiro if
+    expect(isLoginPasswordEncryptionConfigured()).toBe(false);
+    
+    // Maior que 80 mas inválida (ex: não é PEM PKCS8 real)
+    process.env.LOGIN_RSA_PRIVATE_KEY = "A".repeat(100);
+    expect(isLoginPasswordEncryptionConfigured()).toBe(false);
+  });
+
+  it("trata quebras de linha literais '\\n'", () => {
+    const pemWithLiteralSlashN = privatePem.replace(/\n/g, "\\n");
+    process.env.LOGIN_RSA_PRIVATE_KEY = pemWithLiteralSlashN;
+    expect(isLoginPasswordEncryptionConfigured()).toBe(true);
+  });
+
+  it("lança erro ao descriptografar sem chave configurada", () => {
+    delete process.env.LOGIN_RSA_PRIVATE_KEY;
+    expect(() => decryptLoginPassword("abc")).toThrow("LOGIN_RSA_PRIVATE_KEY não configurada");
+  });
 });
