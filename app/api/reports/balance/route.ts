@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import { getRoleLevel, getRoleLabel, calculateVacationBalance } from "@/lib/vacationRules";
 import { findUsersWithVacationForBalance } from "@/repositories/userRepository";
+import { escapeCsvFormulas } from "@/lib/csv";
 
 /** GET: relatório CSV de saldo de férias por colaborador (apenas RH). */
 export async function GET() {
@@ -32,10 +33,10 @@ export async function GET() {
   const lines = users.map((u) => {
     const balance = calculateVacationBalance(u.hireDate, u.vacationRequests);
     return [
-      u.name.replace(/;/g, ","),
-      u.email.replace(/;/g, ","),
-      getRoleLabel(u.role).replace(/;/g, ","),
-      (u.department ?? "").replace(/;/g, ","),
+      escapeCsvFormulas(u.name),
+      escapeCsvFormulas(u.email),
+      escapeCsvFormulas(getRoleLabel(u.role)),
+      escapeCsvFormulas(u.department ?? ""),
       u.hireDate ? new Date(u.hireDate).toLocaleDateString("pt-BR") : "",
       balance.entitledDays,
       balance.usedDays,
