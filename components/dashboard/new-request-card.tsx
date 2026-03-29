@@ -646,8 +646,8 @@ export function NewRequestCardClient({
     return {
       periods: periodStats,
       validPeriods: periodStats.filter((p) => p.days > 0).length,
-      totalDays: periodStats.reduce((sum, p) => sum + p.days, 0),
-      totalBusinessDays: periodStats.reduce((sum, p) => sum + p.businessDays, 0),
+      totalDays: periodStats.reduce((sum: number, p: any) => sum + p.days, 0),
+      totalBusinessDays: periodStats.reduce((sum: number, p: any) => sum + p.businessDays, 0),
     };
   }
 

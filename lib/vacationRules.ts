@@ -354,7 +354,7 @@ export function calculateVacationBalance(
   if (!hireDate) {
     const usedDays = approvedRequests
       .filter((r) => isVacationApprovedStatus(r.status) && new Date(r.startDate).getUTCFullYear() === currentYear)
-      .reduce((sum, r) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
+      .reduce((sum: number, r: any) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
     const normalizedUsed = Math.min(30, usedDays);
     const pendingDays = calcUsedDays(approvedRequests, "PENDENTE", currentYear);
     const normalizedPending = Math.min(Math.max(0, 30 - normalizedUsed), pendingDays);
@@ -402,11 +402,11 @@ export function calculateVacationBalance(
 
   const totalUsed = approvedRequests
     .filter((r) => isVacationApprovedStatus(r.status) && new Date(r.endDate) >= cutoff)
-    .reduce((sum, r) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
+    .reduce((sum: number, r: any) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
 
   const totalPending = approvedRequests
     .filter((r) => r.status === "PENDENTE" && new Date(r.endDate) >= cutoff)
-    .reduce((sum, r) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
+    .reduce((sum: number, r: any) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
 
   const normalizedUsed = Math.min(totalEntitled, totalUsed);
   const normalizedPending = Math.min(Math.max(0, totalEntitled - normalizedUsed), totalPending);
@@ -436,7 +436,7 @@ function calcUsedDays(
 ): number {
   return requests
     .filter((r) => r.status === status && new Date(r.startDate).getUTCFullYear() === year)
-    .reduce((sum, r) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
+    .reduce((sum: number, r: any) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
 }
 
 // ============================================================

@@ -194,10 +194,10 @@ export function TeamCalendar({
     const dayDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
     const dms = atMidnight(dayDate).getTime();
     const gk = capacityGroupKey(member, capacityScopedByGroup);
-    return memberSegments.reduce((sum, row) => {
+    return memberSegments.reduce((sum: number, row: any) => {
       if (capacityGroupKey(row.member, capacityScopedByGroup) !== gk) return sum;
       const on = row.segments.some(
-        (s) => atMidnight(s.start).getTime() <= dms && dms <= atMidnight(s.end).getTime(),
+        (s: any) => atMidnight(s.start).getTime() <= dms && dms <= atMidnight(s.end).getTime(),
       );
       return sum + (on ? 1 : 0);
     }, 0);
@@ -219,11 +219,11 @@ export function TeamCalendar({
   function countGroupOnYearDay(member: TeamMemberInfoSerialized, dayIdx: number): number {
     const dms = atMidnight(new Date(atMidnight(yearStart).getTime() + dayIdx * ONE_DAY_MS)).getTime();
     const gk = capacityGroupKey(member, capacityScopedByGroup);
-    return sortedMembers.reduce((sum, m) => {
+    return sortedMembers.reduce((sum: number, m: any) => {
       if (capacityGroupKey(m, capacityScopedByGroup) !== gk) return sum;
       const segs = getVacationSegments(m, yearStart, yearEnd);
       const on = segs.some(
-        (s) => atMidnight(s.start).getTime() <= dms && dms <= atMidnight(s.end).getTime(),
+        (s: any) => atMidnight(s.start).getTime() <= dms && dms <= atMidnight(s.end).getTime(),
       );
       return sum + (on ? 1 : 0);
     }, 0);

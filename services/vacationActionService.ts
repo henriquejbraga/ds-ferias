@@ -129,8 +129,8 @@ export const vacationActionService = {
           select: { startDate: true, endDate: true },
         });
 
-        const usedInCycle = cycleRequests.reduce((sum, r) => sum + overlapBusinessDaysInclusive(r.startDate, r.endDate, cycle.start, cycle.end), 0);
-        const requestedInCycle = periods.reduce((sum, p) => sum + overlapBusinessDaysInclusive(p.start, p.end, cycle.start, cycle.end), 0);
+        const usedInCycle = cycleRequests.reduce((sum: number, r: any) => sum + overlapBusinessDaysInclusive(r.startDate, r.endDate, cycle.start, cycle.end), 0);
+        const requestedInCycle = periods.reduce((sum: number, p: any) => sum + overlapBusinessDaysInclusive(p.start, p.end, cycle.start, cycle.end), 0);
         
         if (usedInCycle + requestedInCycle > WORKING_DAYS_LIMIT_PER_CYCLE) {
           throw new DomainError(`Para ${user.role === "GERENTE" ? "gerente" : "diretor"}, o limite é de ${WORKING_DAYS_LIMIT_PER_CYCLE} dias úteis por ciclo.`);
@@ -153,11 +153,11 @@ export const vacationActionService = {
           where: { userId: user.id, status: { in: [...PENDING_OR_APPROVED_VACATION_STATUSES] }, startDate: { gte: firstEntitlementDate } },
           select: { startDate: true, endDate: true, abono: true },
         });
-        const existingDaysInCycle = pendingRequests.reduce((sum, r) => sum + getChargeableDays(r.startDate, r.endDate, !!r.abono), 0);
+        const existingDaysInCycle = pendingRequests.reduce((sum: number, r: any) => sum + getChargeableDays(r.startDate, r.endDate, !!r.abono), 0);
         const cltError = validateCltPeriods(periods.map(p => ({ start: p.start, end: p.end })), { checkAdvanceNotice: true, existingDaysInCycle, entitledDays: 30 });
         if (cltError) throw new DomainError(cltError);
 
-        const totalRequestedDays = periods.reduce((sum, p) => sum + getChargeableDays(p.start, p.end, abono), 0);
+        const totalRequestedDays = periods.reduce((sum: number, p: any) => sum + getChargeableDays(p.start, p.end, abono), 0);
         const isEmployee = user.role === "COLABORADOR" || user.role === "FUNCIONARIO";
         if (isEmployee && totalRequestedDays !== 30) throw new DomainError(`Pela CLT, a solicitação precisa totalizar 30 dias. Faltam ${30 - totalRequestedDays} dia(s).`);
         
@@ -167,19 +167,19 @@ export const vacationActionService = {
         const acquiredPeriods = allAcquisitionPeriods.slice(0, acquiredCount);
         if (acquiredPeriods.length === 0) throw new DomainError("Sem períodos aquisitivos disponíveis.");
 
-        const totalEntitled = acquiredPeriods.reduce((sum, p) => sum + p.accruedDays, 0);
-        const totalUsed = acquiredPeriods.reduce((sum, p) => sum + p.usedDays, 0);
+        const totalEntitled = acquiredPeriods.reduce((sum: number, p: any) => sum + p.accruedDays, 0);
+        const totalUsed = acquiredPeriods.reduce((sum: number, p: any) => sum + p.usedDays, 0);
         const pendingRequests = await prisma.vacationRequest.findMany({
           where: { userId: user.id, status: "PENDENTE" },
           select: { startDate: true, endDate: true, abono: true },
         });
-        const totalPending = pendingRequests.reduce((sum, r) => sum + getChargeableDays(r.startDate, r.endDate, !!r.abono), 0);
+        const totalPending = pendingRequests.reduce((sum: number, r: any) => sum + getChargeableDays(r.startDate, r.endDate, !!r.abono), 0);
         const existingDaysInCycle = totalUsed + totalPending;
 
         const cltError = validateCltPeriods(periods.map(p => ({ start: p.start, end: p.end })), { checkAdvanceNotice: true, existingDaysInCycle, entitledDays: totalEntitled });
         if (cltError) throw new DomainError(cltError);
 
-        const totalRequestedDays = periods.reduce((sum, p) => sum + getChargeableDays(p.start, p.end, abono), 0);
+        const totalRequestedDays = periods.reduce((sum: number, p: any) => sum + getChargeableDays(p.start, p.end, abono), 0);
         const isEmployee = user.role === "COLABORADOR" || user.role === "FUNCIONARIO";
         if (isEmployee && totalRequestedDays !== 30) throw new DomainError(`Pela CLT, a solicitação precisa totalizar 30 dias.`);
         if (totalRequestedDays > Math.max(0, totalEntitled - totalUsed - totalPending)) throw new DomainError("Saldo insuficiente.");

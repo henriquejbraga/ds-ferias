@@ -26,8 +26,8 @@ export function SidebarBalance({
   const isBusinessDaysRole = userRole === "GERENTE" || userRole === "DIRETOR";
   const cycleBusinessLimit = 22;
   const periodsWithRemaining = acquisitionPeriods.filter((p) => p.usedDays < p.accruedDays);
-  const entitledFromOpenPeriods = periodsWithRemaining.reduce((sum, p) => sum + p.accruedDays, 0);
-  const usedFromOpenPeriods = periodsWithRemaining.reduce((sum, p) => sum + p.usedDays, 0);
+  const entitledFromOpenPeriods = periodsWithRemaining.reduce((sum: number, p: any) => sum + p.accruedDays, 0);
+  const usedFromOpenPeriods = periodsWithRemaining.reduce((sum: number, p: any) => sum + p.usedDays, 0);
 
   const shouldFallbackToBalanceWindow =
     !isBusinessDaysRole && acquisitionPeriods.length > 0 && periodsWithRemaining.length === 0 && hasUpcomingVacation;

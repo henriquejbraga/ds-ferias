@@ -252,8 +252,8 @@ export async function POST(request: Request, { params }: Params) {
       return NextResponse.json({ error: "Sem períodos aquisitivos disponíveis para este usuário." }, { status: 400 });
     }
 
-    const totalEntitled = acquiredPeriods.reduce((sum, p) => sum + p.accruedDays, 0);
-    const totalUsed = acquiredPeriods.reduce((sum, p) => sum + p.usedDays, 0);
+    const totalEntitled = acquiredPeriods.reduce((sum: number, p) => sum + p.accruedDays, 0);
+    const totalUsed = acquiredPeriods.reduce((sum: number, p) => sum + p.usedDays, 0);
 
     const pendingForBalance = await prisma.vacationRequest.findMany({
       where: {
