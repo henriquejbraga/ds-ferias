@@ -27,6 +27,14 @@ export type TeamMemberInfoSerialized = {
   calendarSubsectionTitle?: string;
   /** Texto na coluna nome (padrão: user.name) */
   calendarDisplayName?: string;
+  /** Nível de indentação no calendário (0 = raiz, 1 = indentado, etc) */
+  calendarLevel?: number;
+  /** Chave única da linha para controle de árvore */
+  calendarRowKey?: string;
+  /** Chave da linha pai para controle de visibilidade */
+  calendarParentRowKey?: string;
+  /** Indica se a linha é um nó que pode ser expandido */
+  calendarIsBranch?: boolean;
 };
 
 export type TeamDataCoord = {

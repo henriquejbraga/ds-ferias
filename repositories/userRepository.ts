@@ -112,10 +112,10 @@ export async function findAllGerentes() {
   });
 }
 
-/** Gerentes com cadeia de gestores e férias — para calendário / Times. */
+/** Gerentes e Diretores com cadeia de gestores e férias — para calendário / Times. */
 export async function findAllGerentesForTimes() {
   return prisma.user.findMany({
-    where: { role: "GERENTE" },
+    where: { role: { in: ["GERENTE", "DIRETOR"] } },
     orderBy: { name: "asc" },
     include: baseInclude,
   });

@@ -1,12 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { TeamDataSerialized, TeamMemberInfoSerialized } from "./types";
+import { useState } from "react";
+import type { TeamDataRH, TeamDataSerialized, TeamMemberInfoSerialized } from "./types";
 import { matchesFilter } from "./filters";
 import { TimesViewFilterBar } from "./TimesViewFilterBar";
-import { TimesViewCoordTeamsList } from "./TimesViewCoordTeamsList";
-import { TeamCalendar } from "@/components/calendar/TeamCalendar";
-import { buildRhDirectorateCalendarMembers } from "./buildRhCalendarMembers";
+import { TimesViewHierarchy } from "./TimesViewHierarchy";
 
 type Props = {
   teamData: TeamDataSerialized;
@@ -15,11 +13,14 @@ type Props = {
 export function TimesViewClient({ teamData }: Props) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("TODOS");
+  const [roleFilter, setRoleFilter] = useState<string>("ALL");
+  const [directorateFilter, setDirectorateFilter] = useState<string>("ALL");
   const [managerFilter, setManagerFilter] = useState<string>("ALL");
   const [coordinatorFilter, setCoordinatorFilter] = useState<string>("ALL");
   const [teamFilter, setTeamFilter] = useState<string>("ALL");
 
-  const filterMembers = (members: TeamMemberInfoSerialized[]) => members.filter((m) => matchesFilter(m, query, statusFilter));
+  const filterMembers = (members: TeamMemberInfoSerialized[], directorateName: string = "") =>
+    members.filter((m) => matchesFilter(m, query, statusFilter, roleFilter, directorateFilter, directorateName));
 
   function hasFutureVacation(member: TeamMemberInfoSerialized): boolean {
     const today = new Date();
@@ -31,42 +32,23 @@ export function TimesViewClient({ teamData }: Props) {
     });
   }
 
-  function exportRowsToCsv(rows: Array<{
-    gerente: string;
-    coordenador: string;
-    time: string;
-    colaborador: string;
-    papel: string;
-    departamento: string;
-    status: string;
-    saldoDisponivel: number;
-    pendente: number;
-  }>) {
+  function exportRowsToCsv(
+    rows: Array<{
+      diretoria: string;
+      gerente: string;
+      coordenador: string;
+      time: string;
+      colaborador: string;
+      papel: string;
+      departamento: string;
+      status: string;
+      saldoDisponivel: number;
+      pendente: number;
+    }>,
+  ) {
     const lines = [
-      [
-        "Gerente",
-        "Coordenador",
-        "Time",
-        "Colaborador",
-        "Papel",
-        "Departamento",
-        "StatusFerias",
-        "SaldoDisponivel",
-        "DiasPendentes",
-      ].join(";"),
-      ...rows.map((r) =>
-        [
-          r.gerente,
-          r.coordenador,
-          r.time,
-          r.colaborador,
-          r.papel,
-          r.departamento,
-          r.status,
-          String(r.saldoDisponivel),
-          String(r.pendente),
-        ].join(";"),
-      ),
+      ["Diretoria", "Gerente", "Coordenador", "Time", "Colaborador", "Papel", "Departamento", "StatusFerias", "SaldoDisponivel", "DiasPendentes"].join(";"),
+      ...rows.map((r) => [r.diretoria, r.gerente, r.coordenador, r.time, r.colaborador, r.papel, r.departamento, r.status, String(r.saldoDisponivel), String(r.pendente)].join(";")),
     ];
     const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -77,188 +59,77 @@ export function TimesViewClient({ teamData }: Props) {
     URL.revokeObjectURL(url);
   }
 
-  const GERENCIA_LABELS = [
-    "Gerência de Plataformas",
-    "Gerência de Produtos Digitais",
-    "Gerência de Operações Digitais",
-    "Gerência de Experiência e Design",
-    "Gerência de Dados e Performance",
-  ];
+  // Normalizar dados para estrutura de hierarquia
+  const isCoordOnly = teamData.kind === "coord";
+  const gerentesBase: TeamDataRH["gerentes"] = isCoordOnly 
+    ? [{
+        gerenteId: "coord-root",
+        gerenteName: "Minha Coordenação",
+        diretorName: "Meu Time",
+        gerenteSelf: teamData.coordinatorSelf, // O coordenador entra como "líder" da seção para ver suas próprias férias
+        coordinatorMembers: [], 
+        teams: teamData.teams
+      }]
+    : teamData.gerentes;
 
-  function getGerenciaLabel(index: number): string {
-    if (index < GERENCIA_LABELS.length) return GERENCIA_LABELS[index];
-    return `Gerência Estratégica ${index + 1}`;
-  }
+  const directorateOptions = Array.from(
+    new Set(gerentesBase.map((g) => g.diretorName || "Diretoria Geral"))
+  ).map((name) => ({ value: name, label: name }));
 
-  if (teamData.kind === "coord") {
-    const teamsFiltered = teamData.teams
-      .filter((team) => teamFilter === "ALL" || team.teamKey === teamFilter)
-      .map((team) => ({ ...team, members: filterMembers(team.members) }))
-      .filter((t) => t.members.length > 0);
+  const managerOptions = gerentesBase
+    .filter((g) => directorateFilter === "ALL" || (g.diretorName || "Diretoria Geral") === directorateFilter)
+    .map((g) => ({ value: g.gerenteId, label: g.gerenteName }));
 
-    const teamOptions = [
-      { value: "ALL", label: "Todos os times" },
-      ...teamData.teams.map((t) => ({ value: t.teamKey, label: t.teamName })),
-    ];
-
-    return (
-      <div className="space-y-6">
-        <TimesViewFilterBar
-          query={query}
-          setQuery={setQuery}
-          statusFilter={statusFilter}
-          setStatusFilter={setStatusFilter}
-          teamFilter={teamFilter}
-          setTeamFilter={setTeamFilter}
-          teamOptions={teamOptions}
-          onExportCsv={() => {
-            const coordSelf = teamData.kind === "coord" ? teamData.coordinatorSelf : undefined;
-            const rows = teamsFiltered.flatMap((team, idx) => {
-              const coordRow =
-                idx === 0 && coordSelf
-                  ? [
-                      {
-                        gerente: "-",
-                        coordenador: team.coordinatorName,
-                        time: "Coordenação",
-                        colaborador: coordSelf.user.name,
-                        papel: coordSelf.user.role,
-                        departamento: coordSelf.user.department ?? "",
-                        status: coordSelf.isOnVacationNow
-                          ? "EM_FERIAS"
-                          : hasFutureVacation(coordSelf)
-                            ? "FERIAS_MARCADAS"
-                            : "FERIAS_A_TIRAR",
-                        saldoDisponivel: coordSelf.balance.availableDays,
-                        pendente: coordSelf.balance.pendingDays,
-                      },
-                    ]
-                  : [];
-              return [
-                ...coordRow,
-                ...team.members.map((m) => ({
-                  gerente: "-",
-                  coordenador: team.coordinatorName,
-                  time: team.teamName,
-                  colaborador: m.user.name,
-                  papel: m.user.role,
-                  departamento: m.user.department ?? "",
-                  status: m.isOnVacationNow
-                    ? "EM_FERIAS"
-                    : hasFutureVacation(m)
-                      ? "FERIAS_MARCADAS"
-                      : "FERIAS_A_TIRAR",
-                  saldoDisponivel: m.balance.availableDays,
-                  pendente: m.balance.pendingDays,
-                })),
-              ];
-            });
-            exportRowsToCsv(rows);
-          }}
-        />
-        <TimesViewCoordTeamsList teams={teamsFiltered} coordinatorSelf={teamData.coordinatorSelf} />
-      </div>
-    );
-  }
-
-  const gerentesComNomesFuncionais = teamData.gerentes.map((g, i) => {
-    const originalGerenteName = g.gerenteName;
-    const coordenadoresUnicos = Array.from(
-      new Set([
-        ...g.teams.map((t) => t.coordinatorId),
-        ...(g.coordinatorMembers?.map((c) => c.user.id) ?? []),
-      ]),
-    );
-    const coordLabelById = new Map<string, string>();
-    coordenadoresUnicos.forEach((id, idx) => {
-      coordLabelById.set(id, `Coordenação ${idx + 1}`);
-    });
-    return {
-      ...g,
-      gerenteName: getGerenciaLabel(i),
-      originalGerenteName,
-      teams: g.teams.map((t) => ({
-        ...t,
-        originalCoordinatorName: t.coordinatorName,
-        coordinatorName: coordLabelById.get(t.coordinatorId) ?? "Coordenação",
-      })),
-      coordinatorMembers: g.coordinatorMembers?.map((c) => ({
-        ...c,
-        originalCoordinationName: c.user.name,
-      })),
-    };
-  });
-
-  const managerOptions = [
-    { value: "ALL", label: "Todas as gerências" },
-    ...gerentesComNomesFuncionais.map((g) => ({ value: g.gerenteId, label: g.gerenteName })),
-  ];
   const coordinatorMap = new Map<string, string>();
-  gerentesComNomesFuncionais.forEach((g) => {
+  gerentesBase.forEach((g) => {
+    if (directorateFilter !== "ALL" && (g.diretorName || "Diretoria Geral") !== directorateFilter) return;
     if (managerFilter !== "ALL" && g.gerenteId !== managerFilter) return;
     g.teams.forEach((t) => coordinatorMap.set(t.coordinatorId, t.coordinatorName));
   });
-  const coordinatorOptions = [
-    { value: "ALL", label: "Todos os coordenadores" },
-    ...Array.from(coordinatorMap.entries()).map(([value, label]) => ({ value, label })),
-  ];
+  const coordinatorOptions = Array.from(coordinatorMap.entries()).map(([value, label]) => ({ value, label }));
+
   const teamMap = new Map<string, string>();
-  gerentesComNomesFuncionais.forEach((g) => {
+  gerentesBase.forEach((g) => {
+    if (directorateFilter !== "ALL" && (g.diretorName || "Diretoria Geral") !== directorateFilter) return;
     if (managerFilter !== "ALL" && g.gerenteId !== managerFilter) return;
     g.teams.forEach((t) => {
       if (coordinatorFilter !== "ALL" && t.coordinatorId !== coordinatorFilter) return;
       teamMap.set(t.teamKey, t.teamName);
     });
   });
-  const teamOptions = [
-    { value: "ALL", label: "Todos os times" },
-    ...Array.from(teamMap.entries()).map(([value, label]) => ({ value, label })),
-  ];
+  const teamOptions = Array.from(teamMap.entries()).map(([value, label]) => ({ value, label }));
 
-  const diretorNomesDestaque = Array.from(
-    new Set(
-      gerentesComNomesFuncionais
-        .map((g) => g.diretorName)
-        .filter((n): n is string => Boolean(n)),
-    ),
-  );
-
-  const gerentesFiltered = gerentesComNomesFuncionais
+  const gerentesFiltered = gerentesBase
+    .filter((g) => directorateFilter === "ALL" || (g.diretorName || "Diretoria Geral") === directorateFilter)
     .filter((g) => managerFilter === "ALL" || g.gerenteId === managerFilter)
-    .map((g) => ({
-      ...g,
-      coordinatorMembers: g.coordinatorMembers
-        ? filterMembers(g.coordinatorMembers)
-        : undefined,
-      teams: g.teams
-        .filter((team) => coordinatorFilter === "ALL" || team.coordinatorId === coordinatorFilter)
-        .filter((team) => teamFilter === "ALL" || team.teamKey === teamFilter)
-        .map((team) => ({ ...team, members: filterMembers(team.members) }))
-        .filter((t) => t.members.length > 0),
-    }))
-    .filter(
-      (g) =>
-        g.teams.length > 0 ||
-        (g.coordinatorMembers !== undefined && g.coordinatorMembers.length > 0),
-    );
+    .map((g) => {
+      const dName = g.diretorName || "Diretoria Geral";
+      return {
+        ...g,
+        coordinatorMembers: g.coordinatorMembers ? filterMembers(g.coordinatorMembers, dName) : undefined,
+        teams: g.teams
+          .filter((team) => coordinatorFilter === "ALL" || team.coordinatorId === coordinatorFilter)
+          .filter((team) => teamFilter === "ALL" || team.teamKey === teamFilter)
+          .map((team) => ({ ...team, members: filterMembers(team.members, dName) }))
+          .filter((t) => (t.members.length > 0) || (coordinatorFilter !== "ALL")),
+      };
+    })
+    .filter((g) => g.teams.some(t => t.members.length > 0) || (g.coordinatorMembers?.length ?? 0) > 0 || (managerFilter !== "ALL"));
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-lg border border-[#dbeafe] bg-[#eff6ff] px-4 py-3 text-sm text-[#1e3a8a] dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-blue-200">
-        <div className="font-semibold">Diretoria: Estratégia Digital</div>
-        {diretorNomesDestaque.length > 0 && (
-          <p className="mt-1 text-xs font-normal text-[#1e40af] dark:text-blue-300/90">
-            Diretor(a): {diretorNomesDestaque.join(" · ")}
-          </p>
-        )}
-      </div>
+    <div className="space-y-10">
       <TimesViewFilterBar
         query={query}
         setQuery={setQuery}
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
-        managerFilter={managerFilter}
-        setManagerFilter={setManagerFilter}
+        roleFilter={roleFilter}
+        setRoleFilter={setRoleFilter}
+        directorateFilter={isCoordOnly ? undefined : directorateFilter}
+        setDirectorateFilter={isCoordOnly ? undefined : setDirectorateFilter}
+        directorateOptions={directorateOptions}
+        managerFilter={isCoordOnly ? undefined : managerFilter}
+        setManagerFilter={isCoordOnly ? undefined : setManagerFilter}
         managerOptions={managerOptions}
         coordinatorFilter={coordinatorFilter}
         setCoordinatorFilter={setCoordinatorFilter}
@@ -268,102 +139,29 @@ export function TimesViewClient({ teamData }: Props) {
         teamOptions={teamOptions}
         onExportCsv={() => {
           const rows = gerentesFiltered.flatMap((g) => {
-            const fromGerente = g.gerenteSelf
-              ? [
-                  {
-                    gerente: g.gerenteName,
-                    coordenador: "—",
-                    time: "Gerência",
-                    colaborador: g.gerenteSelf.user.name,
-                    papel: g.gerenteSelf.user.role,
-                    departamento: g.gerenteSelf.user.department ?? "",
-                    status: g.gerenteSelf.isOnVacationNow
-                      ? "EM_FERIAS"
-                      : hasFutureVacation(g.gerenteSelf)
-                        ? "FERIAS_MARCADAS"
-                        : "FERIAS_A_TIRAR",
-                    saldoDisponivel: g.gerenteSelf.balance.availableDays,
-                    pendente: g.gerenteSelf.balance.pendingDays,
-                  },
-                ]
-              : [];
+            const dName = g.diretorName || "Diretoria Geral";
+            const fromGerente = g.gerenteSelf ? [{
+              diretoria: dName, gerente: g.gerenteName, coordenador: "—", time: "Gerência", colaborador: g.gerenteSelf.user.name, papel: g.gerenteSelf.user.role, departamento: g.gerenteSelf.user.department ?? "", status: g.gerenteSelf.isOnVacationNow ? "EM_FERIAS" : hasFutureVacation(g.gerenteSelf) ? "FERIAS_MARCADAS" : "FERIAS_A_TIRAR", saldoDisponivel: g.gerenteSelf.balance.availableDays, pendente: g.gerenteSelf.balance.pendingDays,
+            }] : [];
             const fromCoords = (g.coordinatorMembers ?? []).map((m) => ({
-              gerente: g.gerenteName,
-              coordenador: "—",
-              time: "Coordenação",
-              colaborador: m.user.name,
-              papel: m.user.role,
-              departamento: m.user.department ?? "",
-              status: m.isOnVacationNow
-                ? "EM_FERIAS"
-                : hasFutureVacation(m)
-                  ? "FERIAS_MARCADAS"
-                  : "FERIAS_A_TIRAR",
-              saldoDisponivel: m.balance.availableDays,
-              pendente: m.balance.pendingDays,
+              diretoria: dName, gerente: g.gerenteName, coordenador: "—", time: "Coordenação", colaborador: m.user.name, papel: m.user.role, departamento: m.user.department ?? "", status: m.isOnVacationNow ? "EM_FERIAS" : hasFutureVacation(m) ? "FERIAS_MARCADAS" : "FERIAS_A_TIRAR", saldoDisponivel: m.balance.availableDays, pendente: m.balance.pendingDays,
             }));
-            const fromTeams = g.teams.flatMap((team) =>
-              team.members.map((m) => ({
-                gerente: g.gerenteName,
-                coordenador: team.coordinatorName,
-                time: team.teamName,
-                colaborador: m.user.name,
-                papel: m.user.role,
-                departamento: m.user.department ?? "",
-                status: m.isOnVacationNow
-                  ? "EM_FERIAS"
-                  : hasFutureVacation(m)
-                    ? "FERIAS_MARCADAS"
-                    : "FERIAS_A_TIRAR",
-                saldoDisponivel: m.balance.availableDays,
-                pendente: m.balance.pendingDays,
-              })),
-            );
+            const fromTeams = g.teams.flatMap((team) => team.members.map((m) => ({
+              diretoria: dName, gerente: g.gerenteName, coordenador: team.coordinatorName, time: team.teamName, colaborador: m.user.name, papel: m.user.role, departamento: m.user.department ?? "", status: m.isOnVacationNow ? "EM_FERIAS" : hasFutureVacation(m) ? "FERIAS_MARCADAS" : "FERIAS_A_TIRAR", saldoDisponivel: m.balance.availableDays, pendente: m.balance.pendingDays,
+            })));
             return [...fromGerente, ...fromCoords, ...fromTeams];
           });
           exportRowsToCsv(rows);
         }}
       />
-      <RhDirectorateCalendarSection gerentesFiltered={gerentesFiltered} />
+      
+      {gerentesFiltered.length > 0 ? (
+        <TimesViewHierarchy gerentesFiltered={gerentesFiltered} isCoordView={isCoordOnly} />
+      ) : (
+        <div className="rounded-xl border border-dashed border-[#e2e8f0] bg-white py-12 text-center dark:border-[#252a35] dark:bg-[#1a1d23]">
+          <p className="text-[#64748b] dark:text-slate-400">Nenhum colaborador ou liderança no filtro atual.</p>
+        </div>
+      )}
     </div>
   );
 }
-
-function RhDirectorateCalendarSection({
-  gerentesFiltered,
-}: {
-  gerentesFiltered: Parameters<typeof buildRhDirectorateCalendarMembers>[0];
-}) {
-  const calendarMembers = useMemo(
-    () => buildRhDirectorateCalendarMembers(gerentesFiltered),
-    [gerentesFiltered],
-  );
-
-  if (calendarMembers.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-[#e2e8f0] bg-white py-12 text-center dark:border-[#252a35] dark:bg-[#1a1d23]">
-        <p className="text-[#64748b] dark:text-slate-400">
-          Nenhum colaborador ou coordenação no filtro atual.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-lg font-semibold text-[#1a1d23] dark:text-white">
-          Visão geral — time completo
-        </h2>
-        <p className="mt-1 text-sm text-[#64748b] dark:text-slate-400">
-          Calendário da diretoria com coordenadores e colaboradores por time. Use os filtros acima (nome,
-          gerência, coordenação, time). No calendário, alterne mês/ano e use{" "}
-          <span className="font-medium text-[#475569] dark:text-slate-300">Exportar férias (CSV)</span> para
-          o período visível.
-        </p>
-      </div>
-      <TeamCalendar members={calendarMembers} capacityScopedByGroup showExportCsv />
-    </section>
-  );
-}
-

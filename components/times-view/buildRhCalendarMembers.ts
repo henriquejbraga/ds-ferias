@@ -1,4 +1,3 @@
-import { getRoleLabel } from "@/lib/vacationRules";
 import type { TeamMemberInfoSerialized } from "./types";
 
 type GerenteTeam = {
@@ -10,79 +9,134 @@ type GerenteTeam = {
   originalCoordinatorName?: string;
 };
 
+export function getRoleLabelShort(role: string): string {
+  if (role === "GERENTE") return "Gerente";
+  if (role === "COORDENADOR" || role === "GESTOR") return "Coord";
+  if (role === "DIRETOR") return "Diretor(a)";
+  return "";
+}
+
 export type GerenteBlockForCalendar = {
   gerenteId: string;
   gerenteName: string;
+  diretorId?: string | null;
+  diretorName?: string | null;
   gerenteSelf?: TeamMemberInfoSerialized;
   coordinatorMembers?: TeamMemberInfoSerialized[];
   teams: GerenteTeam[];
 };
 
-/**
- * Uma única lista para o calendário consolidado da diretoria: coordenadores por gerência,
- * depois colaboradores por time (capacidade isolada por time / bloco de coordenação).
- */
 export function buildRhDirectorateCalendarMembers(
   gerentes: GerenteBlockForCalendar[],
 ): TeamMemberInfoSerialized[] {
   const out: TeamMemberInfoSerialized[] = [];
   const seenUserIds = new Set<string>();
+  
   const push = (m: TeamMemberInfoSerialized) => {
     if (seenUserIds.has(m.user.id)) return;
     seenUserIds.add(m.user.id);
     out.push(m);
   };
 
-  const sortedGerentes = [...gerentes].sort((a, b) =>
-    a.gerenteName.localeCompare(b.gerenteName, "pt-BR", { sensitivity: "base" }),
-  );
+  const directorates = new Map<string, GerenteBlockForCalendar[]>();
+  gerentes.forEach(g => {
+    const dName = g.diretorName || "Diretoria Geral";
+    if (!directorates.has(dName)) directorates.set(dName, []);
+    directorates.get(dName)!.push(g);
+  });
 
-  for (const g of sortedGerentes) {
-    const coordKey = `lideranca-gerente-${g.gerenteId}`;
-    if (g.gerenteSelf) {
-      push({
-        ...g.gerenteSelf,
-        calendarCapacityGroupKey: `gerente-self-${g.gerenteId}`,
-        calendarSectionOrder: 0,
-        calendarSectionTitle: `${g.gerenteName} — Gerente`,
-        calendarDisplayName: `${g.gerenteSelf.user.name} · ${getRoleLabel("GERENTE")}`,
-      });
-    }
-    const coordinations = [...(g.coordinatorMembers ?? [])].sort((a, b) =>
-      (a.user.name ?? "").localeCompare(b.user.name ?? "", "pt-BR", { sensitivity: "base" }),
-    );
-    coordinations.forEach((c) => {
-      push({
-        ...c,
-        calendarCapacityGroupKey: coordKey,
-        calendarSectionOrder: 1,
-        calendarSectionTitle: `${g.gerenteName} — Liderança direta (coordenações)`,
-        calendarDisplayName: `${c.user.name} · ${getRoleLabel(c.user.role)}`,
-      });
-    });
+  const sortedDNames = Array.from(directorates.keys()).sort((a, b) => a.localeCompare(b, "pt-BR"));
 
-    const sortedTeams = [...g.teams].sort((a, b) => {
-      const byC = a.coordinatorName.localeCompare(b.coordinatorName, "pt-BR");
-      if (byC !== 0) return byC;
-      return a.teamName.localeCompare(b.teamName, "pt-BR");
-    });
+  for (const dName of sortedDNames) {
+    const dGerentes = directorates.get(dName)!;
+    const dKey = `dir-${dName}`;
 
-    sortedTeams.forEach((team) => {
-      const labelCoord = team.originalCoordinatorName ?? team.coordinatorName;
-      const mems = [...team.members].sort((a, b) =>
-        (a.user.name ?? "").localeCompare(b.user.name ?? "", "pt-BR", { sensitivity: "base" }),
-      );
-      mems.forEach((m) => {
+    out.push({
+      user: { id: dKey, name: dName, role: "DIRETOR" },
+      balance: { availableDays: 0, pendingDays: 0 },
+      isOnVacationNow: false,
+      requests: [],
+      calendarDisplayName: `📁 DIRETORIA: ${dName}`,
+      calendarLevel: 0,
+      calendarRowKey: dKey,
+      calendarIsBranch: true,
+    } as any);
+
+    const sortedGerentes = dGerentes.sort((a, b) => a.gerenteName.localeCompare(b.gerenteName, "pt-BR"));
+
+    for (const g of sortedGerentes) {
+      const gTitleKey = `ger-title-${g.gerenteId}`;
+      out.push({
+        user: { id: gTitleKey, name: g.gerenteName, role: "GERENTE" },
+        balance: { availableDays: 0, pendingDays: 0 },
+        isOnVacationNow: false,
+        requests: [],
+        calendarDisplayName: `  ↳ 📂 GERÊNCIA: ${g.gerenteName}`,
+        calendarLevel: 1,
+        calendarRowKey: gTitleKey,
+        calendarParentRowKey: dKey,
+        calendarIsBranch: true,
+      } as any);
+
+      if (g.gerenteSelf) {
+        const roleLabel = getRoleLabelShort(g.gerenteSelf.user.role);
         push({
-          ...m,
-          calendarCapacityGroupKey: team.teamKey,
-          calendarSectionOrder: 2,
-          calendarSectionTitle: `${g.gerenteName} — Colaboradores (por time)`,
-          calendarSubsectionTitle: `${labelCoord} · ${team.teamName}`,
-          calendarDisplayName: `${m.user.name} · ${getRoleLabel(m.user.role)}`,
+          ...g.gerenteSelf,
+          calendarDisplayName: `    ↳ 👤 ${g.gerenteSelf.user.name}${roleLabel ? ` (${roleLabel})` : ""}`,
+          calendarLevel: 2,
+          calendarRowKey: `member-${g.gerenteSelf.user.id}-${gTitleKey}`,
+          calendarParentRowKey: gTitleKey,
+        });
+      }
+
+      // Agrupar times por coordenador para resolver o bug de distribuição
+      const coordIds = Array.from(new Set([
+        ...(g.coordinatorMembers?.map(c => c.user.id) ?? []),
+        ...g.teams.map(t => t.coordinatorId)
+      ]));
+
+      coordIds.forEach(cId => {
+        const coordUser = g.coordinatorMembers?.find(cm => cm.user.id === cId);
+        const coordTeams = g.teams.filter(t => t.coordinatorId === cId);
+        const cKey = `coord-branch-${cId}-${g.gerenteId}`;
+
+        if (coordUser) {
+            push({
+                ...coordUser,
+                calendarDisplayName: `    ↳ 👤 COORDENAÇÃO: ${coordUser.user.name}`,
+                calendarLevel: 2,
+                calendarRowKey: cKey,
+                calendarParentRowKey: gTitleKey,
+                calendarIsBranch: true,
+            });
+        }
+
+        coordTeams.forEach(team => {
+            const tKey = `team-branch-${team.teamKey}`;
+            out.push({
+                user: { id: tKey, name: team.teamName, role: "FUNCIONARIO" },
+                balance: { availableDays: 0, pendingDays: 0 },
+                isOnVacationNow: false,
+                requests: [],
+                calendarDisplayName: `      ↳ 👥 TIME: ${team.teamName}`,
+                calendarLevel: 3,
+                calendarRowKey: tKey,
+                calendarParentRowKey: cKey,
+                calendarIsBranch: true,
+            } as any);
+
+            team.members.forEach(m => {
+                push({
+                    ...m,
+                    calendarDisplayName: `        ↳ ${m.user.name}`,
+                    calendarLevel: 4,
+                    calendarRowKey: `member-${m.user.id}-${team.teamKey}`,
+                    calendarParentRowKey: tKey,
+                });
+            });
         });
       });
-    });
+    }
   }
 
   return out;
