@@ -146,6 +146,45 @@ describe("notifications", () => {
     expect(fetchSpy).toHaveBeenCalled();
   });
 
+  it("sends return to work reminder", async () => {
+    process.env.REMINDER_CHANNELS = "email";
+    await notifyReturnToWorkReminder({
+      requestId: "r-return", userName: "U", userEmail: "u@e.com", managerName: "M", managerEmail: "m@e.com",
+      toEmails: ["m@e.com"], returnDate: new Date("2026-10-16"), startDate: new Date("2026-10-01"), endDate: new Date("2026-10-15")
+    });
+    expect(resendSendMock).toHaveBeenCalled();
+    const args = resendSendMock.mock.calls[0][0];
+    expect(args.subject).toContain("retorno");
+  });
+
+  it("handles webhook notifications", async () => {
+    process.env.NOTIFY_PROVIDER = "webhook";
+    process.env.NOTIFY_WEBHOOK_URL = "https://webhook.test";
+    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({ ok: true } as any);
+
+    await notifyRejected({
+      requestId: "r-web", userName: "U", userEmail: "u@e.com", approverName: "A", note: "X"
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith("https://webhook.test", expect.objectContaining({
+      method: "POST",
+      body: expect.stringContaining("REJECTED")
+    }));
+  });
+
+  it("logs error when webhook fails", async () => {
+    process.env.NOTIFY_PROVIDER = "webhook";
+    process.env.NOTIFY_WEBHOOK_URL = "https://webhook.test";
+    vi.spyOn(globalThis, "fetch" as any).mockResolvedValue({ ok: false, status: 500, text: () => Promise.resolve("Error") } as any);
+    const errSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+
+    await notifyRejected({
+      requestId: "r-web-fail", userName: "U", userEmail: "u@e.com", approverName: "A"
+    });
+
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("webhook failed"), expect.any(Object));
+  });
+
   it("handles 'none' provider", async () => {
     process.env.NOTIFY_PROVIDER = "none";
     const fetchSpy = vi.spyOn(globalThis, "fetch" as any);

@@ -9,7 +9,11 @@ import {
   findAllCoordinatorsForRh,
   findAllGerentesForTimes,
   findUserWithTimesVacations,
-  findAllUsersForAdmin
+  findAllUsersForAdmin,
+  findUserDepartment,
+  findAllGerentes,
+  findUsersWithTimesVacationsByIds,
+  findUsersWithVacationForBalance
 } from "@/repositories/userRepository";
 import { findManagedRequests, findMyRequests, findManagedRequestsLean } from "@/repositories/vacationRepository";
 import { findBlackouts } from "@/repositories/blackoutRepository";
@@ -66,8 +70,29 @@ describe("repositories", () => {
     await findUserWithTimesVacations("u1");
     expect(prisma.user.findUnique).toHaveBeenCalled();
 
-    await findAllUsersForAdmin();
+    await findUserDepartment("u1");
+    expect(prisma.user.findUnique).toHaveBeenCalled();
+
+    await findAllGerentes();
     expect(prisma.user.findMany).toHaveBeenCalled();
+
+    await findUsersWithTimesVacationsByIds(["u1", "u2"]);
+    expect(prisma.user.findMany).toHaveBeenCalled();
+    expect(await findUsersWithTimesVacationsByIds([])).toEqual([]);
+
+    await findUsersWithVacationForBalance();
+    expect(prisma.user.findMany).toHaveBeenCalled();
+
+    // Test findAllUsersForAdmin logic
+    vi.mocked(prisma.user.findMany).mockResolvedValueOnce([
+      { hireDate: new Date(), acquisitionPeriods: [{ usedDays: 10 }] },
+      { hireDate: new Date(), acquisitionPeriods: [] },
+      { hireDate: null, acquisitionPeriods: [] }
+    ] as any);
+    const adminUsers = await findAllUsersForAdmin();
+    expect(adminUsers[0].tookVacationInCurrentCycle).toBe(true);
+    expect(adminUsers[1].tookVacationInCurrentCycle).toBe(false);
+    expect(adminUsers[2].tookVacationInCurrentCycle).toBe(null);
   });
 
   it("findUserWithBalance returns null if prisma returns null", async () => {
