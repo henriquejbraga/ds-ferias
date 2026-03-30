@@ -131,6 +131,17 @@ describe("notifications", () => {
     expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("resend error"), expect.any(Object));
   });
 
+  it("logs exception when resend throws", async () => {
+    resendSendMock.mockRejectedValueOnce(new Error("Network Error"));
+    const errSpy = vi.spyOn(logger, "error").mockImplementation(() => {});
+
+    await notifyRejected({
+      requestId: "r-resend-throw", userName: "U", userEmail: "u@e.com", approverName: "A"
+    });
+
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining("exception"), expect.any(Object));
+  });
+
   it("sends both email and slack reminders when configured", async () => {
     process.env.REMINDER_CHANNELS = "email,slack";
     process.env.SLACK_WEBHOOK_URL = "https://slack.test/webhook";

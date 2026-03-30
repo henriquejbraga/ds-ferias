@@ -21,7 +21,9 @@ export type SessionUser = {
 };
 
 export function isPasswordChangeEnforced(): boolean {
-  return process.env.ENFORCE_PASSWORD_CHANGE === "true";
+  // Ativa por padrão, a menos que explicitamente desativada no .env como 'false'
+  const val = process.env.ENFORCE_PASSWORD_CHANGE;
+  return val === undefined || val === "true";
 }
 
 export function shouldForcePasswordChange(user: SessionUser | null): boolean {

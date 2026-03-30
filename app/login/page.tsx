@@ -93,9 +93,12 @@ export default function LoginPage() {
         return;
       }
 
-      // Navegação completa: o router.push após fetch deixava o RSC do /dashboard correr
-      // antes do cookie de sessão estar disponível para o servidor em alguns casos.
-      window.location.assign("/dashboard");
+      const data = await res.json().catch(() => ({}));
+      if (data.mustChangePassword) {
+        window.location.assign("/change-password");
+      } else {
+        window.location.assign("/dashboard");
+      }
     } catch {
       toast.error("Erro de conexão. Tente novamente.");
       setLoading(false);

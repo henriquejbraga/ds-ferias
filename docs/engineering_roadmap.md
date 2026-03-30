@@ -6,9 +6,9 @@
    - Garantir status codes e validações reais no Prisma em fluxo completo.
    - Focar endpoints de aprovacao/cancelamento/consumo de `AcquisitionPeriod` e export CSV.
 
-2. **Consistencia transacional no consumo do periodo aquisitivo**
-   - Ao aprovar como RH, executar update do `VacationRequest` e incremento do `AcquisitionPeriod.usedDays` em uma unica transacao.
-   - Garantir idempotencia (nao duplo incremento em retry).
+2. **Consistencia transacional no consumo do periodo aquisitivo (CONCLUÍDO)**
+   - Implementado via `prisma.$transaction` e `updateMany` no `vacationActionService.ts`.
+   - Garante idempotência e sincronia entre status do pedido e saldo do período.
 
 3. **Validação de payloads com schema**
    - Introduzir Zod (ou equivalente) para:

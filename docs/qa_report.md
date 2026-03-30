@@ -1,21 +1,23 @@
 ## Relatorio de QA (qualidade e confiabilidade)
 
-### Status atual (baseline)
+### Status atual (março/2026)
 
 - Testes: Vitest (suite de unidade/servicos/repositórios).
-- Mutation testing: Stryker com limiar alvo (>= 85%).
-- Cobertura de statements: alvo >= 95% e historicamente ~97% (baseline do projeto).
+- Mutation testing: Stryker configurado.
+- Cobertura de statements: **91.00%** (alvo >= 90%).
+- Cobertura de linhas: **94.55%**.
 
 ### O que esta coberto bem
 
-- Regras CLT e validadores: `tests/vacationRules.test.ts`
-- Fluxo e permissões: visibilidade, aprovações e limitações por papel
-- Filtros de dashboard e rotas de listagem
-- Componentes de badge/visibilidade em unit tests quando ha necessidade de texto exato
+- Regras CLT e validadores: `tests/vacationRules.test.ts` (95%+ de cobertura de linhas).
+- Repositórios: `userRepository.ts` e `vacationRepository.ts` (100% de cobertura).
+- Fluxo e permissões: visibilidade, aprovações e limitações por papel.
+- Sincronização de períodos aquisitivos: `acquisitionRepository.ts` (98%+).
+- Notificações e lembretes: `notifications.ts`.
 
 ### Execucao rapida (agora)
 
-- `npm run test:run`: 15 arquivos, 190 testes aprovados.
+- `npm run test:run`: **30 arquivos, 290 testes aprovados**.
 
 ### Onde ha risco residual
 

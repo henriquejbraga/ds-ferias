@@ -70,7 +70,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Credenciais inválidas" }, { status: 401 });
   }
 
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.json({
+    ok: true,
+    mustChangePassword: user.mustChangePassword
+  });
   setSessionCookieOnResponse(response, user);
   logger.info("Login: sucesso", { userId: user.id, email: user.email, role: user.role });
   return response;
