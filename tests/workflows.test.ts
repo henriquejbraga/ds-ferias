@@ -78,13 +78,14 @@ describe("Workflow: request creation validation (CLT + blackout)", () => {
   // Escolhe um período futuro que não caia em sexta/sábado (início) nem sábado/domingo (término),
   // para não ser reprovado pelas regras de DSR.
   const baseStart = new Date();
-  baseStart.setDate(baseStart.getDate() + 60);
+  baseStart.setDate(baseStart.getDate() + 90);
   function pickValidPeriod() {
     let start = new Date(baseStart);
     let end = new Date(start);
     end.setDate(end.getDate() + 13);
     // 0=domingo,1=segunda,...,5=sexta,6=sábado
-    while ([5, 6].includes(start.getDay()) || [0, 6].includes(end.getDay())) {
+    // CLT: Início não pode ser nos 2 dias que antecedem feriado ou DSR
+    while ([4, 5, 6].includes(start.getDay()) || [0, 6].includes(end.getDay())) {
       start.setDate(start.getDate() + 1);
       end = new Date(start);
       end.setDate(end.getDate() + 13);

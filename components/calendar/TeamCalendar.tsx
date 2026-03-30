@@ -221,7 +221,7 @@ export function TeamCalendar({
                             </span>
                         </div>
                     </div>
-                    {member.calendarIsBranch ? (
+                    {member.calendarIsBranch && (!member.requests || member.requests.length === 0) ? (
                         <div className="h-8 border-b border-blue-50/50 bg-blue-50/5 dark:border-blue-900/10 dark:bg-blue-900/5" style={{ width: yearTimelineWidth }} />
                     ) : (
                         <div className={["relative h-8 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: yearTimelineWidth }}>
@@ -264,7 +264,7 @@ export function TeamCalendar({
                             </span>
                         </div>
                     </div>
-                    {member.calendarIsBranch ? (
+                    {member.calendarIsBranch && (!member.requests || member.requests.length === 0) ? (
                         <div className="h-8 border-b border-blue-50/50 bg-blue-50/5 dark:border-blue-900/10 dark:bg-blue-900/5" style={{ width: timelineWidth }} />
                     ) : (
                         <div className={["relative h-8 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: timelineWidth }}>

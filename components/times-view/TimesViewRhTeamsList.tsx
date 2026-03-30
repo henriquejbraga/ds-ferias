@@ -283,14 +283,6 @@ export function TimesViewRhTeamsList({
                                 {coordMember && (
                                   <TeamMemberRow
                                     member={coordMember as TeamMemberInfoSerialized}
-                                    requestsSummary={(
-                                      coordMember.requests as VacationRequestSummary[]
-                                    ).map((r) => ({
-                                      startDate: r.startDate,
-                                      endDate: r.endDate,
-                                      status: r.status,
-                                      abono: r.abono,
-                                    }))}
                                   />
                                 )}
                               </div>
@@ -361,14 +353,6 @@ export function TimesViewRhTeamsList({
                                         <TeamMemberRow
                                           key={member.user.id}
                                           member={member}
-                                          requestsSummary={(
-                                            member.requests as VacationRequestSummary[]
-                                          ).map((r) => ({
-                                            startDate: r.startDate,
-                                            endDate: r.endDate,
-                                            status: r.status,
-                                            abono: r.abono,
-                                          }))}
                                         />
                                       ))}
                                     </>
@@ -389,14 +373,6 @@ export function TimesViewRhTeamsList({
                           <TeamMemberRow
                             key={coord.user.id}
                             member={coord as TeamMemberInfoSerialized}
-                            requestsSummary={(
-                              coord.requests as VacationRequestSummary[]
-                            ).map((r) => ({
-                              startDate: r.startDate,
-                              endDate: r.endDate,
-                              status: r.status,
-                              abono: r.abono,
-                            }))}
                           />
                         ))}
                       </div>
