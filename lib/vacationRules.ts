@@ -332,10 +332,9 @@ export type VacationBalance = {
 
 function getChargeableDays(start: Date, end: Date, hasAbono?: boolean): number {
   const raw = calcDays(start, end);
-  // O período salvo representa o total solicitado no ciclo.
-  // O abono afeta o retorno (gozo), não o consumo de saldo total.
-  void hasAbono;
-  return raw;
+  // CLT: O abono pecuniário (venda de 1/3 das férias) consome 10 dias do saldo de direito,
+  // além dos dias de descanso (gozo) solicitados.
+  return hasAbono ? raw + 10 : raw;
 }
 
 /**

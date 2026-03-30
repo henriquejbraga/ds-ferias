@@ -28,6 +28,7 @@ export type GerenteBlockForCalendar = {
 
 export function buildRhDirectorateCalendarMembers(
   gerentes: GerenteBlockForCalendar[],
+  isCoordView: boolean = false,
 ): TeamMemberInfoSerialized[] {
   const out: TeamMemberInfoSerialized[] = [];
   const seenUserIds = new Set<string>();
@@ -51,45 +52,52 @@ export function buildRhDirectorateCalendarMembers(
     const dGerentes = directorates.get(dName)!;
     const dKey = `dir-${dName}`;
 
-    out.push({
-      user: { id: dKey, name: dName, role: "DIRETOR" },
-      balance: { availableDays: 0, pendingDays: 0 },
-      isOnVacationNow: false,
-      requests: [],
-      calendarDisplayName: `📁 DIRETORIA: ${dName}`,
-      calendarLevel: 0,
-      calendarRowKey: dKey,
-      calendarIsBranch: true,
-    } as any);
+    if (!isCoordView) {
+      out.push({
+        user: { id: dKey, name: dName, role: "DIRETOR" },
+        balance: { availableDays: 0, pendingDays: 0 },
+        isOnVacationNow: false,
+        requests: [],
+        calendarDisplayName: `📁 DIRETORIA: ${dName}`,
+        calendarLevel: 0,
+        calendarRowKey: dKey,
+        calendarIsBranch: true,
+        calendarCapacityGroupKey: dKey,
+      } as any);
+    }
 
     const sortedGerentes = dGerentes.sort((a, b) => a.gerenteName.localeCompare(b.gerenteName, "pt-BR"));
 
     for (const g of sortedGerentes) {
       const gTitleKey = `ger-title-${g.gerenteId}`;
-      out.push({
-        user: { id: gTitleKey, name: g.gerenteName, role: "GERENTE" },
-        balance: { availableDays: 0, pendingDays: 0 },
-        isOnVacationNow: false,
-        requests: [],
-        calendarDisplayName: `  ↳ 📂 GERÊNCIA: ${g.gerenteName}`,
-        calendarLevel: 1,
-        calendarRowKey: gTitleKey,
-        calendarParentRowKey: dKey,
-        calendarIsBranch: true,
-      } as any);
+      
+      if (!isCoordView) {
+        out.push({
+          user: { id: gTitleKey, name: g.gerenteName, role: "GERENTE" },
+          balance: { availableDays: 0, pendingDays: 0 },
+          isOnVacationNow: false,
+          requests: [],
+          calendarDisplayName: `  ↳ 📂 GERÊNCIA: ${g.gerenteName}`,
+          calendarLevel: 1,
+          calendarRowKey: gTitleKey,
+          calendarParentRowKey: dKey,
+          calendarIsBranch: true,
+          calendarCapacityGroupKey: gTitleKey,
+        } as any);
 
-      if (g.gerenteSelf) {
-        const roleLabel = getRoleLabelShort(g.gerenteSelf.user.role);
-        push({
-          ...g.gerenteSelf,
-          calendarDisplayName: `    ↳ 👤 ${g.gerenteSelf.user.name}${roleLabel ? ` (${roleLabel})` : ""}`,
-          calendarLevel: 2,
-          calendarRowKey: `member-${g.gerenteSelf.user.id}-${gTitleKey}`,
-          calendarParentRowKey: gTitleKey,
-        });
+        if (g.gerenteSelf) {
+          const roleLabel = getRoleLabelShort(g.gerenteSelf.user.role);
+          push({
+            ...g.gerenteSelf,
+            calendarDisplayName: `    ↳ 👤 ${g.gerenteSelf.user.name}${roleLabel ? ` (${roleLabel})` : ""}`,
+            calendarLevel: 2,
+            calendarRowKey: `member-${g.gerenteSelf.user.id}-${gTitleKey}`,
+            calendarParentRowKey: gTitleKey,
+            calendarCapacityGroupKey: gTitleKey,
+          });
+        }
       }
 
-      // Agrupar times por coordenador para resolver o bug de distribuição
       const coordIds = Array.from(new Set([
         ...(g.coordinatorMembers?.map(c => c.user.id) ?? []),
         ...g.teams.map(t => t.coordinatorId)
@@ -105,21 +113,27 @@ export function buildRhDirectorateCalendarMembers(
           balance: { availableDays: 0, pendingDays: 0 },
           isOnVacationNow: false,
           requests: [],
-          calendarDisplayName: `    ↳ 👤 COORDENAÇÃO: ${coordDisplayName}`,
-          calendarLevel: 2,
+          calendarDisplayName: isCoordView
+            ? `👤 COORDENAÇÃO: ${coordDisplayName}`
+            : `    ↳ 👤 COORDENAÇÃO: ${coordDisplayName}`,
+          calendarLevel: isCoordView ? 0 : 2,
           calendarRowKey: cKey,
-          calendarParentRowKey: gTitleKey,
+          calendarParentRowKey: isCoordView ? undefined : gTitleKey,
           calendarIsBranch: true,
+          calendarCapacityGroupKey: cKey,
         } as any);
 
         if (coordUser) {
           const roleLabel = getRoleLabelShort(coordUser.user.role);
           push({
             ...coordUser,
-            calendarDisplayName: `      ↳ ${coordUser.user.name}${roleLabel ? ` (${roleLabel})` : ""}`,
-            calendarLevel: 3,
+            calendarDisplayName: isCoordView
+              ? `  ↳ ${coordUser.user.name}${roleLabel ? ` (${roleLabel})` : ""}`
+              : `      ↳ ${coordUser.user.name}${roleLabel ? ` (${roleLabel})` : ""}`,
+            calendarLevel: isCoordView ? 1 : 3,
             calendarRowKey: `coord-member-${coordUser.user.id}-${g.gerenteId}`,
             calendarParentRowKey: cKey,
+            calendarCapacityGroupKey: cKey,
           });
         }
 
@@ -130,20 +144,26 @@ export function buildRhDirectorateCalendarMembers(
                 balance: { availableDays: 0, pendingDays: 0 },
                 isOnVacationNow: false,
                 requests: [],
-                calendarDisplayName: `      ↳ 👥 TIME: ${team.teamName}`,
-                calendarLevel: 3,
+                calendarDisplayName: isCoordView
+                  ? `  ↳ 👥 TIME: ${team.teamName}`
+                  : `      ↳ 👥 TIME: ${team.teamName}`,
+                calendarLevel: isCoordView ? 2 : 3,
                 calendarRowKey: tKey,
                 calendarParentRowKey: cKey,
                 calendarIsBranch: true,
+                calendarCapacityGroupKey: team.teamKey,
             } as any);
 
             team.members.forEach(m => {
                 push({
                     ...m,
-                    calendarDisplayName: `        ↳ ${m.user.name}`,
-                    calendarLevel: 4,
+                    calendarDisplayName: isCoordView
+                      ? `    ↳ ${m.user.name}`
+                      : `        ↳ ${m.user.name}`,
+                    calendarLevel: isCoordView ? 3 : 4,
                     calendarRowKey: `member-${m.user.id}-${team.teamKey}`,
                     calendarParentRowKey: tKey,
+                    calendarCapacityGroupKey: team.teamKey,
                 });
             });
         });

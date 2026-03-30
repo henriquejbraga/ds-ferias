@@ -1,10 +1,83 @@
 "use client";
 
-import { Fragment, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import type { TeamMemberInfoSerialized } from "@/components/times-view/types";
 import { isVacationApprovedStatus } from "@/lib/vacationRules";
 
 const GLOBAL_CAPACITY_KEY = "__global_capacity__";
+
+/** Faixa sobre o “oval” da férias (não a linha inteira): 2+ pessoas do grupo no mesmo dia. */
+const CONFLICT_ON_BAR_STRIP_CLASS =
+  "bg-rose-500/50 shadow-[inset_0_0_0_1px_rgba(190,18,60,0.85)] dark:bg-rose-500/45 dark:shadow-[inset_0_0_0_1px_rgba(253,164,175,0.75)]";
+
+const CONFLICT_DAY_TOOLTIP = "Conflito: mais de uma pessoa do grupo de férias neste dia";
+
+/** Agrupa índices consecutivos [startIdx..endIdx] onde isConflict é true (inclusive). */
+function mergeConflictRuns(
+  startIdx: number,
+  endIdx: number,
+  isConflict: (idx: number) => boolean,
+): Array<{ from: number; to: number }> {
+  const runs: Array<{ from: number; to: number }> = [];
+  let runStart: number | null = null;
+  for (let d = startIdx; d <= endIdx; d++) {
+    const c = isConflict(d);
+    if (c && runStart === null) runStart = d;
+    if (!c && runStart !== null) {
+      runs.push({ from: runStart, to: d - 1 });
+      runStart = null;
+    }
+  }
+  if (runStart !== null) runs.push({ from: runStart, to: endIdx });
+  return runs;
+}
+
+function CalendarLegend() {
+  return (
+    <div
+      className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-md border border-[#e2e8f0] bg-[#f8fafc] px-3 py-2.5 dark:border-[#252a35] dark:bg-[#141720]"
+      role="list"
+      aria-label="Legenda do calendário"
+    >
+      <span className="text-[10px] font-black uppercase tracking-widest text-[#64748b] dark:text-slate-500">
+        Legenda
+      </span>
+      <div className="flex items-center gap-2" role="listitem">
+        <span
+          className="h-3 w-7 shrink-0 rounded border border-[#10b981] bg-[#34d399]/80 dark:border-[#34d399]"
+          aria-hidden
+        />
+        <span className="text-xs text-[#475569] dark:text-slate-300">Férias aprovadas</span>
+      </div>
+      <div className="flex items-center gap-2" role="listitem">
+        <span
+          className="h-3 w-7 shrink-0 rounded border border-[#fbbf24] bg-[#fcd34d]/80 dark:border-[#f59e0b]/80"
+          aria-hidden
+        />
+        <span className="text-xs text-[#475569] dark:text-slate-300">Férias pendentes</span>
+      </div>
+      <div className="flex items-center gap-2" role="listitem">
+        <span
+          className="relative h-3 w-9 shrink-0 overflow-hidden rounded-full border border-[#10b981] bg-[#34d399]/70 dark:border-[#34d399]"
+          aria-hidden
+        >
+          <span
+            className={`absolute inset-y-0 left-[22%] w-[45%] ${CONFLICT_ON_BAR_STRIP_CLASS}`}
+          />
+        </span>
+        <span className="text-xs text-[#475569] dark:text-slate-300">
+          Sobreposição no período: mais de uma pessoa do time de férias neste dia
+        </span>
+      </div>
+      <div className="flex items-center gap-2" role="listitem">
+        <span className="flex h-3 w-7 shrink-0 items-center justify-center" aria-hidden>
+          <span className="h-3 w-px bg-blue-500/70" />
+        </span>
+        <span className="text-xs text-[#475569] dark:text-slate-300">Hoje (linha vertical)</span>
+      </div>
+    </div>
+  );
+}
 
 type Props = {
   members: TeamMemberInfoSerialized[];
@@ -38,17 +111,6 @@ function daysInYear(year: number): number {
   return Math.round((new Date(year + 1, 0, 1).getTime() - new Date(year, 0, 1).getTime()) / ONE_DAY_MS);
 }
 
-function hasSegmentOnDay(
-  segments: Array<{ start: Date; end: Date }>,
-  dayMs: number,
-): boolean {
-  return segments.some((s) => {
-    const sMs = atMidnight(s.start).getTime();
-    const eMs = atMidnight(s.end).getTime();
-    return sMs <= dayMs && dayMs <= eMs;
-  });
-}
-
 function getVacationSegments(member: TeamMemberInfoSerialized, monthStart: Date, monthEnd: Date) {
   const monthStartMs = atMidnight(monthStart).getTime();
   const monthEndMs = atMidnight(monthEnd).getTime();
@@ -62,11 +124,6 @@ function getVacationSegments(member: TeamMemberInfoSerialized, monthStart: Date,
       return { start, end, status: r.status };
     })
     .filter((r) => r.end.getTime() >= monthStartMs && r.start.getTime() <= monthEndMs)
-    .map((r) => ({
-      start: r.start.getTime() < monthStartMs ? atMidnight(monthStart) : r.start,
-      end: r.end.getTime() > monthEndMs ? atMidnight(monthEnd) : r.end,
-      status: r.status,
-    }))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
@@ -184,6 +241,8 @@ export function TeamCalendar({
         </div>
       </div>
 
+      <CalendarLegend />
+
       <div className="max-h-[min(75vh,60rem)] overflow-x-auto overflow-y-auto rounded-md border border-[#e2e8f0] dark:border-[#252a35]">
         <div className="min-w-max">
           <div className="sticky top-0 z-[45] mb-2 flex bg-white shadow-sm dark:bg-[#1a1d23]">
@@ -237,21 +296,34 @@ export function TeamCalendar({
                     ) : (
                     <div className={["relative h-8 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: yearTimelineWidth }}>
                         {todayLine !== null && <div className="pointer-events-none absolute inset-y-0 z-10 w-px bg-blue-500/50" style={{ left: todayLine }} />}
-                        <div className="pointer-events-none absolute inset-0 grid gap-0" style={{ gridTemplateColumns: `repeat(${totalDaysInYear}, minmax(0, 1fr))` }}>
-                            {Array.from({ length: totalDaysInYear }, (_, idx) => {
-                              const dayMs = atMidnight(new Date(atMidnight(yearStart).getTime() + idx * ONE_DAY_MS)).getTime();
-                              const overloaded = countGroupOnYearDay(member, idx) >= 2;
-                              const memberOnVacation = hasSegmentOnDay(segments, dayMs);
-                              return overloaded && memberOnVacation ? <div key={idx} className="bg-red-500/10 border-r border-red-500/20" /> : null;
-                            })}
-                        </div>
                         {segments.map((s, segIdx) => {
                             const sIdx = dayIndexInRange(s.start, yearStart, yearEnd);
                             const eIdx = dayIndexInRange(s.end, yearStart, yearEnd);
                             const dayLeft = sIdx * yearDayWidth;
                             const w = (eIdx - sIdx + 1) * yearDayWidth;
                             const dateLabel = `${s.start.toLocaleDateString("pt-BR")} a ${s.end.toLocaleDateString("pt-BR")}`;
-                            return <div key={segIdx} className={["absolute top-1.5 h-4 border shadow-xs rounded-sm transition-transform hover:scale-y-110", s.status === "PENDENTE" ? "border-amber-400 bg-amber-300/80" : "border-emerald-500 bg-emerald-400/80"].join(" ")} style={{ left: dayLeft, width: w }} title={`Período: ${dateLabel} (${s.status === "PENDENTE" ? "Pendente" : "Aprovado"})`} />;
+                            const baseBar = s.status === "PENDENTE" ? "border-amber-400 bg-amber-300/80" : "border-emerald-500 bg-emerald-400/80";
+                            const conflictRuns = mergeConflictRuns(sIdx, eIdx, (d) => countGroupOnYearDay(member, d) >= 2);
+                            return (
+                              <div
+                                key={segIdx}
+                                className={["absolute top-1.5 z-[5] h-4 overflow-hidden border shadow-xs rounded-sm transition-transform hover:scale-y-110", baseBar].join(" ")}
+                                style={{ left: dayLeft, width: w }}
+                                title={`Período: ${dateLabel} (${s.status === "PENDENTE" ? "Pendente" : "Aprovado"})`}
+                              >
+                                {conflictRuns.map((run, ri) => (
+                                  <div
+                                    key={ri}
+                                    className={`pointer-events-none absolute inset-y-0 ${CONFLICT_ON_BAR_STRIP_CLASS}`}
+                                    style={{
+                                      left: (run.from - sIdx) * yearDayWidth,
+                                      width: (run.to - run.from + 1) * yearDayWidth,
+                                    }}
+                                    title={CONFLICT_DAY_TOOLTIP}
+                                  />
+                                ))}
+                              </div>
+                            );
                         })}
                     </div>
                     )}
@@ -285,21 +357,36 @@ export function TeamCalendar({
                     ) : (
                     <div className={["relative h-8 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: timelineWidth }}>
                         {todayLineLeft !== null && <div className="pointer-events-none absolute inset-y-0 z-10 w-px bg-blue-500/50" style={{ left: todayLineLeft + dayWidth / 2 }} />}
-                        <div className="pointer-events-none absolute inset-0 grid gap-0.5" style={{ gridTemplateColumns: `repeat(${daysInMonth}, minmax(0, 1fr))` }}>
-                            {dayMeta.map((d, idx) => {
-                              const dayMs = atMidnight(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), idx + 1)).getTime();
-                              const overloaded = countGroupOnMonthDay(member, idx) >= 2;
-                              const memberOnVacation = hasSegmentOnDay(segments, dayMs);
-                              return overloaded && memberOnVacation ? <div key={idx} className="bg-red-500/10 border-r border-red-500/20" /> : null;
-                            })}
-                        </div>
                         {segments.map((s, segIdx) => {
                             const start = Math.max(1, s.start.getDate());
                             const end = Math.min(daysInMonth, s.end.getDate());
                             const left = (start - 1) * dayWidth;
                             const w = (end - start + 1) * dayWidth;
                             const dateLabel = `${s.start.toLocaleDateString("pt-BR")} a ${s.end.toLocaleDateString("pt-BR")}`;
-                            return <div key={segIdx} className={["absolute top-1.5 h-4 border shadow-xs rounded-sm transition-transform hover:scale-y-110", s.status === "PENDENTE" ? "border-amber-400 bg-amber-300/80" : "border-emerald-500 bg-emerald-400/80"].join(" ")} style={{ left, width: w }} title={`Período: ${dateLabel} (${s.status === "PENDENTE" ? "Pendente" : "Aprovado"})`} />;
+                            const baseBar = s.status === "PENDENTE" ? "border-amber-400 bg-amber-300/80" : "border-emerald-500 bg-emerald-400/80";
+                            const i0 = start - 1;
+                            const i1 = end - 1;
+                            const conflictRuns = mergeConflictRuns(i0, i1, (dayIdx) => countGroupOnMonthDay(member, dayIdx) >= 2);
+                            return (
+                              <div
+                                key={segIdx}
+                                className={["absolute top-1.5 z-[5] h-4 overflow-hidden border shadow-xs rounded-sm transition-transform hover:scale-y-110", baseBar].join(" ")}
+                                style={{ left, width: w }}
+                                title={`Período: ${dateLabel} (${s.status === "PENDENTE" ? "Pendente" : "Aprovado"})`}
+                              >
+                                {conflictRuns.map((run, ri) => (
+                                  <div
+                                    key={ri}
+                                    className={`pointer-events-none absolute inset-y-0 ${CONFLICT_ON_BAR_STRIP_CLASS}`}
+                                    style={{
+                                      left: (run.from - i0) * dayWidth,
+                                      width: (run.to - run.from + 1) * dayWidth,
+                                    }}
+                                    title={CONFLICT_DAY_TOOLTIP}
+                                  />
+                                ))}
+                              </div>
+                            );
                         })}
                     </div>
                     )}

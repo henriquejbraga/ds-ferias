@@ -5,6 +5,7 @@ import type { TeamDataRH, TeamDataSerialized, TeamMemberInfoSerialized } from ".
 import { matchesFilter } from "./filters";
 import { TimesViewFilterBar } from "./TimesViewFilterBar";
 import { TimesViewHierarchy } from "./TimesViewHierarchy";
+import { getRoleLabel } from "@/lib/vacationRules";
 
 type Props = {
   teamData: TeamDataSerialized;
@@ -22,14 +23,35 @@ export function TimesViewClient({ teamData }: Props) {
   const filterMembers = (members: TeamMemberInfoSerialized[], directorateName: string = "") =>
     members.filter((m) => matchesFilter(m, query, statusFilter, roleFilter, directorateFilter, directorateName));
 
-  function hasFutureVacation(member: TeamMemberInfoSerialized): boolean {
+  function getFormattedPeriods(requests: TeamMemberInfoSerialized["requests"]): string {
+    const valid = requests
+      .filter((r) => r.status === "PENDENTE" || r.status.startsWith("APROVADO") || r.status === "APROVADO_GESTOR")
+      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+
+    if (valid.length === 0) return "—";
+
+    return valid
+      .map((r) => {
+        const s = new Date(r.startDate).toLocaleDateString("pt-BR");
+        const e = new Date(r.endDate).toLocaleDateString("pt-BR");
+        const status = r.status === "PENDENTE" ? "Pendente" : "Aprovado";
+        return `${s} a ${e} (${status})`;
+      })
+      .join(" | ");
+  }
+
+  function getMemberStatusLabel(member: TeamMemberInfoSerialized): string {
+    if (member.isOnVacationNow) return "Em Férias";
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return member.requests.some((r) => {
+    const hasFuture = member.requests.some((r) => {
       const start = new Date(r.startDate);
-      start.setHours(0, 0, 0, 0);
-      return start > today;
+      return (
+        start >= today &&
+        (r.status === "PENDENTE" || r.status.startsWith("APROVADO") || r.status === "APROVADO_GESTOR")
+      );
     });
+    return hasFuture ? "Férias Marcadas" : "Sem agendamento";
   }
 
   function exportRowsToCsv(
@@ -44,33 +66,68 @@ export function TimesViewClient({ teamData }: Props) {
       status: string;
       saldoDisponivel: number;
       pendente: number;
+      periodos: string;
     }>,
   ) {
-    const lines = [
-      ["Diretoria", "Gerente", "Coordenador", "Time", "Colaborador", "Papel", "Departamento", "StatusFerias", "SaldoDisponivel", "DiasPendentes"].join(";"),
-      ...rows.map((r) => [r.diretoria, r.gerente, r.coordenador, r.time, r.colaborador, r.papel, r.departamento, r.status, String(r.saldoDisponivel), String(r.pendente)].join(";")),
+    const headers = [
+      "Diretoria",
+      "Gerente",
+      "Coordenador",
+      "Time/Squad",
+      "Colaborador",
+      "Papel/Cargo",
+      "Departamento",
+      "Situação Atual",
+      "Saldo Disponível (Dias)",
+      "Dias em Aprovação",
+      "Períodos Agendados",
     ];
-    const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8;" });
+
+    const csvContent = [
+      headers.join(";"),
+      ...rows.map((r) =>
+        [
+          r.diretoria,
+          r.gerente,
+          r.coordenador,
+          r.time,
+          r.colaborador,
+          r.papel,
+          r.departamento,
+          r.status,
+          String(r.saldoDisponivel),
+          String(r.pendente),
+          r.periodos,
+        ]
+          .map((val) => `"${String(val).replace(/"/g, '""')}"`)
+          .join(";"),
+      ),
+    ].join("\n");
+
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `times-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `relatorio-ferias-times-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
 
-  // Normalizar dados para estrutura de hierarquia
+  // Normalizar dados: agora Coordenador e Gerente também vem como "rh" para ter a árvore completa
   const isCoordOnly = teamData.kind === "coord";
-  const gerentesBase: TeamDataRH["gerentes"] = isCoordOnly 
+  const gerentesBase = isCoordOnly 
     ? [{
         gerenteId: "coord-root",
         gerenteName: "Minha Coordenação",
         diretorName: "Meu Time",
-        gerenteSelf: teamData.coordinatorSelf, // O coordenador entra como "líder" da seção para ver suas próprias férias
+        gerenteSelf: (teamData as any).coordinatorSelf,
         coordinatorMembers: [], 
-        teams: teamData.teams
+        teams: (teamData as any).teams
       }]
-    : teamData.gerentes;
+    : (teamData as TeamDataRH).gerentes;
+
+  // Se houver apenas 1 gerente e o nome dele for amigável (ou logado), consideramos visão simplificada para a UI (não para o CSV)
+  const isSimplifiedView = teamData.kind === "coord" || (teamData.kind === "rh" && teamData.gerentes.length === 1);
 
   const directorateOptions = Array.from(
     new Set(gerentesBase.map((g) => g.diretorName || "Diretoria Geral"))
@@ -125,11 +182,11 @@ export function TimesViewClient({ teamData }: Props) {
         setStatusFilter={setStatusFilter}
         roleFilter={roleFilter}
         setRoleFilter={setRoleFilter}
-        directorateFilter={isCoordOnly ? undefined : directorateFilter}
-        setDirectorateFilter={isCoordOnly ? undefined : setDirectorateFilter}
+        directorateFilter={isSimplifiedView ? undefined : directorateFilter}
+        setDirectorateFilter={isSimplifiedView ? undefined : setDirectorateFilter}
         directorateOptions={directorateOptions}
-        managerFilter={isCoordOnly ? undefined : managerFilter}
-        setManagerFilter={isCoordOnly ? undefined : setManagerFilter}
+        managerFilter={isSimplifiedView ? undefined : managerFilter}
+        setManagerFilter={isSimplifiedView ? undefined : setManagerFilter}
         managerOptions={managerOptions}
         coordinatorFilter={coordinatorFilter}
         setCoordinatorFilter={setCoordinatorFilter}
@@ -139,16 +196,54 @@ export function TimesViewClient({ teamData }: Props) {
         teamOptions={teamOptions}
         onExportCsv={() => {
           const rows = gerentesFiltered.flatMap((g) => {
-            const dName = g.diretorName || "Diretoria Geral";
+            const dName = g.diretorName || "—";
+            const gName = g.gerenteName;
+            
+            // 1. Linha do Próprio Gerente
             const fromGerente = g.gerenteSelf ? [{
-              diretoria: dName, gerente: g.gerenteName, coordenador: "—", time: "Gerência", colaborador: g.gerenteSelf.user.name, papel: g.gerenteSelf.user.role, departamento: g.gerenteSelf.user.department ?? "", status: g.gerenteSelf.isOnVacationNow ? "EM_FERIAS" : hasFutureVacation(g.gerenteSelf) ? "FERIAS_MARCADAS" : "FERIAS_A_TIRAR", saldoDisponivel: g.gerenteSelf.balance.availableDays, pendente: g.gerenteSelf.balance.pendingDays,
+              diretoria: dName,
+              gerente: gName,
+              coordenador: "—",
+              time: `Time de ${gName}`,
+              colaborador: g.gerenteSelf.user.name,
+              papel: getRoleLabel(g.gerenteSelf.user.role),
+              departamento: g.gerenteSelf.user.department ?? "",
+              status: getMemberStatusLabel(g.gerenteSelf),
+              saldoDisponivel: g.gerenteSelf.balance.availableDays,
+              pendente: g.gerenteSelf.balance.pendingDays,
+              periodos: getFormattedPeriods(g.gerenteSelf.requests)
             }] : [];
+
+            // 2. Linhas dos Coordenadores
             const fromCoords = (g.coordinatorMembers ?? []).map((m) => ({
-              diretoria: dName, gerente: g.gerenteName, coordenador: "—", time: "Coordenação", colaborador: m.user.name, papel: m.user.role, departamento: m.user.department ?? "", status: m.isOnVacationNow ? "EM_FERIAS" : hasFutureVacation(m) ? "FERIAS_MARCADAS" : "FERIAS_A_TIRAR", saldoDisponivel: m.balance.availableDays, pendente: m.balance.pendingDays,
+              diretoria: dName,
+              gerente: gName,
+              coordenador: m.user.name,
+              time: `Gestão de ${m.user.name}`,
+              colaborador: m.user.name,
+              papel: getRoleLabel(m.user.role),
+              departamento: m.user.department ?? "",
+              status: getMemberStatusLabel(m),
+              saldoDisponivel: m.balance.availableDays,
+              pendente: m.balance.pendingDays,
+              periodos: getFormattedPeriods(m.requests)
             }));
+
+            // 3. Linhas dos Colaboradores nos Squads
             const fromTeams = g.teams.flatMap((team) => team.members.map((m) => ({
-              diretoria: dName, gerente: g.gerenteName, coordenador: team.coordinatorName, time: team.teamName, colaborador: m.user.name, papel: m.user.role, departamento: m.user.department ?? "", status: m.isOnVacationNow ? "EM_FERIAS" : hasFutureVacation(m) ? "FERIAS_MARCADAS" : "FERIAS_A_TIRAR", saldoDisponivel: m.balance.availableDays, pendente: m.balance.pendingDays,
+              diretoria: dName,
+              gerente: gName,
+              coordenador: team.coordinatorName,
+              time: team.teamName,
+              colaborador: m.user.name,
+              papel: getRoleLabel(m.user.role),
+              departamento: m.user.department ?? "",
+              status: getMemberStatusLabel(m),
+              saldoDisponivel: m.balance.availableDays,
+              pendente: m.balance.pendingDays,
+              periodos: getFormattedPeriods(m.requests)
             })));
+
             return [...fromGerente, ...fromCoords, ...fromTeams];
           });
           exportRowsToCsv(rows);
@@ -156,7 +251,7 @@ export function TimesViewClient({ teamData }: Props) {
       />
       
       {gerentesFiltered.length > 0 ? (
-        <TimesViewHierarchy gerentesFiltered={gerentesFiltered} isCoordView={isCoordOnly} />
+        <TimesViewHierarchy gerentesFiltered={gerentesFiltered} isCoordView={isSimplifiedView} />
       ) : (
         <div className="rounded-xl border border-dashed border-[#e2e8f0] bg-white py-12 text-center dark:border-[#252a35] dark:bg-[#1a1d23]">
           <p className="text-[#64748b] dark:text-slate-400">Nenhum colaborador ou liderança no filtro atual.</p>

@@ -15,8 +15,8 @@ interface Props {
 export function TimesViewHierarchy({ gerentesFiltered, isCoordView }: Props) {
   // Visão TOTAL Unificada em um único grande calendário mestre
   const calendarMembers = useMemo(
-    () => buildRhDirectorateCalendarMembers(gerentesFiltered),
-    [gerentesFiltered]
+    () => buildRhDirectorateCalendarMembers(gerentesFiltered, !!isCoordView),
+    [gerentesFiltered, isCoordView]
   );
 
   if (calendarMembers.length === 0) {

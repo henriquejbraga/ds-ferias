@@ -34,7 +34,7 @@ function findAncestorByRole(
 }
 
 async function attachDiretoriaToGerentes(gerentes: TeamDataRH["gerentes"]): Promise<TeamDataRH["gerentes"]> {
-  const ids = [...new Set(gerentes.map((g) => g.gerenteId))].filter((id) => id !== "sem-gerente");
+  const ids = [...new Set(gerentes.map((g) => g.gerenteId))].filter((id) => id !== "sem-gerente" && id !== "coord-root");
   if (ids.length === 0) return gerentes;
   const rows = await prisma.user.findMany({
     where: { id: { in: ids } },
@@ -49,7 +49,7 @@ async function attachDiretoriaToGerentes(gerentes: TeamDataRH["gerentes"]): Prom
     if (m?.role === "DIRETOR") {
       return { ...g, diretorId: m.id, diretorName: m.name };
     }
-    return { ...g, diretorId: null, diretorName: null };
+    return { ...g, diretorId: null, diretorName: g.diretorName || null };
   });
 }
 
@@ -107,6 +107,7 @@ export async function getTeamMembersForTimes(
       findUserWithTimesVacations(userId),
     ]);
     const coordinatorSelf = coordRaw ? mapUsersToMembers([coordRaw as any])[0] : undefined;
+
     return {
       kind: "coord",
       coordinatorSelf,
@@ -157,7 +158,7 @@ export async function getTeamMembersForTimes(
     users.forEach((u) => {
       if (u.managerId && u.manager) coordNames.set(u.managerId, u.manager.name);
     });
-    const teams: TeamDataCoord["teams"] = [];
+    const teams: any[] = [];
     for (const [coordId, byTeam] of Object.entries(byCoordTeam)) {
       for (const [teamName, mems] of Object.entries(byTeam)) {
         teams.push({
@@ -169,18 +170,16 @@ export async function getTeamMembersForTimes(
         });
       }
     }
-    return {
-      kind: "rh",
-      gerentes: [
-        {
-          gerenteId: userId,
-          gerenteName: "Minha gestão",
-          gerenteSelf,
-          coordinatorMembers,
-          teams: sortTeamsByCoordinatorAndName(teams),
-        },
-      ],
-    };
+    const gerentes = await attachDiretoriaToGerentes([
+      {
+        gerenteId: userId,
+        gerenteName: "Minha gestão",
+        gerenteSelf,
+        coordinatorMembers,
+        teams: sortTeamsByCoordinatorAndName(teams),
+      },
+    ]);
+    return { kind: "rh", gerentes };
   }
 
   const [users, coordinators, gerentesFull] = await Promise.all([
