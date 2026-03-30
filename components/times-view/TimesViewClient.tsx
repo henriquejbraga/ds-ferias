@@ -115,7 +115,7 @@ export function TimesViewClient({ teamData }: Props) {
 
   // Normalizar dados: agora Coordenador e Gerente também vem como "rh" para ter a árvore completa
   const isCoordOnly = teamData.kind === "coord";
-  const gerentesBase = isCoordOnly 
+  const gerentesBase: TeamDataRH["gerentes"] = isCoordOnly 
     ? [{
         gerenteId: "coord-root",
         gerenteName: "Minha Coordenação",
