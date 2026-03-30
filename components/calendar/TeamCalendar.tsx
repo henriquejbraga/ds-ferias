@@ -38,6 +38,17 @@ function daysInYear(year: number): number {
   return Math.round((new Date(year + 1, 0, 1).getTime() - new Date(year, 0, 1).getTime()) / ONE_DAY_MS);
 }
 
+function hasSegmentOnDay(
+  segments: Array<{ start: Date; end: Date }>,
+  dayMs: number,
+): boolean {
+  return segments.some((s) => {
+    const sMs = atMidnight(s.start).getTime();
+    const eMs = atMidnight(s.end).getTime();
+    return sMs <= dayMs && dayMs <= eMs;
+  });
+}
+
 function getVacationSegments(member: TeamMemberInfoSerialized, monthStart: Date, monthEnd: Date) {
   const monthStartMs = atMidnight(monthStart).getTime();
   const monthEndMs = atMidnight(monthEnd).getTime();
@@ -221,13 +232,18 @@ export function TeamCalendar({
                             </span>
                         </div>
                     </div>
-                    {member.calendarIsBranch && (!member.requests || member.requests.length === 0) ? (
-                        <div className="h-8 border-b border-blue-50/50 bg-blue-50/5 dark:border-blue-900/10 dark:bg-blue-900/5" style={{ width: yearTimelineWidth }} />
+                    {member.calendarIsBranch ? (
+                      <div className="h-8 border-b border-blue-50/50 bg-blue-50/5 dark:border-blue-900/10 dark:bg-blue-900/5" style={{ width: yearTimelineWidth }} />
                     ) : (
-                        <div className={["relative h-8 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: yearTimelineWidth }}>
+                    <div className={["relative h-8 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: yearTimelineWidth }}>
                         {todayLine !== null && <div className="pointer-events-none absolute inset-y-0 z-10 w-px bg-blue-500/50" style={{ left: todayLine }} />}
                         <div className="pointer-events-none absolute inset-0 grid gap-0" style={{ gridTemplateColumns: `repeat(${totalDaysInYear}, minmax(0, 1fr))` }}>
-                            {Array.from({ length: totalDaysInYear }, (_, idx) => countGroupOnYearDay(member, idx) >= 2 && <div key={idx} className="bg-red-500/10 border-r border-red-500/20" />)}
+                            {Array.from({ length: totalDaysInYear }, (_, idx) => {
+                              const dayMs = atMidnight(new Date(atMidnight(yearStart).getTime() + idx * ONE_DAY_MS)).getTime();
+                              const overloaded = countGroupOnYearDay(member, idx) >= 2;
+                              const memberOnVacation = hasSegmentOnDay(segments, dayMs);
+                              return overloaded && memberOnVacation ? <div key={idx} className="bg-red-500/10 border-r border-red-500/20" /> : null;
+                            })}
                         </div>
                         {segments.map((s, segIdx) => {
                             const sIdx = dayIndexInRange(s.start, yearStart, yearEnd);
@@ -237,7 +253,7 @@ export function TeamCalendar({
                             const dateLabel = `${s.start.toLocaleDateString("pt-BR")} a ${s.end.toLocaleDateString("pt-BR")}`;
                             return <div key={segIdx} className={["absolute top-1.5 h-4 border shadow-xs rounded-sm transition-transform hover:scale-y-110", s.status === "PENDENTE" ? "border-amber-400 bg-amber-300/80" : "border-emerald-500 bg-emerald-400/80"].join(" ")} style={{ left: dayLeft, width: w }} title={`Período: ${dateLabel} (${s.status === "PENDENTE" ? "Pendente" : "Aprovado"})`} />;
                         })}
-                        </div>
+                    </div>
                     )}
                   </div>
                 );
@@ -264,13 +280,18 @@ export function TeamCalendar({
                             </span>
                         </div>
                     </div>
-                    {member.calendarIsBranch && (!member.requests || member.requests.length === 0) ? (
-                        <div className="h-8 border-b border-blue-50/50 bg-blue-50/5 dark:border-blue-900/10 dark:bg-blue-900/5" style={{ width: timelineWidth }} />
+                    {member.calendarIsBranch ? (
+                      <div className="h-8 border-b border-blue-50/50 bg-blue-50/5 dark:border-blue-900/10 dark:bg-blue-900/5" style={{ width: timelineWidth }} />
                     ) : (
-                        <div className={["relative h-8 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: timelineWidth }}>
+                    <div className={["relative h-8 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: timelineWidth }}>
                         {todayLineLeft !== null && <div className="pointer-events-none absolute inset-y-0 z-10 w-px bg-blue-500/50" style={{ left: todayLineLeft + dayWidth / 2 }} />}
                         <div className="pointer-events-none absolute inset-0 grid gap-0.5" style={{ gridTemplateColumns: `repeat(${daysInMonth}, minmax(0, 1fr))` }}>
-                            {dayMeta.map((d, idx) => countGroupOnMonthDay(member, idx) >= 2 && <div key={idx} className="bg-red-500/10 border-r border-red-500/20" />)}
+                            {dayMeta.map((d, idx) => {
+                              const dayMs = atMidnight(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), idx + 1)).getTime();
+                              const overloaded = countGroupOnMonthDay(member, idx) >= 2;
+                              const memberOnVacation = hasSegmentOnDay(segments, dayMs);
+                              return overloaded && memberOnVacation ? <div key={idx} className="bg-red-500/10 border-r border-red-500/20" /> : null;
+                            })}
                         </div>
                         {segments.map((s, segIdx) => {
                             const start = Math.max(1, s.start.getDate());
@@ -280,7 +301,7 @@ export function TeamCalendar({
                             const dateLabel = `${s.start.toLocaleDateString("pt-BR")} a ${s.end.toLocaleDateString("pt-BR")}`;
                             return <div key={segIdx} className={["absolute top-1.5 h-4 border shadow-xs rounded-sm transition-transform hover:scale-y-110", s.status === "PENDENTE" ? "border-amber-400 bg-amber-300/80" : "border-emerald-500 bg-emerald-400/80"].join(" ")} style={{ left, width: w }} title={`Período: ${dateLabel} (${s.status === "PENDENTE" ? "Pendente" : "Aprovado"})`} />;
                         })}
-                        </div>
+                    </div>
                     )}
                   </div>
                 );

@@ -99,16 +99,28 @@ export function buildRhDirectorateCalendarMembers(
         const coordUser = g.coordinatorMembers?.find(cm => cm.user.id === cId);
         const coordTeams = g.teams.filter(t => t.coordinatorId === cId);
         const cKey = `coord-branch-${cId}-${g.gerenteId}`;
+        const coordDisplayName = coordUser?.user.name ?? coordTeams[0]?.coordinatorName ?? "Sem coordenação";
+        out.push({
+          user: { id: cKey, name: coordDisplayName, role: "COORDENADOR" },
+          balance: { availableDays: 0, pendingDays: 0 },
+          isOnVacationNow: false,
+          requests: [],
+          calendarDisplayName: `    ↳ 👤 COORDENAÇÃO: ${coordDisplayName}`,
+          calendarLevel: 2,
+          calendarRowKey: cKey,
+          calendarParentRowKey: gTitleKey,
+          calendarIsBranch: true,
+        } as any);
 
         if (coordUser) {
-            push({
-                ...coordUser,
-                calendarDisplayName: `    ↳ 👤 COORDENAÇÃO: ${coordUser.user.name}`,
-                calendarLevel: 2,
-                calendarRowKey: cKey,
-                calendarParentRowKey: gTitleKey,
-                calendarIsBranch: true,
-            });
+          const roleLabel = getRoleLabelShort(coordUser.user.role);
+          push({
+            ...coordUser,
+            calendarDisplayName: `      ↳ ${coordUser.user.name}${roleLabel ? ` (${roleLabel})` : ""}`,
+            calendarLevel: 3,
+            calendarRowKey: `coord-member-${coordUser.user.id}-${g.gerenteId}`,
+            calendarParentRowKey: cKey,
+          });
         }
 
         coordTeams.forEach(team => {

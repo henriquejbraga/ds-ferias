@@ -7,6 +7,7 @@ const mockFindAllEmployees = vi.fn().mockResolvedValue([]);
 const mockFindAllCoordinatorsForRh = vi.fn().mockResolvedValue([]);
 const mockFindAllGerentesForTimes = vi.fn().mockResolvedValue([]);
 const mockFindUserWithTimesVacations = vi.fn().mockResolvedValue(null);
+const mockFindUsersWithTimesVacationsByIds = vi.fn().mockResolvedValue([]);
 const mockPrismaFindMany = vi.fn().mockResolvedValue([]);
 
 vi.mock("@/lib/prisma", () => ({
@@ -25,6 +26,7 @@ vi.mock("@/repositories/userRepository", () => ({
   findAllCoordinatorsForRh: (...args: unknown[]) => mockFindAllCoordinatorsForRh(...args),
   findAllGerentesForTimes: (...args: unknown[]) => mockFindAllGerentesForTimes(...args),
   findUserWithTimesVacations: (...args: unknown[]) => mockFindUserWithTimesVacations(...args),
+  findUsersWithTimesVacationsByIds: (...args: unknown[]) => mockFindUsersWithTimesVacationsByIds(...args),
 }));
 if (!process.env.DATABASE_URL) process.env.DATABASE_URL = "postgresql://localhost:5432/test";
 
@@ -39,8 +41,10 @@ describe("getTeamMembersForTimes", () => {
     mockFindAllCoordinatorsForRh.mockClear();
     mockFindAllGerentesForTimes.mockClear();
     mockFindUserWithTimesVacations.mockClear();
+    mockFindUsersWithTimesVacationsByIds.mockClear();
     mockPrismaFindMany.mockClear();
     mockPrismaFindMany.mockResolvedValue([]);
+    mockFindUsersWithTimesVacationsByIds.mockResolvedValue([]);
   });
 
   it("level 2 (coordenador): returns coord structure with one team e calcula isOnVacationNow com/sem abono", async () => {
@@ -235,6 +239,49 @@ describe("getTeamMembersForTimes", () => {
     expect(mockFindAllEmployees).toHaveBeenCalled();
     expect(mockFindAllCoordinatorsForRh).toHaveBeenCalled();
     expect(mockFindAllGerentesForTimes).toHaveBeenCalled();
+  });
+
+  it("level 4 (RH): includes coordenador inferred from team manager when missing in coordinators query", async () => {
+    mockFindAllGerentesForTimes.mockResolvedValueOnce([
+      {
+        id: "ger-1",
+        name: "Gerente",
+        role: "GERENTE",
+        manager: { id: "d1", name: "Dir", role: "DIRETOR", managerId: null, manager: null },
+        vacationRequests: [],
+      },
+    ]);
+    mockFindAllCoordinatorsForRh.mockResolvedValueOnce([]);
+    mockFindAllEmployees.mockResolvedValueOnce([
+      {
+        id: "u1",
+        name: "Colab",
+        role: "FUNCIONARIO",
+        managerId: "c-missing",
+        manager: {
+          id: "c-missing",
+          name: "Coord Missing",
+          role: "COORDENADOR",
+          manager: { id: "ger-1", name: "Gerente", role: "GERENTE" },
+        },
+        vacationRequests: [],
+      },
+    ]);
+    mockFindUsersWithTimesVacationsByIds.mockResolvedValueOnce([
+      {
+        id: "c-missing",
+        name: "Coord Missing",
+        role: "COORDENADOR",
+        managerId: "ger-1",
+        manager: { id: "ger-1", name: "Gerente", role: "GERENTE", manager: null },
+        vacationRequests: [{ status: "APROVADO_GERENTE", startDate: new Date(), endDate: new Date() }],
+      },
+    ]);
+
+    const result = await getTeamMembersForTimes("rh-1", "RH");
+    expect(result.kind).toBe("rh");
+    expect(result.gerentes[0].coordinatorMembers?.map((m) => m.user.id)).toContain("c-missing");
+    expect(mockFindUsersWithTimesVacationsByIds).toHaveBeenCalledWith(["c-missing"]);
   });
 
   it("handles members without a coordinator reporting directly to a manager", async () => {

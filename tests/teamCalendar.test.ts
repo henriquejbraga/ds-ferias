@@ -30,7 +30,7 @@ describe("TeamCalendar Component", () => {
     }
   ];
 
-  it("should render vacation segments even for branch members (Coordinator bug fix)", () => {
+  it("should not render vacation segments for branch rows (section headers)", () => {
     // Renderizamos o componente. Se o bug persistisse, as férias não estariam no HTML.
     // Use React.createElement instead of JSX
     const html = renderToStaticMarkup(React.createElement(TeamCalendar, { members: mockMembers }));
@@ -38,12 +38,12 @@ describe("TeamCalendar Component", () => {
     // Verificamos se o nome aparece
     expect(html).toContain("COORDENADOR TESTE BRANCH");
     
-    // Verificamos se existe algum marcador de férias (div com classes de cor de status)
-    // O status APROVADO_GERENTE usa classes de emerald no CSS (border-emerald-500 bg-emerald-400/80)
-    expect(html).toContain("border-emerald-500");
+    // Branch/title deve mostrar apenas faixa neutra da seção (sem bloco de férias)
+    expect(html).toContain("bg-blue-50/5");
+    expect(html).not.toContain("border-emerald-500");
   });
 
-  it("should render empty div only for branch members WITHOUT requests", () => {
+  it("should render section background for branch members WITHOUT requests", () => {
     const membersNoRequests: TeamMemberInfoSerialized[] = [
       {
         ...mockMembers[0],
@@ -56,7 +56,7 @@ describe("TeamCalendar Component", () => {
     // Use React.createElement instead of JSX
     const html = renderToStaticMarkup(React.createElement(TeamCalendar, { members: membersNoRequests }));
     
-    // Deve conter a div de ramificação vazia (com classes de fundo azul claro/slate)
+    // Deve conter a faixa visual de seção (linha azul neutra)
     expect(html).toContain("bg-blue-50/5");
     // NÃO deve conter as classes de férias
     expect(html).not.toContain("border-emerald-500");

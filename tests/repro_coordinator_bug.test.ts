@@ -3,7 +3,7 @@ import { buildRhDirectorateCalendarMembers } from "@/components/times-view/build
 import type { TeamMemberInfoSerialized } from "@/components/times-view/types";
 
 describe("buildRhDirectorateCalendarMembers coordinator bug repro", () => {
-  it("should show coordinator's vacations even when they are a branch", () => {
+  it("should show coordinator's vacations in a dedicated user row under coordination branch", () => {
     const mockCoordinator: TeamMemberInfoSerialized = {
       user: { id: "coord-1", name: "Coordinator User", role: "COORDENADOR" },
       balance: { availableDays: 30, pendingDays: 0 },
@@ -44,15 +44,15 @@ describe("buildRhDirectorateCalendarMembers coordinator bug repro", () => {
 
     const result = buildRhDirectorateCalendarMembers(gerentes as any);
 
-    const coordRow = result.find(m => m.user.id === "coord-1" || (m.calendarRowKey && m.calendarRowKey.includes("coord-branch-coord-1")));
-    
-    expect(coordRow).toBeDefined();
-    expect(coordRow?.requests.length).toBeGreaterThan(0);
-    expect(coordRow?.calendarIsBranch).toBe(true);
-    
-    // The bug is that when calendarIsBranch is true, TeamCalendar.tsx doesn't render segments.
-    // So if the coordinator row IS a branch, it must either:
-    // 1. Not be a branch (but then how to have children?)
-    // 2. Or TeamCalendar.tsx must render segments for branches that have requests.
+    const branchRow = result.find(m => m.calendarRowKey?.includes("coord-branch-coord-1"));
+    const userRow = result.find(m => m.calendarRowKey?.includes("coord-member-coord-1"));
+
+    expect(branchRow).toBeDefined();
+    expect(branchRow?.calendarIsBranch).toBe(true);
+    expect(branchRow?.requests.length).toBe(0);
+
+    expect(userRow).toBeDefined();
+    expect(userRow?.calendarIsBranch).not.toBe(true);
+    expect(userRow?.requests.length).toBeGreaterThan(0);
   });
 });

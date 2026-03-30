@@ -129,6 +129,15 @@ export async function findUserWithTimesVacations(userId: string) {
   });
 }
 
+/** Lote de usuários com férias para a aba Times (útil para coordenações inferidas dos times). */
+export async function findUsersWithTimesVacationsByIds(userIds: string[]) {
+  if (userIds.length === 0) return [];
+  return prisma.user.findMany({
+    where: { id: { in: userIds } },
+    include: baseInclude,
+  });
+}
+
 export async function findAllUsersForAdmin() {
   const now = new Date();
   const todayUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
