@@ -36,15 +36,23 @@ export async function GET(request: Request) {
   }
 
   const today = toUtcMidnight(new Date());
-  const targetStart = new Date(today.getTime() + 7 * ONE_DAY_MS);
-  const targetEnd = new Date(targetStart.getTime() + ONE_DAY_MS);
-  const returnWindowStart = today;
-  const returnWindowEnd = new Date(returnWindowStart.getTime() + ONE_DAY_MS);
+  const target7dStart = new Date(today.getTime() + 7 * ONE_DAY_MS);
+  const target7dEnd = new Date(target7dStart.getTime() + ONE_DAY_MS);
+  const target1dStart = new Date(today.getTime() + 1 * ONE_DAY_MS);
+  const target1dEnd = new Date(target1dStart.getTime() + ONE_DAY_MS);
+
+  // Lembrete de retorno: disparar 1 dia ANTES das férias acabarem.
+  // Se as férias acabam amanhã (D+1), hoje avisamos que amanhã é o último dia e o retorno é depois de amanhã.
+  const returnTargetStart = new Date(today.getTime() + 1 * ONE_DAY_MS);
+  const returnTargetEnd = new Date(returnTargetStart.getTime() + ONE_DAY_MS);
 
   const startReminders = await prisma.vacationRequest.findMany({
     where: {
       status: { in: [...APPROVED_VACATION_STATUSES] },
-      startDate: { gte: targetStart, lt: targetEnd },
+      OR: [
+        { startDate: { gte: target7dStart, lt: target7dEnd } },
+        { startDate: { gte: target1dStart, lt: target1dEnd } },
+      ],
       user: { managerId: { not: null } },
     },
     select: {
@@ -66,7 +74,7 @@ export async function GET(request: Request) {
   const returnReminders = await prisma.vacationRequest.findMany({
     where: {
       status: { in: [...APPROVED_VACATION_STATUSES] },
-      endDate: { gte: returnWindowStart, lt: returnWindowEnd },
+      endDate: { gte: returnTargetStart, lt: returnTargetEnd },
       user: { managerId: { not: null } },
     },
     select: {
@@ -93,6 +101,8 @@ export async function GET(request: Request) {
       skippedStart += 1;
       continue;
     }
+    const daysUntilStart = Math.round((toUtcMidnight(r.startDate).getTime() - today.getTime()) / ONE_DAY_MS);
+
     await notifyUpcomingVacationReminder({
       requestId: r.id,
       userName: r.user.name,
@@ -102,7 +112,7 @@ export async function GET(request: Request) {
       toEmails: recipients,
       startDate: r.startDate,
       endDate: r.endDate,
-      daysUntilStart: 7,
+      daysUntilStart,
       abono: r.abono,
       thirteenth: r.thirteenth,
     });
@@ -137,13 +147,14 @@ export async function GET(request: Request) {
   return NextResponse.json({
     ok: true,
     startReminder: {
-      targetDate: targetStart.toISOString().slice(0, 10),
+      target7dDate: target7dStart.toISOString().slice(0, 10),
+      target1dDate: target1dStart.toISOString().slice(0, 10),
       found: startReminders.length,
       sent: sentStart,
       skipped: skippedStart,
     },
     returnReminder: {
-      targetDate: returnWindowStart.toISOString().slice(0, 10),
+      targetReturnEnd: returnTargetStart.toISOString().slice(0, 10),
       found: returnReminders.length,
       sent: sentReturn,
       skipped: skippedReturn,
