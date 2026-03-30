@@ -127,6 +127,18 @@ function getVacationSegments(member: TeamMemberInfoSerialized, monthStart: Date,
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
+function CalendarMemberNameLabel({ member }: { member: TeamMemberInfoSerialized }) {
+  const text = member.calendarDisplayName ?? member.user.name;
+  if (member.calendarIsBranch) {
+    return (
+      <span className="truncate font-black uppercase tracking-tight text-[#1e3a8a] dark:text-blue-300">{text}</span>
+    );
+  }
+  return (
+    <span className="min-w-0 truncate text-[11px] font-semibold text-[#475569] dark:text-slate-300">{text}</span>
+  );
+}
+
 export function TeamCalendar({
   members,
   capacityScopedByGroup = false,
@@ -246,25 +258,46 @@ export function TeamCalendar({
 
       <div className="max-h-[min(75vh,60rem)] isolate overflow-x-auto overflow-y-auto rounded-md border border-[#e2e8f0] dark:border-[#252a35]">
         <div className="min-w-max">
-          <div className="sticky top-0 z-[45] mb-2 flex bg-white shadow-sm dark:bg-[#1a1d23]">
+          <div className="sticky top-0 z-50 mb-2 flex min-h-11 items-stretch bg-white shadow-[0_4px_6px_-2px_rgba(15,23,42,0.06)] dark:bg-[#1a1d23] dark:shadow-[0_4px_6px_-2px_rgba(0,0,0,0.35)]">
             <div
-              className="sticky left-0 top-0 z-[50] shrink-0 border-b border-r border-[#e2e8f0] bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#64748b] shadow-[4px_0_12px_-4px_rgba(15,23,42,0.08)] dark:border-[#252a35] dark:bg-[#1a1d23] dark:shadow-[4px_0_14px_-4px_rgba(0,0,0,0.35)]"
+              className="sticky left-0 top-0 z-[60] flex min-h-11 shrink-0 items-center border-b border-r border-[#e2e8f0] bg-white px-3 text-[10px] font-black uppercase tracking-widest text-[#64748b] shadow-[4px_0_12px_-4px_rgba(15,23,42,0.1)] dark:border-[#252a35] dark:bg-[#1a1d23] dark:shadow-[4px_0_14px_-4px_rgba(0,0,0,0.4)]"
               style={{ width: nameColWidth }}
             >
               Hierarquia / Integrante
             </div>
             {viewMode === "year" ? (
-              <div className="shrink-0 flex border-b border-[#e2e8f0] bg-[#f8fafc] dark:border-[#252a35] dark:bg-[#1a1d23]" style={{ width: yearTimelineWidth }}>
+              <div
+                className="relative z-40 flex shrink-0 self-stretch border-b border-[#e2e8f0] bg-[#f8fafc] dark:border-[#252a35] dark:bg-[#141720]"
+                style={{ width: yearTimelineWidth }}
+              >
                 {Array.from({ length: 12 }, (_, mi) => {
                   const dim = new Date(year, mi + 1, 0).getDate();
                   const pct = (dim / totalDaysInYear) * 100;
-                  return <div key={mi} style={{ width: `${pct}%` }} className="border-l border-[#e2e8f0] bg-[#f8fafc] py-1 text-center text-[9px] font-black uppercase text-[#64748b] first:border-l-0 dark:border-[#252a35] dark:bg-[#141720]">{new Date(year, mi, 1).toLocaleDateString("pt-BR", { month: "short" })}</div>;
+                  return (
+                    <div
+                      key={mi}
+                      style={{ width: `${pct}%` }}
+                      className="flex items-center justify-center border-l border-[#e2e8f0] bg-[#f8fafc] py-1 text-center text-[9px] font-black uppercase text-[#64748b] first:border-l-0 dark:border-[#252a35] dark:bg-[#141720]"
+                    >
+                      {new Date(year, mi, 1).toLocaleDateString("pt-BR", { month: "short" })}
+                    </div>
+                  );
                 })}
               </div>
             ) : (
-              <div className="grid shrink-0 gap-0.5 border-b border-[#e2e8f0] bg-white dark:border-[#252a35] dark:bg-[#1a1d23]" style={{ width: timelineWidth, gridTemplateColumns: `repeat(${daysInMonth}, minmax(0, 1fr))` }}>
+              <div
+                className="relative z-40 grid min-h-11 shrink-0 gap-0.5 self-stretch border-b border-[#e2e8f0] bg-white dark:border-[#252a35] dark:bg-[#1a1d23]"
+                style={{ width: timelineWidth, gridTemplateColumns: `repeat(${daysInMonth}, minmax(0, 1fr))` }}
+              >
                 {dayMeta.map((d) => (
-                  <div key={d.day} className={["flex min-h-[30px] flex-col items-center justify-center pt-1 pb-1 text-[10px] leading-none", d.isWeekend ? "bg-slate-50 text-slate-400 dark:bg-slate-800/30" : "text-[#64748b]", todayDay === d.day ? "bg-blue-50 text-blue-600 ring-1 ring-blue-200" : ""].join(" ")}>
+                  <div
+                    key={d.day}
+                    className={[
+                      "flex min-h-0 flex-col items-center justify-center py-1 text-[10px] leading-none",
+                      d.isWeekend ? "bg-slate-50 text-slate-400 dark:bg-slate-800/30" : "text-[#64748b]",
+                      todayDay === d.day ? "bg-blue-50 text-blue-600 ring-1 ring-blue-200" : "",
+                    ].join(" ")}
+                  >
                     <span className="text-[9px] font-bold">{d.weekLabel}</span>
                     <span className="mt-0.5 font-black">{d.day}</span>
                   </div>
@@ -284,7 +317,7 @@ export function TeamCalendar({
                   <div key={member.calendarRowKey ?? rowIdx} className="group flex items-center">
                     <div
                       className={[
-                        "sticky left-0 z-20 shrink-0 truncate border-r border-[#e2e8f0] px-3 text-[11px] font-semibold text-[#475569] shadow-[4px_0_12px_-4px_rgba(15,23,42,0.06)] dark:border-[#252a35] dark:text-slate-300 dark:shadow-[4px_0_14px_-4px_rgba(0,0,0,0.3)]",
+                        "sticky left-0 top-11 z-30 shrink-0 truncate border-r border-[#e2e8f0] px-3 text-[11px] font-semibold text-[#475569] shadow-[4px_0_12px_-4px_rgba(15,23,42,0.06)] dark:border-[#252a35] dark:text-slate-300 dark:shadow-[4px_0_14px_-4px_rgba(0,0,0,0.3)]",
                         rowIdx % 2 === 0 ? "bg-white dark:bg-[#1a1d23]" : "bg-[#fafbfc] dark:bg-[#161922]",
                       ].join(" ")}
                       style={{ width: nameColWidth, paddingLeft: member.calendarLevel ? `${member.calendarLevel * 14 + 10}px` : "10px" }}
@@ -298,9 +331,7 @@ export function TeamCalendar({
                                     {isCollapsed ? "+" : "-"}
                                 </button>
                             )}
-                            <span className={["min-w-0 truncate", member.calendarIsBranch ? "font-black text-[#1e3a8a] dark:text-blue-300 uppercase tracking-tight" : ""].join(" ")}>
-                                {member.calendarDisplayName ?? member.user.name}
-                            </span>
+                            <CalendarMemberNameLabel member={member} />
                         </div>
                     </div>
                     {member.calendarIsBranch ? (
@@ -321,7 +352,7 @@ export function TeamCalendar({
                                 key={segIdx}
                                 className={["absolute top-1.5 z-[5] h-4 overflow-hidden border shadow-xs rounded-sm transition-transform hover:scale-y-110", baseBar].join(" ")}
                                 style={{ left: dayLeft, width: w }}
-                                title={`Período: ${dateLabel} (${s.status === "PENDENTE" ? "Pendente" : "Aprovado"})`}
+                                title={`Colaborador: ${member.user.name} • Período: ${dateLabel} (${s.status === "PENDENTE" ? "Pendente" : "Aprovado"})`}
                               >
                                 {conflictRuns.map((run, ri) => (
                                   <div
@@ -351,7 +382,7 @@ export function TeamCalendar({
                   <div key={member.calendarRowKey ?? rowIdx} className="group flex items-center">
                     <div
                       className={[
-                        "sticky left-0 z-20 shrink-0 truncate border-r border-[#e2e8f0] px-3 text-[11px] font-semibold text-[#475569] shadow-[4px_0_12px_-4px_rgba(15,23,42,0.06)] dark:border-[#252a35] dark:text-slate-300 dark:shadow-[4px_0_14px_-4px_rgba(0,0,0,0.3)]",
+                        "sticky left-0 top-11 z-30 shrink-0 truncate border-r border-[#e2e8f0] px-3 text-[11px] font-semibold text-[#475569] shadow-[4px_0_12px_-4px_rgba(15,23,42,0.06)] dark:border-[#252a35] dark:text-slate-300 dark:shadow-[4px_0_14px_-4px_rgba(0,0,0,0.3)]",
                         rowIdx % 2 === 0 ? "bg-white dark:bg-[#1a1d23]" : "bg-[#fafbfc] dark:bg-[#161922]",
                       ].join(" ")}
                       style={{ width: nameColWidth, paddingLeft: member.calendarLevel ? `${member.calendarLevel * 14 + 10}px` : "10px" }}
@@ -365,9 +396,7 @@ export function TeamCalendar({
                                     {isCollapsed ? "+" : "-"}
                                 </button>
                             )}
-                            <span className={["min-w-0 truncate", member.calendarIsBranch ? "font-black text-[#1e3a8a] dark:text-blue-300 uppercase tracking-tight" : ""].join(" ")}>
-                                {member.calendarDisplayName ?? member.user.name}
-                            </span>
+                            <CalendarMemberNameLabel member={member} />
                         </div>
                     </div>
                     {member.calendarIsBranch ? (
@@ -390,7 +419,7 @@ export function TeamCalendar({
                                 key={segIdx}
                                 className={["absolute top-1.5 z-[5] h-4 overflow-hidden border shadow-xs rounded-sm transition-transform hover:scale-y-110", baseBar].join(" ")}
                                 style={{ left, width: w }}
-                                title={`Período: ${dateLabel} (${s.status === "PENDENTE" ? "Pendente" : "Aprovado"})`}
+                                title={`Colaborador: ${member.user.name} • Período: ${dateLabel} (${s.status === "PENDENTE" ? "Pendente" : "Aprovado"})`}
                               >
                                 {conflictRuns.map((run, ri) => (
                                   <div
