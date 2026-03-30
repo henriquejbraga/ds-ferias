@@ -170,7 +170,8 @@ export function TeamCalendar({
   const monthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
   const monthEnd = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), daysInMonth);
   const dayWidth = 28;
-  const nameColWidth = 360;
+  /** Coluna de nomes: mais estreita para dar espaço ao calendário; sticky cobre a timeline ao rolar. */
+  const nameColWidth = 240;
   const timelineWidth = daysInMonth * dayWidth;
   const isCurrentMonth = currentMonth.getFullYear() === today.getFullYear() && currentMonth.getMonth() === today.getMonth();
   const todayDay = isCurrentMonth ? today.getDate() : null;
@@ -243,12 +244,17 @@ export function TeamCalendar({
 
       <CalendarLegend />
 
-      <div className="max-h-[min(75vh,60rem)] overflow-x-auto overflow-y-auto rounded-md border border-[#e2e8f0] dark:border-[#252a35]">
+      <div className="max-h-[min(75vh,60rem)] isolate overflow-x-auto overflow-y-auto rounded-md border border-[#e2e8f0] dark:border-[#252a35]">
         <div className="min-w-max">
           <div className="sticky top-0 z-[45] mb-2 flex bg-white shadow-sm dark:bg-[#1a1d23]">
-            <div className="sticky left-0 top-0 z-[50] shrink-0 border-b border-[#e2e8f0] bg-white px-4 py-2 text-[10px] font-black uppercase tracking-widest text-[#64748b] dark:border-[#252a35] dark:bg-[#1a1d23]" style={{ width: nameColWidth }}>Hierarquia / Integrante</div>
+            <div
+              className="sticky left-0 top-0 z-[50] shrink-0 border-b border-r border-[#e2e8f0] bg-white px-3 py-2 text-[10px] font-black uppercase tracking-widest text-[#64748b] shadow-[4px_0_12px_-4px_rgba(15,23,42,0.08)] dark:border-[#252a35] dark:bg-[#1a1d23] dark:shadow-[4px_0_14px_-4px_rgba(0,0,0,0.35)]"
+              style={{ width: nameColWidth }}
+            >
+              Hierarquia / Integrante
+            </div>
             {viewMode === "year" ? (
-              <div className="flex border-b border-[#e2e8f0] bg-[#f8fafc] dark:border-[#252a35] dark:bg-[#1a1d23]" style={{ width: yearTimelineWidth }}>
+              <div className="shrink-0 flex border-b border-[#e2e8f0] bg-[#f8fafc] dark:border-[#252a35] dark:bg-[#1a1d23]" style={{ width: yearTimelineWidth }}>
                 {Array.from({ length: 12 }, (_, mi) => {
                   const dim = new Date(year, mi + 1, 0).getDate();
                   const pct = (dim / totalDaysInYear) * 100;
@@ -256,7 +262,7 @@ export function TeamCalendar({
                 })}
               </div>
             ) : (
-              <div className="grid gap-0.5 border-b border-[#e2e8f0] bg-white dark:border-[#252a35] dark:bg-[#1a1d23]" style={{ width: timelineWidth, gridTemplateColumns: `repeat(${daysInMonth}, minmax(0, 1fr))` }}>
+              <div className="grid shrink-0 gap-0.5 border-b border-[#e2e8f0] bg-white dark:border-[#252a35] dark:bg-[#1a1d23]" style={{ width: timelineWidth, gridTemplateColumns: `repeat(${daysInMonth}, minmax(0, 1fr))` }}>
                 {dayMeta.map((d) => (
                   <div key={d.day} className={["flex min-h-[30px] flex-col items-center justify-center pt-1 pb-1 text-[10px] leading-none", d.isWeekend ? "bg-slate-50 text-slate-400 dark:bg-slate-800/30" : "text-[#64748b]", todayDay === d.day ? "bg-blue-50 text-blue-600 ring-1 ring-blue-200" : ""].join(" ")}>
                     <span className="text-[9px] font-bold">{d.weekLabel}</span>
@@ -276,25 +282,31 @@ export function TeamCalendar({
 
                 return (
                   <div key={member.calendarRowKey ?? rowIdx} className="group flex items-center">
-                    <div className={["sticky left-0 z-10 shrink-0 truncate px-4 text-[11px] font-semibold text-[#475569] dark:text-slate-300", rowIdx % 2 === 0 ? "bg-white dark:bg-[#1a1d23]" : "bg-[#fafbfc] dark:bg-[#161922]"].join(" ")} style={{ width: nameColWidth, paddingLeft: member.calendarLevel ? `${(member.calendarLevel * 20) + 12}px` : "12px" }}>
-                        <div className="flex items-center gap-1">
+                    <div
+                      className={[
+                        "sticky left-0 z-20 shrink-0 truncate border-r border-[#e2e8f0] px-3 text-[11px] font-semibold text-[#475569] shadow-[4px_0_12px_-4px_rgba(15,23,42,0.06)] dark:border-[#252a35] dark:text-slate-300 dark:shadow-[4px_0_14px_-4px_rgba(0,0,0,0.3)]",
+                        rowIdx % 2 === 0 ? "bg-white dark:bg-[#1a1d23]" : "bg-[#fafbfc] dark:bg-[#161922]",
+                      ].join(" ")}
+                      style={{ width: nameColWidth, paddingLeft: member.calendarLevel ? `${member.calendarLevel * 14 + 10}px` : "10px" }}
+                    >
+                        <div className="flex min-w-0 items-center gap-1">
                             {hasChildren && (
                                 <button 
                                     onClick={() => toggleCollapse(member.calendarRowKey!)}
-                                    className="flex h-4 w-4 items-center justify-center rounded-sm bg-slate-100 text-[10px] font-black hover:bg-blue-100 hover:text-blue-600 dark:bg-slate-800 dark:hover:bg-blue-900/40"
+                                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-[10px] font-black hover:bg-blue-100 hover:text-blue-600 dark:bg-slate-800 dark:hover:bg-blue-900/40"
                                 >
                                     {isCollapsed ? "+" : "-"}
                                 </button>
                             )}
-                            <span className={["truncate", member.calendarIsBranch ? "font-black text-[#1e3a8a] dark:text-blue-300 uppercase tracking-tight" : ""].join(" ")}>
+                            <span className={["min-w-0 truncate", member.calendarIsBranch ? "font-black text-[#1e3a8a] dark:text-blue-300 uppercase tracking-tight" : ""].join(" ")}>
                                 {member.calendarDisplayName ?? member.user.name}
                             </span>
                         </div>
                     </div>
                     {member.calendarIsBranch ? (
-                      <div className="h-8 border-b border-blue-50/50 bg-blue-50/5 dark:border-blue-900/10 dark:bg-blue-900/5" style={{ width: yearTimelineWidth }} />
+                      <div className="h-8 shrink-0 border-b border-blue-50/50 bg-blue-50/5 dark:border-blue-900/10 dark:bg-blue-900/5" style={{ width: yearTimelineWidth }} />
                     ) : (
-                    <div className={["relative h-8 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: yearTimelineWidth }}>
+                    <div className={["relative h-8 shrink-0 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: yearTimelineWidth }}>
                         {todayLine !== null && <div className="pointer-events-none absolute inset-y-0 z-10 w-px bg-blue-500/50" style={{ left: todayLine }} />}
                         {segments.map((s, segIdx) => {
                             const sIdx = dayIndexInRange(s.start, yearStart, yearEnd);
@@ -337,25 +349,31 @@ export function TeamCalendar({
 
                 return (
                   <div key={member.calendarRowKey ?? rowIdx} className="group flex items-center">
-                    <div className={["sticky left-0 z-10 shrink-0 truncate px-4 text-[11px] font-semibold text-[#475569] dark:text-slate-300", rowIdx % 2 === 0 ? "bg-white dark:bg-[#1a1d23]" : "bg-[#fafbfc] dark:bg-[#161922]"].join(" ")} style={{ width: nameColWidth, paddingLeft: member.calendarLevel ? `${(member.calendarLevel * 20) + 12}px` : "12px" }}>
-                        <div className="flex items-center gap-1">
+                    <div
+                      className={[
+                        "sticky left-0 z-20 shrink-0 truncate border-r border-[#e2e8f0] px-3 text-[11px] font-semibold text-[#475569] shadow-[4px_0_12px_-4px_rgba(15,23,42,0.06)] dark:border-[#252a35] dark:text-slate-300 dark:shadow-[4px_0_14px_-4px_rgba(0,0,0,0.3)]",
+                        rowIdx % 2 === 0 ? "bg-white dark:bg-[#1a1d23]" : "bg-[#fafbfc] dark:bg-[#161922]",
+                      ].join(" ")}
+                      style={{ width: nameColWidth, paddingLeft: member.calendarLevel ? `${member.calendarLevel * 14 + 10}px` : "10px" }}
+                    >
+                        <div className="flex min-w-0 items-center gap-1">
                             {hasChildren && (
                                 <button 
                                     onClick={() => toggleCollapse(member.calendarRowKey!)}
-                                    className="flex h-4 w-4 items-center justify-center rounded-sm bg-slate-100 text-[10px] font-black hover:bg-blue-100 hover:text-blue-600 dark:bg-slate-800 dark:hover:bg-blue-900/40"
+                                    className="flex h-4 w-4 shrink-0 items-center justify-center rounded-sm bg-slate-100 text-[10px] font-black hover:bg-blue-100 hover:text-blue-600 dark:bg-slate-800 dark:hover:bg-blue-900/40"
                                 >
                                     {isCollapsed ? "+" : "-"}
                                 </button>
                             )}
-                            <span className={["truncate", member.calendarIsBranch ? "font-black text-[#1e3a8a] dark:text-blue-300 uppercase tracking-tight" : ""].join(" ")}>
+                            <span className={["min-w-0 truncate", member.calendarIsBranch ? "font-black text-[#1e3a8a] dark:text-blue-300 uppercase tracking-tight" : ""].join(" ")}>
                                 {member.calendarDisplayName ?? member.user.name}
                             </span>
                         </div>
                     </div>
                     {member.calendarIsBranch ? (
-                      <div className="h-8 border-b border-blue-50/50 bg-blue-50/5 dark:border-blue-900/10 dark:bg-blue-900/5" style={{ width: timelineWidth }} />
+                      <div className="h-8 shrink-0 border-b border-blue-50/50 bg-blue-50/5 dark:border-blue-900/10 dark:bg-blue-900/5" style={{ width: timelineWidth }} />
                     ) : (
-                    <div className={["relative h-8 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: timelineWidth }}>
+                    <div className={["relative h-8 shrink-0 overflow-hidden rounded-sm border border-[#e2e8f0] dark:border-[#252a35]", rowIdx % 2 === 0 ? "bg-[#f8fafc] dark:bg-[#020617]" : "bg-[#f1f5f9] dark:bg-[#0b1020]", "group-hover:ring-1 group-hover:ring-blue-200/70"].join(" ")} style={{ width: timelineWidth }}>
                         {todayLineLeft !== null && <div className="pointer-events-none absolute inset-y-0 z-10 w-px bg-blue-500/50" style={{ left: todayLineLeft + dayWidth / 2 }} />}
                         {segments.map((s, segIdx) => {
                             const start = Math.max(1, s.start.getDate());
