@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { APPROVED_VACATION_STATUSES } from "@/lib/vacationRules";
+import { APPROVED_VACATION_STATUSES, getChargeableDays } from "@/lib/vacationRules";
 import { logger } from "@/lib/logger";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -21,13 +21,6 @@ function daysBetweenInclusiveClamped(start: Date, end: Date): number {
   const raw = Math.round((e.getTime() - s.getTime()) / ONE_DAY_MS) + 1;
   // CLT: um período de gozo não pode exceder 30 dias em 1 único bloco. 
   // No FIFO, se a soma das solicitações aprovadas passar de 30, o excedente vai para o próximo ciclo.
-  return raw;
-}
-
-function getChargeableDays(start: Date, end: Date, hasAbono: boolean): number {
-  const raw = daysBetweenInclusiveClamped(start, end);
-  // O período salvo já representa o total solicitado no ciclo.
-  void hasAbono;
   return raw;
 }
 
@@ -182,7 +175,20 @@ export async function syncAcquisitionPeriodsForUser(
     });
 
   // Mapa de novos usedDays calculados via FIFO (somente períodos ganhos)
-  const newUsedDays = new Map<string, number>(periods.map((p) => [p.id, 0]));
+  // IMPORTANTE: Para suportar ajustes manuais via Backoffice (RH), precisamos
+  // identificar qual parte do usedDays atual não vem de solicitações no banco.
+  const newUsedDays = new Map<string, number>();
+
+  for (const p of periods) {
+    // Calcula quantos dias deste período já estão "explicados" por solicitações vinculadas a ele
+    const linkedRequests = approvedRequests.filter(r => r.acquisitionPeriodId === p.id);
+    const sumLinked = linkedRequests.reduce((acc, r) => acc + getChargeableDays(r.startDate, r.endDate, !!r.abono), 0);
+    
+    // A diferença é tratada como ajuste manual (ex: carga legada ou ajuste direto pelo RH)
+    const manualAdjustment = Math.max(0, (p.usedDays ?? 0) - sumLinked);
+    newUsedDays.set(p.id, manualAdjustment);
+  }
+
   const newPeriodIdForRequest = new Map<string, string>();
 
   for (const req of approvedRequests) {

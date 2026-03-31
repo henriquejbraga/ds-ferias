@@ -84,18 +84,21 @@ export async function getDashboardData(
 /** Saldo para o sidebar: sem sincronizar períodos aquisitivos (evita custo em telas de aprovação). */
 export async function getCurrentUserBalanceLight(userId: string) {
   const userFull = await findUserWithBalance(userId);
+  const acquisitionPeriods = await findAcquisitionPeriodsForUser(userId);
   return calculateVacationBalance(
     userFull?.hireDate ?? null,
     (userFull?.vacationRequests ?? []) as Array<{ startDate: Date; endDate: Date; status: string }>,
+    acquisitionPeriods,
   );
 }
 
 export async function getCurrentUserBalance(userId: string) {
   const userFull = await findUserWithBalance(userId);
-  await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);
+  const periods = await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);
   return calculateVacationBalance(
     userFull?.hireDate ?? null,
-    (userFull?.vacationRequests ?? []) as Array<{ startDate: Date; endDate: Date; status: string }>
+    (userFull?.vacationRequests ?? []) as Array<{ startDate: Date; endDate: Date; status: string }>,
+    periods,
   );
 }
 
@@ -134,11 +137,11 @@ export type ConcessiveClientContext = {
 
 export async function getMyVacationSidebarContext(userId: string) {
   const userFull = await findUserWithBalance(userId);
-  await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);
-  const acquisitionPeriods = await findAcquisitionPeriodsForUser(userId);
+  const acquisitionPeriods = await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);
   const balance = calculateVacationBalance(
     userFull?.hireDate ?? null,
     (userFull?.vacationRequests ?? []) as Array<{ startDate: Date; endDate: Date; status: string }>,
+    acquisitionPeriods,
   );
   const firstEntitlementDate = userFull?.hireDate
     ? addMonthsPreservingDay(new Date(userFull.hireDate), 12)

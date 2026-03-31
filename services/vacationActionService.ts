@@ -9,6 +9,7 @@ import {
   ROLE_LEVEL,
   detectTeamConflicts,
   hasTeamVisibility,
+  getChargeableDays,
 } from "@/lib/vacationRules";
 import { validateVacationConcessiveFifo } from "@/lib/concessivePeriod";
 import { syncAcquisitionPeriodsForUser, findAcquisitionPeriodsForUser } from "@/repositories/acquisitionRepository";
@@ -69,10 +70,6 @@ function getCurrentCycleRange(today: Date, hireDate: Date | null | undefined) {
   end.setUTCFullYear(end.getUTCFullYear() + 1);
   end.setUTCDate(end.getUTCDate() - 1);
   return { start, end };
-}
-function getChargeableDays(start: Date, end: Date, hasAbono: boolean): number {
-  const raw = daysBetweenInclusive(start, end);
-  return Math.min(Math.max(1, raw), 30);
 }
 async function hasOverlappingRequest(userId: string, start: Date, end: Date) {
   const overlapping = await prisma.vacationRequest.findFirst({

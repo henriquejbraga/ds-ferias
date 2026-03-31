@@ -330,11 +330,15 @@ export type VacationBalance = {
   monthsWorked: number;   // meses de trabalho até hoje
 };
 
-function getChargeableDays(start: Date, end: Date, hasAbono?: boolean): number {
+export function getChargeableDays(start: Date, end: Date, hasAbono?: boolean): number {
   const raw = calcDays(start, end);
-  // CLT: O abono pecuniário (venda de 1/3 das férias) consome 10 dias do saldo de direito,
-  // além dos dias de descanso (gozo) solicitados.
-  return hasAbono ? raw + 10 : raw;
+  // CLT: O abono pecuniário (venda de 1/3 das férias) permite vender 10 dias.
+  // Se o colaborador solicita 20 dias de gozo + 10 de abono, ele consome os 30 dias do ciclo.
+  // Se a solicitação tem 20 dias ou mais e tem abono, consideramos que consome o ciclo todo (30 dias).
+  if (hasAbono && raw >= 20) return 30;
+  
+  // Caso contrário, somamos os 10 dias de abono ao gozo, respeitando o teto de 30.
+  return hasAbono ? Math.min(30, raw + 10) : raw;
 }
 
 /**
@@ -346,6 +350,7 @@ function getChargeableDays(start: Date, end: Date, hasAbono?: boolean): number {
 export function calculateVacationBalance(
   hireDate: Date | null | undefined,
   approvedRequests: { startDate: Date; endDate: Date; status: string; abono?: boolean }[],
+  acquisitionPeriods?: { startDate: Date; endDate: Date; usedDays: number; accruedDays: number }[],
   today = new Date(),
 ): VacationBalance {
   const currentYear = today.getFullYear();
@@ -399,9 +404,26 @@ export function calculateVacationBalance(
   const cutoff = new Date(today);
   cutoff.setMonth(cutoff.getMonth() - cyclesCovered * 12);
 
-  const totalUsed = approvedRequests
-    .filter((r) => isVacationApprovedStatus(r.status) && new Date(r.endDate) >= cutoff)
-    .reduce((sum: number, r: any) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
+  let totalUsed = 0;
+  if (acquisitionPeriods && acquisitionPeriods.length > 0) {
+    // Ordenamos do mais antigo para o mais novo (FIFO).
+    const sortedPeriods = [...acquisitionPeriods].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    
+    // Filtramos períodos que terminam após o cutoff (períodos não prescritos)
+    // e que começam antes ou hoje (períodos já iniciados/concluídos).
+    const relevantPeriods = sortedPeriods.filter(p => new Date(p.endDate) >= cutoff && new Date(p.startDate) <= today);
+    
+    // Somamos o usedDays, mas garantimos que não ultrapassamos o teto de direito (ex: 60 dias)
+    // considerando apenas os ciclos que o usuário de fato já "ganhou" ou está no meio.
+    // Na prática, pegamos os primeiros N ciclos (onde N = cyclesCovered + 1 para incluir o em andamento se necessário, 
+    // mas o totalEntitled já limita o saldo final).
+    totalUsed = relevantPeriods.reduce((sum, p) => sum + (p.usedDays || 0), 0);
+  } else {
+    // Fallback para cálculo via solicitações aprovadas (comportamento original)
+    totalUsed = approvedRequests
+      .filter((r) => isVacationApprovedStatus(r.status) && new Date(r.endDate) >= cutoff)
+      .reduce((sum: number, r: any) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
+  }
 
   const totalPending = approvedRequests
     .filter((r) => r.status === "PENDENTE" && new Date(r.endDate) >= cutoff)
