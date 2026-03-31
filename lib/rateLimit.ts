@@ -7,25 +7,47 @@ import { logger } from "./logger";
  */
 const rateLimitMap = new Map<string, { count: number; reset: number }>();
 
-export function rateLimit(ip: string, limit = 50, windowMs = 60000) {
+/**
+ * Obtém um identificador único para o cliente (IP).
+ */
+export function getClientId(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) {
+    return forwarded.split(",")[0].trim();
+  }
+  return "127.0.0.1";
+}
+
+/**
+ * Verifica se um cliente atingiu o limite de requisições.
+ */
+export function checkRateLimit(key: string, limit = 50, windowMs = 60000): boolean {
   const now = Date.now();
-  const entry = rateLimitMap.get(ip);
+  const entry = rateLimitMap.get(key);
 
   if (!entry || now > entry.reset) {
-    rateLimitMap.set(ip, { count: 1, reset: now + windowMs });
-    return { success: true, remaining: limit - 1 };
+    rateLimitMap.set(key, { count: 1, reset: now + windowMs });
+    return true;
   }
 
   if (entry.count >= limit) {
     // LOGAR QUANDO O LIMITE É ATINGIDO
     logger.warn("Rate limit triggered", { 
-      ip, 
+      key, 
       limit, 
       count: entry.count + 1 
     });
-    return { success: false, remaining: 0 };
+    return false;
   }
 
   entry.count++;
-  return { success: true, remaining: limit - entry.count };
+  return true;
+}
+
+/**
+ * Alias para compatibilidade ou uso simplificado.
+ */
+export function rateLimit(ip: string, limit = 50, windowMs = 60000) {
+  const success = checkRateLimit(ip, limit, windowMs);
+  return { success, remaining: 0 }; // simplified return for compatibility
 }
