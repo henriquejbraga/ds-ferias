@@ -33,14 +33,26 @@ export async function PATCH(
   if (body.team !== undefined) data.team = body.team === "" || body.team == null ? null : String(body.team);
   if (body.managerId !== undefined) data.managerId = body.managerId === "" || body.managerId == null ? null : body.managerId;
 
-  if (Object.keys(data).length === 0) {
-    return NextResponse.json({ error: "Nenhum campo válido para atualizar" }, { status: 400 });
-  }
+  // Executa tudo em uma transação atômica
+  const updated = await prisma.$transaction(async (tx) => {
+    // 1. Atualiza períodos aquisitivos (usados para carga inicial/ajuste)
+    if (Array.isArray(body.acquisitionPeriods)) {
+      for (const ap of body.acquisitionPeriods) {
+        if (typeof ap.id === "string" && typeof ap.usedDays === "number") {
+          await tx.acquisitionPeriod.update({
+            where: { id: ap.id, userId: id }, // Garante que pertence ao usuário
+            data: { usedDays: Math.max(0, Math.min(ap.usedDays, ap.accruedDays ?? 30)) }
+          });
+        }
+      }
+    }
 
-  const updated = await prisma.user.update({
-    where: { id },
-    data,
-    select: { id: true, name: true, email: true, role: true, department: true, hireDate: true, team: true, managerId: true },
+    // 2. Atualiza dados do usuário
+    return await tx.user.update({
+      where: { id },
+      data,
+      select: { id: true, name: true, email: true, role: true, department: true, hireDate: true, team: true, managerId: true },
+    });
   });
 
   return NextResponse.json(updated);

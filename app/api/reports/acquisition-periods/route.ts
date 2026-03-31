@@ -12,8 +12,24 @@ export async function GET(request: Request) {
   if (shouldForcePasswordChange(user)) {
     return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
-  if (getRoleLevel(user.role) < 5) {
-    return NextResponse.json({ error: "Acesso restrito ao RH" }, { status: 403 });
+  
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get("userId");
+
+  // Se for consulta de um usuário específico (usado no Backoffice), nível 2+ pode acessar.
+  // Se for o relatório completo (CSV), apenas nível 5 (RH).
+  const requiredLevel = userId ? 2 : 5;
+  if (getRoleLevel(user.role) < requiredLevel) {
+    return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
+  }
+
+  // Se pediu um usuário específico, retorna JSON para o Backoffice
+  if (userId) {
+    const periods = await prisma.acquisitionPeriod.findMany({
+      where: { userId },
+      orderBy: { startDate: "asc" },
+    });
+    return NextResponse.json({ periods });
   }
 
   // Garante que os períodos aquisitivos estejam atualizados antes do CSV.
@@ -24,7 +40,6 @@ export async function GET(request: Request) {
       .map((u) => syncAcquisitionPeriodsForUser(u.id, u.hireDate)),
   );
 
-  const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get("year");
   const year = yearParam ? Number.parseInt(yearParam, 10) || new Date().getFullYear() : new Date().getFullYear();
 

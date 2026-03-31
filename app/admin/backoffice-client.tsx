@@ -19,6 +19,15 @@ type UserRow = {
   manager: { id: string; name: string } | null;
   _count: { reports: number };
   tookVacationInCurrentCycle: boolean | null;
+  acquisitionPeriods?: AcquisitionPeriodRow[];
+};
+
+type AcquisitionPeriodRow = {
+  id: string;
+  startDate: string;
+  endDate: string;
+  accruedDays: number;
+  usedDays: number;
 };
 
 type Manager = { id: string; name: string };
@@ -48,6 +57,8 @@ export function BackofficeClient({
   const [isPending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<UserRow>>({});
+  const [loadingPeriods, setLoadingPeriods] = useState<string | null>(null);
+  const [editingPeriods, setEditingPeriods] = useState<AcquisitionPeriodRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -89,6 +100,7 @@ export function BackofficeClient({
           hireDate: form.hireDate ? new Date(form.hireDate).toISOString().slice(0, 10) : null,
           team: form.team ?? "",
           managerId: form.managerId ?? null,
+          acquisitionPeriods: editingPeriods, // Envia ajustes de ciclos
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -126,7 +138,7 @@ export function BackofficeClient({
     }
   }
 
-  function startEdit(u: UserRow) {
+  async function startEdit(u: UserRow) {
     setEditingId(u.id);
     setForm({
       name: u.name,
@@ -137,6 +149,30 @@ export function BackofficeClient({
       team: u.team,
       managerId: u.managerId,
     });
+
+    // Se o usuário tem hireDate, carregamos os ciclos aquisitivos
+    if (u.hireDate) {
+      setLoadingPeriods(u.id);
+      try {
+        const res = await fetch(`/api/reports/acquisition-periods?userId=${u.id}`);
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && Array.isArray(data.periods)) {
+          setEditingPeriods(data.periods.map((p: any) => ({
+            id: p.id,
+            startDate: p.startDate,
+            endDate: p.endDate,
+            accruedDays: p.accruedDays,
+            usedDays: p.usedDays
+          })));
+        }
+      } catch (err) {
+        console.error("Erro ao carregar ciclos:", err);
+      } finally {
+        setLoadingPeriods(null);
+      }
+    } else {
+      setEditingPeriods([]);
+    }
   }
 
   const normalizedSearch = search.trim().toLowerCase();
@@ -499,21 +535,62 @@ export function BackofficeClient({
                 </td>
                 <td className="px-4 py-3">
                   {editingId === u.id ? (
-                    <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleSave(u.id)} disabled={saving || isPending} aria-label={saving ? "Salvando" : "Salvar alterações"}>
-                        {saving || isPending ? (
-                          <span className="flex items-center gap-2">
-                            <svg className="h-3.5 w-3.5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Salvando…
-                          </span>
-                        ) : "Salvar"}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)} aria-label="Cancelar edição">
-                        Cancelar
-                      </Button>
+                    <div className="flex flex-col gap-3">
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => handleSave(u.id)} disabled={saving || isPending} aria-label={saving ? "Salvando" : "Salvar alterações"}>
+                          {saving || isPending ? (
+                            <span className="flex items-center gap-2">
+                              <svg className="h-3.5 w-3.5 animate-spin text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                              </svg>
+                              Salvando…
+                            </span>
+                          ) : "Salvar"}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)} aria-label="Cancelar edição">
+                          Cancelar
+                        </Button>
+                      </div>
+
+                      {/* --- Gestão de Ciclos (Carga Inicial) --- */}
+                      {u.hireDate && (
+                        <div className="rounded-md border border-blue-100 bg-blue-50/30 p-3 dark:border-blue-900/20 dark:bg-blue-950/10">
+                          <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Ajuste de Saldo (Ciclos)</p>
+                          {loadingPeriods === u.id ? (
+                            <p className="text-[10px] text-slate-500 italic">Carregando ciclos...</p>
+                          ) : editingPeriods.length > 0 ? (
+                            <div className="space-y-2">
+                              {editingPeriods.map((ap, idx) => (
+                                <div key={ap.id} className="flex items-center justify-between gap-2 border-b border-blue-100/50 pb-1 last:border-0 dark:border-blue-900/30">
+                                  <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
+                                      {new Date(ap.startDate).toLocaleDateString("pt-BR")} – {new Date(ap.endDate).toLocaleDateString("pt-BR")}
+                                    </span>
+                                    <span className="text-[9px] text-slate-400">Total: {ap.accruedDays} dias</span>
+                                  </div>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-[9px] font-medium text-slate-500">Gozados:</span>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      max={ap.accruedDays}
+                                      value={ap.usedDays}
+                                      onChange={(e) => {
+                                        const val = Math.max(0, Math.min(ap.accruedDays, parseInt(e.target.value) || 0));
+                                        setEditingPeriods(prev => prev.map((p, i) => i === idx ? { ...p, usedDays: val } : p));
+                                      }}
+                                      className="h-7 w-12 rounded border border-blue-200 bg-white px-1 text-center text-xs font-bold text-blue-700 outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-blue-800 dark:bg-[#0f1117] dark:text-blue-300"
+                                    />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-[10px] text-slate-500">Nenhum ciclo encontrado.</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex gap-2">
