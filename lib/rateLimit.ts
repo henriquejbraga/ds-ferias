@@ -15,6 +15,9 @@ export function getClientId(request: Request): string {
   if (forwarded) {
     return forwarded.split(",")[0].trim();
   }
+  const realIp = request.headers.get("x-real-ip");
+  if (realIp) return realIp;
+  
   return "127.0.0.1";
 }
 
@@ -31,7 +34,6 @@ export function checkRateLimit(key: string, limit = 50, windowMs = 60000): boole
   }
 
   if (entry.count >= limit) {
-    // LOGAR QUANDO O LIMITE É ATINGIDO
     logger.warn("Rate limit triggered", { 
       key, 
       limit, 
@@ -49,5 +51,5 @@ export function checkRateLimit(key: string, limit = 50, windowMs = 60000): boole
  */
 export function rateLimit(ip: string, limit = 50, windowMs = 60000) {
   const success = checkRateLimit(ip, limit, windowMs);
-  return { success, remaining: 0 }; // simplified return for compatibility
+  return { success, remaining: 0 };
 }

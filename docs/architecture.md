@@ -1,48 +1,48 @@
-## Arquitetura e revisao tecnica (DDD-lite)
+# Arquitetura do Sistema
 
-### Organizacao por camadas
+O sistema utiliza uma arquitetura baseada no **Next.js 16 (App Router)** com uma separação clara de responsabilidades em camadas, garantindo manutenibilidade e testabilidade.
 
-- **UI (`components/`)**
-  - Responsavel por renderizacao, layout responsivo e eventos de clique.
-  - Regras criticas sao evitadas na UI: o dominio esta em `lib/`.
+---
 
-- **Aplicacao (`app/`)**
-  - Rotas HTTP: parsing basico, autorizacao (por papel), e delegacao para dominio e repositorios.
+## Camadas do Sistema
 
-- **Servicos (`services/`)**
-  - Orquestracao de queries para dashboards/relatorios.
-  - Exemplo: `dashboardDataService` compoe dados e contagens de pendencias.
+1.  **Apresentação (`app/` e `components/`):**
+    *   Utiliza **React Server Components (RSC)** para busca de dados eficiente.
+    *   Componentes interativos usando **Client Components** para uma UX fluida.
+    *   UI responsiva baseada em **Tailwind CSS** e **shadcn/ui**.
 
-- **Repositorio (`repositories/`)**
-  - Camada de acesso ao banco com Prisma.
-  - Mantem includes e selecoes para reduzir acoplamento de `prisma.*` nas rotas.
+2.  **Serviços (`services/`):**
+    *   Contém a orquestração da lógica de negócio.
+    *   Exemplo: `vacationActionService` gerencia transações complexas que envolvem aprovação, histórico e consumo de saldo FIFO.
 
-- **Dominio (`lib/`)**
-  - `vacationRules.ts`: regras de hierarquia, aprovac. e validacoes CLT.
-  - `csv.ts`: sanitização contra *Formula Injection* (Padrão Sentinel).
-  - `auth.ts`: regras de acesso e troca obrigatória de senha.
-  - `requestVisibility.ts`: lógica de visibilidade por papel.
+3.  **Domínio e Regras (`lib/`):**
+    *   Motor central de regras CLT (`vacationRules.ts`).
+    *   Lógica de visibilidade e filtros.
+    *   **Observabilidade:** Logger centralizado que emite JSON estruturado para o Vercel Logs.
 
-### Pontos fortes
+4.  **Acesso a Dados (`repositories/`):**
+    *   Abstração do Prisma para operações de banco de dados.
+    *   Repositórios específicos para Usuários, Férias, Períodos Aquisitivos e **Feedbacks**.
 
-- **Qualidade Garantida:** +91% de cobertura de statements e +94% de linhas.
-- **Segurança Sentinel:** Relatórios sanitizados e acesso protegido.
-- **Transacionalidade:** Aprovações usam `prisma.$transaction` para integridade de saldo.
-- **Responsividade:** Interface mobile-first com UX adaptada (Popovers).
+5.  **Infraestrutura e Segurança:**
+    *   Rate Limit customizado para proteção de endpoints sensíveis.
+    *   Sanitização de dados para exportação CSV.
+    *   Monitoramento de performance (Slow Query Detection no Prisma).
 
-### Pontos de atencao
+---
 
-- `lib/vacationRules.ts` e um modulo grande e multifuncional (risco de regressao e baixa coesao).
-- Algumas regras de seguranca/estado sao reforcadas em UI e/ou em rotas, mas nem sempre existe um "use case" unico para transicao.
-- Algumas rotas executam queries complexas (ex.: conflitos e lists de times) sem cache/paginacao.
+## Estratégia de Logs (Monitoramento)
 
-### Construcao de casos de uso (use cases)
+O sistema implementa logs estruturados em todos os pontos críticos:
+-   **Segurança:** Log de logins, trocas de senha e hits no rate limit.
+-   **Negócio:** Log de criação, aprovação e cancelamento de férias.
+-   **Audit Trail:** Rastreabilidade de quem alterou ou deletou usuários no Backoffice.
+-   **Performance:** Alertas automáticos para queries de banco que excedem 500ms.
 
-Atualmente, varios "use cases" ficam embutidos em rotas. Recomendacao para evolucao:
+---
 
-- Introduzir uma camada `domain/` com use cases:
-  - criar solicitacao
-  - aprovar/reprovar
-  - cancelar/excluir
-  - calcular saldo e vincular a ciclo aquisitivo
+## Fluxo de Dados de Feedback
 
+O novo módulo de feedback segue o fluxo:
+`Interface (Form) -> API Route (POST) -> Repository (Prisma) -> Banco de Dados`
+A gestão pelo RH adiciona uma camada de visualização interativa com filtros de status (Pendente/Resolvido) e paginação eficiente.

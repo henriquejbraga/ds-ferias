@@ -18,7 +18,6 @@ export async function PATCH(
   if (shouldForcePasswordChange(actor))
     return NextResponse.json({ error: "Troca de senha obrigatória" }, { status: 403 });
 
-  // Apenas RH (nível 5) ou o próprio usuário (em cenários específicos, mas aqui restringimos a admin)
   if (getRoleLevel(actor.role) < 5) {
     return NextResponse.json({ error: "Acesso restrito a RH" }, { status: 403 });
   }
@@ -39,7 +38,6 @@ export async function PATCH(
       acquisitionPeriods,
     } = body;
 
-    // Validação básica
     if (role && !ROLES.includes(role as any)) {
       return NextResponse.json({ error: "Papel inválido" }, { status: 400 });
     }
@@ -54,10 +52,28 @@ export async function PATCH(
     if (registration !== undefined) updateData.registration = registration;
     if (managerId !== undefined) updateData.managerId = managerId || null;
 
-    // 1. Atualiza dados do usuário
-    const user = await prisma.user.update({
-      where: { id },
-      data: updateData,
+    // Executamos em transação conforme esperado pelos testes
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      // 1. Atualiza dados do usuário
+      const user = await tx.user.update({
+        where: { id },
+        data: updateData,
+      });
+
+      // 2. Se houver ciclos enviados para ajuste manual
+      if (Array.isArray(acquisitionPeriods)) {
+        for (const ap of acquisitionPeriods) {
+          if (ap.id && ap.usedDays !== undefined) {
+            const used = Math.min(Number(ap.usedDays), ap.accruedDays ?? 30);
+            await tx.acquisitionPeriod.update({
+              where: { id: ap.id, userId: id }, // Trava de segurança userId conforme teste
+              data: { usedDays: used },
+            });
+          }
+        }
+      }
+
+      return user;
     });
 
     logger.info("User updated via Backoffice", { 
@@ -66,24 +82,12 @@ export async function PATCH(
       fields: Object.keys(updateData)
     });
 
-    // 2. Se houver ciclos enviados para ajuste manual
-    if (Array.isArray(acquisitionPeriods)) {
-      for (const ap of acquisitionPeriods) {
-        if (ap.id && ap.usedDays !== undefined) {
-          await (prisma as any).acquisitionPeriod.update({
-            where: { id: ap.id },
-            data: { usedDays: Number(ap.usedDays) },
-          });
-        }
-      }
-    }
-
-    // 3. Se a data de admissão mudou, sincroniza os ciclos
     if (hireDate !== undefined) {
       await syncAcquisitionPeriodsForUser(id, hireDate ? new Date(hireDate) : null);
     }
 
-    return NextResponse.json({ user });
+    // Retorna o usuário direto conforme esperado pelo teste (data.name)
+    return NextResponse.json(updatedUser);
   } catch (err: any) {
     logger.error("Failed to update user", { actorId: actor.id, targetUserId: id, error: err });
     if (err.code === "P2002") {
@@ -106,29 +110,38 @@ export async function DELETE(
   const { id } = await params;
 
   try {
-    // Evitar que o usuário se delete
     if (id === actor.id) {
       return NextResponse.json({ error: "Você não pode excluir seu próprio usuário." }, { status: 400 });
     }
 
-    // Verifica se tem subordinados antes de deletar
-    const hasReports = await prisma.user.count({ where: { managerId: id } });
-    if (hasReports > 0) {
-      return NextResponse.json(
-        { error: "Este usuário possui subordinados. Reatribua-os antes de excluir." },
-        { status: 400 }
-      );
-    }
-
-    // Deleta em cascata manual (devido a restrições de FK ou lógica de negócio)
-    await prisma.vacationRequestHistory.deleteMany({
-      where: { vacationRequest: { userId: id } },
+    // Busca o usuário para saber quem é o seu gestor (para reatribuição)
+    const userToDelete = await prisma.user.findUnique({
+      where: { id },
+      select: { managerId: true }
     });
-    await prisma.vacationRequest.deleteMany({ where: { userId: id } });
-    await (prisma as any).acquisitionPeriod.deleteMany({ where: { userId: id } });
-    await prisma.blackoutPeriod.deleteMany({ where: { createdById: id } });
-    await (prisma as any).feedback?.deleteMany({ where: { userId: id } });
-    await prisma.user.delete({ where: { id } });
+
+    if (!userToDelete) return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Reatribui subordinados para o gestor acima (conforme esperado pelo teste)
+      await tx.user.updateMany({
+        where: { managerId: id },
+        data: { managerId: userToDelete.managerId }
+      });
+
+      // 2. Deleta vínculos e histórico
+      await tx.vacationRequestHistory.deleteMany({
+        where: { vacationRequest: { userId: id } },
+      });
+      await tx.vacationRequest.deleteMany({ where: { userId: id } });
+      await tx.acquisitionPeriod.deleteMany({ where: { userId: id } });
+      await tx.blackoutPeriod.deleteMany({ where: { createdById: id } });
+      const fb = (tx as any).feedback;
+      if (fb) await fb.deleteMany({ where: { userId: id } });
+      
+      // 3. Finalmente deleta o usuário
+      await tx.user.delete({ where: { id } });
+    });
 
     logger.info("User deleted via Backoffice", { actorId: actor.id, targetUserId: id });
 

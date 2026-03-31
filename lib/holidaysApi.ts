@@ -28,6 +28,8 @@ export async function getNationalHolidays(year: number): Promise<Holiday[]> {
         status: res.status,
         statusText: res.statusText
       });
+      // Mesmo em erro, cacheamos um array vazio para evitar flood na API externa (conforme esperado pelos testes)
+      holidayCache.set(year, []);
       return [];
     }
 
@@ -39,6 +41,8 @@ export async function getNationalHolidays(year: number): Promise<Holiday[]> {
       year, 
       error: err 
     });
+    // Em erro de rede, também cacheamos vazio para proteção
+    holidayCache.set(year, []);
     return [];
   }
 }
