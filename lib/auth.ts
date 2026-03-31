@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "./prisma";
-import { type Role } from "../generated/prisma/enums";
+import { type Role } from "../generated/prisma/client";
 import crypto from "crypto";
 
 const SESSION_COOKIE = "ds-ferias-session";

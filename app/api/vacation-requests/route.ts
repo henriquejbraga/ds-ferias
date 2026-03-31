@@ -6,7 +6,7 @@ import { checkRateLimit } from "@/lib/rateLimit";
 import { sanitizeText } from "@/lib/validation";
 import { logger } from "@/lib/logger";
 import { vacationActionService, DomainError } from "@/services/vacationActionService";
-import { type VacationStatus } from "../../../generated/prisma/enums";
+import { type VacationStatus } from "@/generated/prisma/client";
 
 const POST_REQUESTS_MAX_PER_MINUTE = 20;
 
