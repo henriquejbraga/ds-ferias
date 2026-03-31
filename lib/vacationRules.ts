@@ -3,7 +3,7 @@
 // Hierarquia: FUNCIONARIO → COORDENADOR → GERENTE → RH
 // ============================================================
 
-import type { VacationStatus } from "@/generated/prisma/enums";
+import { type VacationStatus } from "@/generated/prisma/client";
 
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 

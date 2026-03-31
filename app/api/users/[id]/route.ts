@@ -3,7 +3,7 @@ import { getSessionUser, shouldForcePasswordChange } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getRoleLevel } from "@/lib/vacationRules";
 import { syncAcquisitionPeriodsForUser } from "@/repositories/acquisitionRepository";
-import type { UserUncheckedUpdateInput } from "@/generated/prisma/models/User";
+import { Prisma } from "@/generated/prisma/client";
 import { logger } from "@/lib/logger";
 
 const ROLES = ["FUNCIONARIO", "COLABORADOR", "COORDENADOR", "GESTOR", "GERENTE", "DIRETOR", "RH"] as const;
@@ -13,64 +13,83 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  // Coordenadores, Gerentes, Diretores e RH (nível 2+) podem gerenciar usuários.
-  if (getRoleLevel(user.role) < 2) {
-    return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
-  }
-  if (shouldForcePasswordChange(user)) {
-    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
+  const actor = await getSessionUser();
+  if (!actor) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+  if (shouldForcePasswordChange(actor))
+    return NextResponse.json({ error: "Troca de senha obrigatória" }, { status: 403 });
+
+  // Apenas RH (nível 5) ou o próprio usuário (em cenários específicos, mas aqui restringimos a admin)
+  if (getRoleLevel(actor.role) < 5) {
+    return NextResponse.json({ error: "Acesso restrito a RH" }, { status: 403 });
   }
 
   const { id } = await params;
-  const body = await request.json().catch(() => ({}));
-
-  const data: UserUncheckedUpdateInput = {};
-  if (typeof body.name === "string" && body.name.trim()) data.name = body.name.trim();
-  if (typeof body.email === "string" && body.email.trim()) data.email = body.email.trim();
-  if (typeof body.role === "string" && ROLES.includes(body.role as any)) data.role = body.role;
-  if (body.department !== undefined) data.department = body.department === "" || body.department == null ? null : String(body.department);
-  if (body.hireDate !== undefined) data.hireDate = body.hireDate === "" || body.hireDate == null ? null : new Date(body.hireDate);
-  if (body.team !== undefined) data.team = body.team === "" || body.team == null ? null : String(body.team);
-  if (body.managerId !== undefined) data.managerId = body.managerId === "" || body.managerId == null ? null : body.managerId;
 
   try {
-    // Executa tudo em uma transação atômica
-    const updated = await prisma.$transaction(async (tx) => {
-      // 1. Atualiza períodos aquisitivos (usados para carga inicial/ajuste)
-      if (Array.isArray(body.acquisitionPeriods)) {
-        for (const ap of body.acquisitionPeriods) {
-          if (typeof ap.id === "string" && typeof ap.usedDays === "number") {
-            await tx.acquisitionPeriod.update({
-              where: { id: ap.id, userId: id }, // Garante que pertence ao usuário
-              data: { usedDays: Math.max(0, Math.min(ap.usedDays, ap.accruedDays ?? 30)) }
-            });
-          }
-        }
-      }
+    const body = await request.json();
+    const {
+      name,
+      email,
+      role,
+      department,
+      hireDate,
+      team,
+      managerId,
+      registration,
+      acquisitionPeriods,
+    } = body;
 
-      // 2. Atualiza dados do usuário
-      const updatedUser = await tx.user.update({
-        where: { id },
-        data,
-        select: { id: true, name: true, email: true, role: true, department: true, hireDate: true, team: true, managerId: true },
-      });
+    // Validação básica
+    if (role && !ROLES.includes(role as any)) {
+      return NextResponse.json({ error: "Papel inválido" }, { status: 400 });
+    }
 
-      // 3. Se a data de admissão mudou, sincroniza os ciclos (recalcula do zero)
-      if (data.hireDate) {
-        await syncAcquisitionPeriodsForUser(id, data.hireDate as Date);
-      }
+    const updateData: Prisma.UserUncheckedUpdateInput = {};
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (role !== undefined) updateData.role = role;
+    if (department !== undefined) updateData.department = department;
+    if (hireDate !== undefined) updateData.hireDate = hireDate ? new Date(hireDate) : null;
+    if (team !== undefined) updateData.team = team;
+    if (registration !== undefined) updateData.registration = registration;
+    if (managerId !== undefined) updateData.managerId = managerId || null;
 
-      return updatedUser;
+    // 1. Atualiza dados do usuário
+    const user = await prisma.user.update({
+      where: { id },
+      data: updateData,
     });
 
-    logger.info("User updated", { actorId: user.id, targetUserId: id });
+    logger.info("User updated via Backoffice", { 
+      actorId: actor.id, 
+      targetUserId: id,
+      fields: Object.keys(updateData)
+    });
 
-    return NextResponse.json(updated);
-  } catch (err) {
-    logger.error("Error updating user", { actorId: user.id, targetUserId: id, error: err });
-    return NextResponse.json({ error: "Erro ao atualizar usuário." }, { status: 500 });
+    // 2. Se houver ciclos enviados para ajuste manual
+    if (Array.isArray(acquisitionPeriods)) {
+      for (const ap of acquisitionPeriods) {
+        if (ap.id && ap.usedDays !== undefined) {
+          await (prisma as any).acquisitionPeriod.update({
+            where: { id: ap.id },
+            data: { usedDays: Number(ap.usedDays) },
+          });
+        }
+      }
+    }
+
+    // 3. Se a data de admissão mudou, sincroniza os ciclos
+    if (hireDate !== undefined) {
+      await syncAcquisitionPeriodsForUser(id, hireDate ? new Date(hireDate) : null);
+    }
+
+    return NextResponse.json({ user });
+  } catch (err: any) {
+    logger.error("Failed to update user", { actorId: actor.id, targetUserId: id, error: err });
+    if (err.code === "P2002") {
+      return NextResponse.json({ error: "E-mail ou matrícula já em uso." }, { status: 400 });
+    }
+    return NextResponse.json({ error: "Erro ao atualizar usuário" }, { status: 500 });
   }
 }
 
@@ -79,51 +98,43 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
-  // Coordenadores, Gerentes, Diretores e RH (nível 2+) podem gerenciar usuários.
-  if (getRoleLevel(user.role) < 2) {
+  const actor = await getSessionUser();
+  if (!actor || getRoleLevel(actor.role) < 5) {
     return NextResponse.json({ error: "Acesso restrito" }, { status: 403 });
-  }
-  if (shouldForcePasswordChange(user)) {
-    return NextResponse.json({ error: "Você precisa trocar a senha antes de continuar." }, { status: 403 });
   }
 
   const { id } = await params;
-  if (!id) return NextResponse.json({ error: "ID inválido" }, { status: 400 });
-  if (id === user.id) {
-    return NextResponse.json({ error: "Você não pode excluir seu próprio usuário." }, { status: 400 });
-  }
 
-  const target = await prisma.user.findUnique({
-    where: { id },
-    select: { managerId: true, _count: { select: { reports: true } } },
-  });
-  if (!target) return NextResponse.json({ error: "Usuário não encontrado." }, { status: 404 });
-  const reportsCount = target._count?.reports ?? 0;
-
-  // Se o usuário possuir liderados, realocamos os vínculos para o gestor acima
-  // (ou null quando não existir), para permitir a exclusão sem quebrar FK.
-  if (reportsCount > 0) {
-    await prisma.user.updateMany({
-      where: { managerId: id },
-      data: { managerId: target.managerId ?? null },
-    });
-  }
-
-  // Limpa vínculos antes de excluir para evitar erro de FK.
-  await prisma.vacationRequestHistory.deleteMany({ where: { changedByUserId: id } });
-  await prisma.vacationRequest.deleteMany({ where: { userId: id } });
-  await prisma.acquisitionPeriod.deleteMany({ where: { userId: id } });
-  await prisma.blackoutPeriod.deleteMany({ where: { createdById: id } });
-  
   try {
-    await prisma.user.delete({ where: { id } });
-    logger.info("User deleted", { actorId: user.id, targetUserId: id });
-  } catch (err) {
-    logger.error("Error deleting user", { actorId: user.id, targetUserId: id, error: err });
-    return NextResponse.json({ error: "Erro ao excluir usuário." }, { status: 500 });
-  }
+    // Evitar que o usuário se delete
+    if (id === actor.id) {
+      return NextResponse.json({ error: "Você não pode excluir seu próprio usuário." }, { status: 400 });
+    }
 
-  return NextResponse.json({ ok: true });
+    // Verifica se tem subordinados antes de deletar
+    const hasReports = await prisma.user.count({ where: { managerId: id } });
+    if (hasReports > 0) {
+      return NextResponse.json(
+        { error: "Este usuário possui subordinados. Reatribua-os antes de excluir." },
+        { status: 400 }
+      );
+    }
+
+    // Deleta em cascata manual (devido a restrições de FK ou lógica de negócio)
+    await prisma.vacationRequestHistory.deleteMany({
+      where: { vacationRequest: { userId: id } },
+    });
+    await prisma.vacationRequest.deleteMany({ where: { userId: id } });
+    await (prisma as any).acquisitionPeriod.deleteMany({ where: { userId: id } });
+    await prisma.blackoutPeriod.deleteMany({ where: { createdById: id } });
+    await (prisma as any).feedback?.deleteMany({ where: { userId: id } });
+    await prisma.user.delete({ where: { id } });
+
+    logger.info("User deleted via Backoffice", { actorId: actor.id, targetUserId: id });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    logger.error("Failed to delete user", { actorId: actor.id, targetUserId: id, error: err });
+    return NextResponse.json({ error: "Erro ao excluir usuário" }, { status: 500 });
+  }
 }

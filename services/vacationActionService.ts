@@ -18,7 +18,7 @@ import { canIndirectLeaderActWhenDirectOnVacation } from "@/lib/indirectLeaderRu
 import { canApproveRequest } from "@/lib/vacationRules";
 import { hasInternalOverlapInDateRanges } from "@/lib/validation";
 import type { SessionUser } from "@/lib/auth";
-import type { VacationStatus } from "@/generated/prisma/enums";
+import { type VacationStatus } from "@/generated/prisma/client";
 
 // Tipagem para erros de domínio
 export class DomainError extends Error {
