@@ -118,8 +118,17 @@ export async function getFirstEntitlementDate(userId: string): Promise<Date | nu
 
 export async function getUserAcquisitionPeriods(userId: string) {
   const userFull = await findUserWithBalance(userId);
-  await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);
-  return findAcquisitionPeriodsForUser(userId);
+  const existing = await findAcquisitionPeriodsForUser(userId);
+  const today = new Date();
+  const needsSync =
+    userFull?.hireDate &&
+    (existing.length === 0 ||
+      new Date(existing[existing.length - 1].endDate) < today);
+  if (needsSync) {
+    await syncAcquisitionPeriodsForUser(userId, userFull!.hireDate);
+    return findAcquisitionPeriodsForUser(userId);
+  }
+  return existing;
 }
 
 /** Uma leitura do usuário + sync + períodos (página Minhas Férias). */
@@ -137,7 +146,20 @@ export type ConcessiveClientContext = {
 
 export async function getMyVacationSidebarContext(userId: string) {
   const userFull = await findUserWithBalance(userId);
-  const acquisitionPeriods = await syncAcquisitionPeriodsForUser(userId, userFull?.hireDate ?? null);
+
+  // Sync completo só quando necessário: novo usuário sem períodos OU ciclo atual ainda não criado.
+  // Em condições normais (ciclo já existente e não expirado), apenas lê os períodos existentes,
+  // evitando writes desnecessários a cada page load. O FIFO recalcula nos eventos de ação.
+  const existingPeriods = await findAcquisitionPeriodsForUser(userId);
+  const today = new Date();
+  const needsSync =
+    userFull?.hireDate &&
+    (existingPeriods.length === 0 ||
+      new Date(existingPeriods[existingPeriods.length - 1].endDate) < today);
+
+  const acquisitionPeriods = needsSync
+    ? await syncAcquisitionPeriodsForUser(userId, userFull!.hireDate)
+    : existingPeriods;
   const balance = calculateVacationBalance(
     userFull?.hireDate ?? null,
     (userFull?.vacationRequests ?? []) as Array<{ startDate: Date; endDate: Date; status: string }>,

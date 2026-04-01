@@ -22,14 +22,14 @@ export async function POST(request: Request, { params }: Params) {
   }
 
   try {
-    await vacationActionService.cancelRequest(id, user);
+    const result = await vacationActionService.cancelRequest(id, user);
 
     const contentType = request.headers.get("content-type") ?? "";
     if (!contentType.includes("application/json")) {
       return NextResponse.redirect(new URL("/dashboard", request.url));
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, cltWarning: result.cltWarning ?? null });
   } catch (err) {
     if (err instanceof DomainError) {
       logger.warn("Erro de validação ao cancelar férias", { userId: user.id, requestId: id, error: err.message });

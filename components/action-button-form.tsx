@@ -126,6 +126,9 @@ export function ActionButtonForm({
           toast.error(data?.error ?? "Não foi possível concluir esta ação.");
         } else {
           toast.success(successMessage ?? "Ação realizada com sucesso.");
+          if (typeof data?.cltWarning === "string") {
+            toast.warning(data.cltWarning, { duration: 8000 });
+          }
         }
       } catch {
         toast.error("Erro de rede ao comunicar com o servidor.");

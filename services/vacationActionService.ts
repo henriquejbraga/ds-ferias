@@ -116,6 +116,28 @@ export const vacationActionService = {
     ]);
 
     if (userFull?.hireDate) {
+      // Validação: abono pecuniário é permitido no máximo uma vez por ciclo aquisitivo.
+      // Impede que dois pedidos com abono=true consumam o mesmo ciclo, inflando o usedDays.
+      if (abono) {
+        const todayUtcAbono = toUtcMidnight(new Date());
+        const hireUtcAbono = toUtcMidnight(new Date(userFull.hireDate));
+        let monthsWorkedAbono =
+          (todayUtcAbono.getUTCFullYear() - hireUtcAbono.getUTCFullYear()) * 12 +
+          (todayUtcAbono.getUTCMonth() - hireUtcAbono.getUTCMonth());
+        if (todayUtcAbono.getUTCDate() < hireUtcAbono.getUTCDate()) monthsWorkedAbono -= 1;
+        const acquiredCountAbono = Math.min(Math.floor(Math.max(0, monthsWorkedAbono) / 12), 2);
+        const maxAbonoAllowed = Math.max(1, acquiredCountAbono);
+
+        const existingAbono = await prisma.vacationRequest.count({
+          where: { userId: user.id, abono: true, status: { in: [...PENDING_OR_APPROVED_VACATION_STATUSES] } },
+        });
+        if (existingAbono >= maxAbonoAllowed) {
+          throw new DomainError(
+            "Já existe um pedido com abono pecuniário para este período aquisitivo. O abono é permitido apenas uma vez por ciclo de 30 dias."
+          );
+        }
+      }
+
       if (user.role === "GERENTE" || user.role === "DIRETOR") {
         const WORKING_DAYS_LIMIT_PER_CYCLE = 22;
         const cycle = getCurrentCycleRange(new Date(), userFull.hireDate);
@@ -446,6 +468,24 @@ export const vacationActionService = {
       );
     }
 
+    // Verifica regra CLT dos 14 dias: se restaram 2+ pedidos no ciclo e nenhum tem ≥ 14 dias → aviso.
+    let cltWarning: string | null = null;
+    const remainingRequests = await prisma.vacationRequest.findMany({
+      where: { userId: cancelledUserId, status: { in: [...PENDING_OR_APPROVED_VACATION_STATUSES] } },
+      select: { startDate: true, endDate: true },
+    });
+    if (remainingRequests.length >= 2) {
+      const has14Days = remainingRequests.some((r) => {
+        const days =
+          Math.round((new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / ONE_DAY_MS) + 1;
+        return days >= 14;
+      });
+      if (!has14Days) {
+        cltWarning =
+          "Atenção: as solicitações restantes não contêm nenhum período de 14 dias ou mais (exigência CLT art. 134). Considere reorganizar as datas.";
+      }
+    }
+
     logger.info("Solicitação de férias cancelada/excluída", {
       actorId: actor.id,
       requestId: id,
@@ -453,6 +493,6 @@ export const vacationActionService = {
       previousStatus: existing.status
     });
 
-    return { ok: true };
+    return { ok: true, cltWarning };
   }
 };

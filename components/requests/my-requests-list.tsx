@@ -1,5 +1,6 @@
 import type { VacationBalance } from "@/lib/vacationRules";
 import { getVacationStatusDisplayLabel, isVacationApprovedStatus } from "@/lib/vacationRules";
+import { getConcessivePeriodInclusive } from "@/lib/concessivePeriod";
 import { EmptyState } from "@/components/layout/empty-state";
 import { ExportButton } from "@/components/layout/export-button";
 import { RequestCard } from "@/components/requests/request-card";
@@ -158,34 +159,76 @@ export function MyRequestsList({
         </p>
 
         {(() => {
-          const expiredPeriods = periods.filter((p) => p.end.getTime() < endOfTodayLocal.getTime());
-          const expiredWithRemaining = expiredPeriods.filter((p) => p.usedDays < p.accruedDays);
+          const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+          const todayMs = endOfTodayLocal.getTime();
+
+          // Estima dias já comprometidos pelas férias aprovadas/pendentes
+          const committedDays = requests
+            .filter((r) => r.status === "PENDENTE" || isVacationApprovedStatus(r.status))
+            .reduce((sum, r) => {
+              return sum + Math.round((new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / ONE_DAY_MS + 1);
+            }, 0);
+
+          // Períodos aquisitivos já encerrados com saldo não utilizado
+          const expiredWithRemaining = periods.filter(
+            (p) => p.end.getTime() < todayMs && p.usedDays < p.accruedDays,
+          );
+
           if (!expiredWithRemaining.length) return null;
 
-          // Calcula dias restantes nos períodos vencidos
           const totalExpiredRemaining = expiredWithRemaining.reduce(
             (sum, p) => sum + (p.accruedDays - p.usedDays),
             0,
           );
-          // Estima dias comprometidos pelas férias aprovadas/pendentes futuras
-          const committedDays = requests
-            .filter((r) => r.status === "PENDENTE" || isVacationApprovedStatus(r.status))
-            .reduce((sum, r) => {
-              const days = Math.round(
-                (new Date(r.endDate).getTime() - new Date(r.startDate).getTime()) / 86_400_000 + 1,
-              );
-              return sum + days;
-            }, 0);
-
-          // Se os dias aprovados/pendentes já cobrem os dias dos períodos vencidos, omite o alerta
           if (committedDays >= totalExpiredRemaining) return null;
+
+          // Classifica cada período vencido pelo prazo do período concessivo
+          const URGENT_DAYS = 60;
+          const urgentPeriods = expiredWithRemaining.filter((p) => {
+            const { end: concessiveEnd } = getConcessivePeriodInclusive(p.end);
+            const daysLeft = Math.floor((concessiveEnd.getTime() - todayMs) / ONE_DAY_MS);
+            return daysLeft >= 0 && daysLeft <= URGENT_DAYS;
+          });
+
+          const expiredConcessivePeriods = expiredWithRemaining.filter((p) => {
+            const { end: concessiveEnd } = getConcessivePeriodInclusive(p.end);
+            return concessiveEnd.getTime() < todayMs;
+          });
+
+          if (urgentPeriods.length > 0) {
+            const minDaysLeft = urgentPeriods.reduce((min, p) => {
+              const { end: concessiveEnd } = getConcessivePeriodInclusive(p.end);
+              const d = Math.floor((concessiveEnd.getTime() - todayMs) / ONE_DAY_MS);
+              return Math.min(min, d);
+            }, Infinity);
+            return (
+              <div className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-900 dark:border-red-700/50 dark:bg-red-950/30 dark:text-red-200">
+                <p className="font-bold">Férias vencendo em breve!</p>
+                <p className="mt-0.5">
+                  Você tem {urgentPeriods.length} período(s) aquisitivo(s) cujo prazo para gozo vence
+                  {minDaysLeft === 0 ? " hoje" : ` em ${minDaysLeft} dia(s)`}. Solicite férias imediatamente para não perder o direito.
+                </p>
+              </div>
+            );
+          }
+
+          if (expiredConcessivePeriods.length > 0) {
+            return (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800 dark:border-red-800/40 dark:bg-red-950/30 dark:text-red-300">
+                <p className="font-semibold">Atenção: direito de férias expirado</p>
+                <p className="mt-0.5">
+                  {expiredConcessivePeriods.length} período(s) aquisitivo(s) ultrapassaram o prazo concessivo de 12 meses. Contate o RH.
+                </p>
+              </div>
+            );
+          }
 
           return (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-200">
               <p className="font-semibold">Atenção</p>
               <p className="mt-0.5">
-                Você tem {expiredWithRemaining.length} período(s) aquisitivo(s) vencido(s) com saldo. Para evitar
-                perda de direito/prescrição, solicite férias o quanto antes.
+                Você tem {expiredWithRemaining.length} período(s) aquisitivo(s) encerrado(s) com saldo não utilizado.
+                Solicite férias antes do prazo concessivo para não perder o direito.
               </p>
             </div>
           );
