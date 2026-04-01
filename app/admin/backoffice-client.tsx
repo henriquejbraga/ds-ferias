@@ -29,22 +29,6 @@ type UserRow = {
   manager: { id: string; name: string } | null;
   _count: { reports: number };
   tookVacationInCurrentCycle: boolean | null;
-  acquisitionPeriods?: Array<{
-    id?: string;
-    startDate?: string;
-    endDate?: string;
-    accruedDays?: number;
-    usedDays: number;
-  }>;
-};
-
-type AcquisitionPeriodRow = {
-  id: string;
-  startDate: string;
-  endDate: string;
-  accruedDays: number;
-  usedDays: number | "";     // valor editável = manualUsedDays (ajuste do RH)
-  fifoUsedDays?: number;     // valor calculado pela FIFO (somente leitura)
 };
 
 type Manager = { id: string; name: string };
@@ -74,8 +58,6 @@ export function BackofficeClient({
   const [isPending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<UserRow>>({});
-  const [loadingPeriods, setLoadingPeriods] = useState<string | null>(null);
-  const [editingPeriods, setEditingPeriods] = useState<AcquisitionPeriodRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -102,24 +84,6 @@ export function BackofficeClient({
   const [roleFilter, setRoleFilter] = useState<Role | "">("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [syncing, setSyncing] = useState(false);
-
-  async function handleResyncAllPeriods() {
-    setSyncing(true);
-    try {
-      const res = await fetch("/api/admin/sync-periods", { method: "POST" });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error("Erro ao recalcular períodos.");
-        return;
-      }
-      toast.success(`Períodos recalculados: ${data.synced} usuário(s) sincronizados.`);
-      startTransition(() => { router.refresh(); });
-    } finally {
-      setSyncing(false);
-    }
-  }
-
   async function handleSave(id: string) {
     setSaving(true);
     try {
@@ -134,10 +98,6 @@ export function BackofficeClient({
           hireDate: form.hireDate ? new Date(form.hireDate).toISOString().slice(0, 10) : null,
           team: form.team ?? "",
           managerId: form.managerId ?? null,
-          acquisitionPeriods: editingPeriods.map(p => ({
-            ...p,
-            usedDays: p.usedDays === "" ? 0 : p.usedDays
-          })), // Converte vazio para 0 ao salvar
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -175,7 +135,7 @@ export function BackofficeClient({
     }
   }
 
-  async function startEdit(u: UserRow) {
+  function startEdit(u: UserRow) {
     setEditingId(u.id);
     setForm({
       name: u.name,
@@ -186,31 +146,6 @@ export function BackofficeClient({
       team: u.team,
       managerId: u.managerId,
     });
-
-    // Se o usuário tem hireDate, carregamos os ciclos aquisitivos
-    if (u.hireDate) {
-      setLoadingPeriods(u.id);
-      try {
-        const res = await fetch(`/api/reports/acquisition-periods?userId=${u.id}`);
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && Array.isArray(data.periods)) {
-          setEditingPeriods(data.periods.map((p: any) => ({
-            id: p.id,
-            startDate: p.startDate,
-            endDate: p.endDate,
-            accruedDays: p.accruedDays,
-            usedDays: p.manualUsedDays ?? 0,  // editável: ajuste manual do RH
-            fifoUsedDays: p.usedDays ?? 0,    // leitura: calculado pela FIFO
-          })));
-        }
-      } catch (err) {
-        console.error("Erro ao carregar ciclos:", err);
-      } finally {
-        setLoadingPeriods(null);
-      }
-    } else {
-      setEditingPeriods([]);
-    }
   }
 
   const normalizedSearch = search.trim().toLowerCase();
@@ -333,16 +268,6 @@ export function BackofficeClient({
             <option value="DIRETOR">Diretor(a)</option>
             <option value="RH">RH</option>
           </select>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleResyncAllPeriods}
-            disabled={syncing || isPending}
-            title="Recalcula os dias usados em todos os períodos aquisitivos via FIFO"
-            className="whitespace-nowrap text-xs"
-          >
-            {syncing ? "Recalculando..." : "⟳ Resync Períodos"}
-          </Button>
         </div>
       </div>
       <div className="border-b border-[#e2e8f0] bg-white px-4 py-3 text-sm text-[#475569] dark:border-[#252a35] dark:bg-[#1a1d23] dark:text-slate-300">
@@ -571,29 +496,9 @@ export function BackofficeClient({
                     <input
                       type="date"
                       value={form.hireDate ? new Date(form.hireDate).toISOString().slice(0, 10) : ""}
-                      onChange={async (e) => {
+                      onChange={(e) => {
                         const newDate = e.target.value ? new Date(e.target.value) : null;
                         setForm((f) => ({ ...f, hireDate: newDate }));
-                        
-                        // --- RECARGA DE CICLOS AO MUDAR DATA ---
-                        if (newDate) {
-                          setLoadingPeriods(u.id);
-                          setEditingPeriods([]); // Limpa para forçar re-render de loading
-                          try {
-                            // Sincroniza e busca os novos períodos para a UI
-                            const res = await fetch(`/api/reports/acquisition-periods?userId=${u.id}&sync=true&hireDate=${newDate.toISOString()}`);
-                            const data = await res.json().catch(() => ({}));
-                            if (res.ok && Array.isArray(data.periods)) {
-                              setEditingPeriods(data.periods);
-                            }
-                          } catch (err) {
-                            console.error("Erro ao sincronizar ciclos:", err);
-                          } finally {
-                            setLoadingPeriods(null);
-                          }
-                        } else {
-                          setEditingPeriods([]);
-                        }
                       }}
                       aria-label="Data de admissão"
                       className="rounded border border-[#e2e8f0] bg-white px-2 py-1.5 dark:border-[#252a35] dark:bg-[#0f1117] dark:text-white"
@@ -648,58 +553,6 @@ export function BackofficeClient({
                         </Button>
                       </div>
 
-                      {/* --- Gestão de Ciclos (Carga Inicial) --- */}
-                      {u.hireDate && (
-                        <div className="rounded-md border border-blue-100 bg-blue-50/30 p-3 dark:border-blue-900/20 dark:bg-blue-950/10">
-                          <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">Ajuste de Saldo (Ciclos)</p>
-                          {loadingPeriods === u.id ? (
-                            <p className="text-[10px] text-slate-500 italic">Carregando ciclos...</p>
-                          ) : editingPeriods.length > 0 ? (
-                            <div className="space-y-2">
-                              {editingPeriods.map((ap, idx) => (
-                                <div key={ap.id} className="flex flex-col gap-1 border-b border-blue-100/50 pb-2 last:border-0 dark:border-blue-900/30">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">
-                                      {new Date(ap.startDate).toLocaleDateString("pt-BR")} – {new Date(ap.endDate).toLocaleDateString("pt-BR")}
-                                    </span>
-                                    <span className="text-[9px] text-slate-400">Total: {ap.accruedDays} dias</span>
-                                  </div>
-                                  <div className="flex items-center justify-between gap-2">
-                                    <span className="text-[9px] text-slate-400">
-                                      Auto (FIFO):{" "}
-                                      <span className="font-semibold text-slate-600 dark:text-slate-300">
-                                        {ap.fifoUsedDays ?? 0}
-                                      </span>{" "}
-                                      dias
-                                    </span>
-                                    <div className="flex items-center gap-1">
-                                      <span className="text-[9px] font-medium text-slate-500">Ajuste manual:</span>
-                                      <input
-                                        type="number"
-                                        value={ap.usedDays}
-                                        onChange={(e) => {
-                                          const raw = e.target.value;
-                                          if (raw === "") {
-                                            setEditingPeriods(prev => prev.map((p, i) => i === idx ? { ...p, usedDays: "" } : p));
-                                            return;
-                                          }
-                                          const parsed = parseInt(raw);
-                                          if (isNaN(parsed)) return;
-                                          const val = Math.max(0, Math.min(ap.accruedDays, parsed));
-                                          setEditingPeriods(prev => prev.map((p, i) => i === idx ? { ...p, usedDays: val } : p));
-                                        }}
-                                        className="h-7 w-12 rounded border border-blue-200 bg-white px-1 text-center text-xs font-bold text-blue-700 outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-blue-800 dark:bg-[#0f1117] dark:text-blue-300"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-[10px] text-slate-500">Nenhum ciclo encontrado.</p>
-                          )}
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <div className="flex gap-2">
