@@ -39,8 +39,8 @@ export default async function DashboardPage({
   const userRoleLevel = getRoleLevel(user.role);
   const isApprover = userRoleLevel >= 2;
   const isRH = user.role === "RH";
-  const defaultView = isApprover ? "inbox" : "minhas";
-  const allowedViews = isRH ? ["inbox", "historico", "times"] : ["inbox", "historico", "minhas", "times"];
+  const defaultView = isRH ? "times" : (isApprover ? "inbox" : "minhas");
+  const allowedViews = isRH ? ["times"] : ["inbox", "historico", "minhas", "times"];
 
   const q = normalizeParam(params.q);
   const statusFilter = normalizeParam(params.status, "TODOS");

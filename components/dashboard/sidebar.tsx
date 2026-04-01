@@ -76,8 +76,12 @@ export function AppSidebar({
         <DashboardSidebarItem href="/profile" icon={<IconUser />} label="Perfil" active={activeView === "perfil"} />
         {level >= 2 && (
           <>
-            <DashboardSidebarItem href="/dashboard?view=inbox" icon={<IconInbox />} label="Caixa" active={activeView === "inbox"} badge={pendingCount > 0 ? pendingCount : undefined} badgeAlert />
-            <DashboardSidebarItem href="/dashboard?view=historico" icon={<IconHistory />} label="Histórico" active={activeView === "historico"} />
+            {!isRH && (
+              <>
+                <DashboardSidebarItem href="/dashboard?view=inbox" icon={<IconInbox />} label="Caixa" active={activeView === "inbox"} badge={pendingCount > 0 ? pendingCount : undefined} badgeAlert />
+                <DashboardSidebarItem href="/dashboard?view=historico" icon={<IconHistory />} label="Histórico" active={activeView === "historico"} />
+              </>
+            )}
             <DashboardSidebarItem href="/dashboard?view=times" icon={<IconTeams />} label="Times" active={activeView === "times"} />
             <DashboardSidebarItem href="/admin" icon={<IconSettings />} label="Admin" />
           </>
@@ -110,8 +114,12 @@ export function AppSidebar({
         <DashboardSidebarItem href="/profile" icon={<IconUser />} label="Perfil" active={activeView === "perfil"} />
         {level >= 2 && (
           <>
-            <DashboardSidebarItem href="/dashboard?view=inbox" icon={<IconInbox />} label="Caixa de Aprovação" active={activeView === "inbox"} badge={pendingCount > 0 ? pendingCount : undefined} badgeAlert />
-            <DashboardSidebarItem href="/dashboard?view=historico" icon={<IconHistory />} label="Histórico" active={activeView === "historico"} />
+            {!isRH && (
+              <>
+                <DashboardSidebarItem href="/dashboard?view=inbox" icon={<IconInbox />} label="Caixa de Aprovação" active={activeView === "inbox"} badge={pendingCount > 0 ? pendingCount : undefined} badgeAlert />
+                <DashboardSidebarItem href="/dashboard?view=historico" icon={<IconHistory />} label="Histórico" active={activeView === "historico"} />
+              </>
+            )}
             <DashboardSidebarItem href="/dashboard?view=times" icon={<IconTeams />} label="Times" active={activeView === "times"} />
             <DashboardSidebarItem href="/admin" icon={<IconSettings />} label="Backoffice" />
           </>
