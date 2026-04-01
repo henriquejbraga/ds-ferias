@@ -339,8 +339,6 @@ export function getChargeableDays(start: Date, end: Date, hasAbono?: boolean): n
   return hasAbono ? Math.min(30, raw + 10) : raw;
 }
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
 /**
  * Calcula a data real de retorno ao trabalho, levando em conta o abono pecuniário.
  *
