@@ -150,16 +150,33 @@ describe("vacationActionService", () => {
       expect(res.id).toBe("r1");
     });
 
-    it("executes full approval path with period update", async () => {
-      const mockReq = { id: "r1", status: "PENDENTE", startDate: new Date(), endDate: new Date(), user: { id: "u1", name: "U", email: "e", managerId: "m1", role: "FUNCIONARIO" } };
+    it("executes full approval path with period update and correct returnDate with abono", async () => {
+      const startDate = new Date("2026-10-01T00:00:00Z");
+      const endDate = new Date("2026-10-30T00:00:00Z"); // 30 dias corridos
+      const mockReq = { 
+        id: "r1", 
+        status: "PENDENTE", 
+        startDate, 
+        endDate, 
+        abono: true,
+        user: { id: "u1", name: "U", email: "e", managerId: "m1", role: "FUNCIONARIO" } 
+      };
       vi.mocked(prisma.vacationRequest.findUnique).mockResolvedValue(mockReq as any);
       vi.mocked(prisma.acquisitionPeriod.findMany).mockResolvedValue([{ id: "p1", accruedDays: 30, usedDays: 0 }] as any);
       vi.spyOn(rules, "getNextApprovalStatus").mockReturnValue("APROVADO_RH");
       vi.mocked(prisma.vacationRequest.updateMany).mockResolvedValue({ count: 1 });
+      
       const res = await vacationActionService.approveRequest("r1", { ...mockUser, id: "m1", role: "GERENTE", name: "Boss" });
       expect(res).toBeDefined();
+      
+      // Esperamos que a data de retorno seja endDate - 10 dias + 1 dia
+      // 2026-10-30 - 10 dias = 2026-10-20. 2026-10-20 + 1 dia = 2026-10-21.
+      const expectedReturnDate = new Date(endDate.getTime() - 10 * 24 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000);
+      
       await new Promise(process.nextTick);
-      expect(notifications.notifyApproved).toHaveBeenCalled();
+      expect(notifications.notifyApproved).toHaveBeenCalledWith(expect.objectContaining({
+        returnDate: expectedReturnDate
+      }));
     });
   });
 
