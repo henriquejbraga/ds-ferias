@@ -116,14 +116,14 @@ export default function LoginPage() {
             </svg>
           </div>
           <div className="flex flex-col">
-            <span className="text-3xl font-extrabold tracking-tight text-white">Editora Globo</span>
+            <span className="text-3xl font-extrabold tracking-tight text-white">Editora Globo - Estratégia Digital</span>
             <span className="text-2xl font-semibold text-white/90">Férias</span>
           </div>
         </div>
 
-        <p className="text-2xl font-medium text-white/90">Sistema de férias da Editora Globo.</p>
+        <p className="text-2xl font-medium text-white/90">Sistema de férias da Editora Globo - Estratégia Digital.</p>
 
-        <p className="text-sm text-blue-200">© 2026 Editora Globo - Férias</p>
+        <p className="text-sm text-blue-200">© 2026 Editora Globo - Estratégia Digital</p>
       </div>
 
       {/* Painel direito — formulário */}
