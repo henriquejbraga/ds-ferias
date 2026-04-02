@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { APPROVED_VACATION_STATUSES, getChargeableDays } from "@/lib/vacationRules";
+import { APPROVED_VACATION_STATUSES, getChargeableDays, calculateAccruedDays } from "@/lib/vacationRules";
 import { logger } from "@/lib/logger";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -46,7 +46,7 @@ export async function syncAcquisitionPeriodsForUser(
   const ap = (prisma as any)?.acquisitionPeriod;
   if (!ap?.findMany || !ap?.createMany) return [];
 
-  let periods: Array<{ id: string; startDate: Date; endDate: Date; accruedDays: number; usedDays: number }> =
+  let periods: Array<{ id: string; startDate: Date; endDate: Date; accruedDays: number; usedDays: number; unjustifiedAbsences: number; isManual: boolean }> =
     await ap.findMany({
       where: { userId },
       orderBy: { startDate: "asc" },
@@ -134,7 +134,9 @@ export async function syncAcquisitionPeriodsForUser(
           startDate: currentStart, 
           endDate: end, 
           accruedDays: 30, 
-          usedDays: 0 
+          usedDays: 0,
+          unjustifiedAbsences: 0,
+          isManual: false
         });
 
         // Se este ciclo que acabamos de planejar termina no futuro, ele é o ciclo atual.
@@ -156,8 +158,17 @@ export async function syncAcquisitionPeriodsForUser(
     }
   }
 
-  // Removemos a trava que deletava ciclos "não ganhos", pois agora permitimos 
-  // a gestão do ciclo atual (em andamento) no Backoffice.
+  // Recalcula o accruedDays para períodos NÃO manuais com base nas faltas injustificadas.
+  // Isso permite que o RH atualize o número de faltas e o saldo seja recalculado no sync.
+  for (const period of periods) {
+    if (!period.isManual) {
+      const computedAccrued = calculateAccruedDays(period.unjustifiedAbsences || 0);
+      if (period.accruedDays !== computedAccrued) {
+        await ap.update({ where: { id: period.id }, data: { accruedDays: computedAccrued } });
+        period.accruedDays = computedAccrued;
+      }
+    }
+  }
 
   // Resync FIFO completo: recalcula usedDays de cada período a partir das solicitações aprovadas.
   // Isso corrige atribuições erradas geradas pelo código legado (que usava range de datas).

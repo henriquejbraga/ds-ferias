@@ -413,15 +413,16 @@ export function calculateVacationBalance(
 
   // Calcula quantos ciclos completos de 12 meses foram adquiridos
   const yearsWorked = Math.floor(monthsWorked / 12);
-  const MAX_CYCLES = 2; // até 2 períodos aquisitivos (60 dias)
+  const MAX_CYCLES = 2; // até 2 períodos aquisitivos (60 dias nominais)
   const cyclesCovered = Math.min(yearsWorked, MAX_CYCLES);
-  const totalEntitled = cyclesCovered * 30;
 
   // Janela: últimos N*12 meses a partir de hoje (cobre todos os ciclos adquiridos)
   const cutoff = new Date(today);
   cutoff.setMonth(cutoff.getMonth() - cyclesCovered * 12);
 
+  let totalEntitled = cyclesCovered * 30;
   let totalUsed = 0;
+
   if (acquisitionPeriods && acquisitionPeriods.length > 0) {
     // Ordenamos do mais antigo para o mais novo (FIFO).
     const sortedPeriods = [...acquisitionPeriods].sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
@@ -430,10 +431,9 @@ export function calculateVacationBalance(
     // e que começam antes ou hoje (períodos já iniciados/concluídos).
     const relevantPeriods = sortedPeriods.filter(p => new Date(p.endDate) >= cutoff && new Date(p.startDate) <= today);
     
-    // Somamos o usedDays, mas garantimos que não ultrapassamos o teto de direito (ex: 60 dias)
-    // considerando apenas os ciclos que o usuário de fato já "ganhou" ou está no meio.
-    // Na prática, pegamos os primeiros N ciclos (onde N = cyclesCovered + 1 para incluir o em andamento se necessário, 
-    // mas o totalEntitled já limita o saldo final).
+    // Somamos o direito real (accruedDays) e o utilizado (usedDays) dos períodos relevantes.
+    // Isso considera as reduções por faltas registradas em cada ciclo.
+    totalEntitled = relevantPeriods.reduce((sum, p) => sum + (p.accruedDays || 30), 0);
     totalUsed = relevantPeriods.reduce((sum, p) => sum + (p.usedDays || 0), 0);
   } else {
     // Fallback para cálculo via solicitações aprovadas (comportamento original)
@@ -477,18 +477,29 @@ function calcUsedDays(
     .reduce((sum: number, r: any) => sum + getChargeableDays(r.startDate, r.endDate, r.abono), 0);
 }
 
+/**
+ * Tabela de redução do direito a férias por faltas injustificadas (Art. 130 CLT).
+ */
+export function calculateAccruedDays(unjustifiedAbsences: number): number {
+  if (unjustifiedAbsences <= 5) return 30;
+  if (unjustifiedAbsences <= 14) return 24;
+  if (unjustifiedAbsences <= 23) return 18;
+  if (unjustifiedAbsences <= 32) return 12;
+  return 0;
+}
+
 // ============================================================
-// FERIADOS – SÃO PAULO (NACIONAL + ESTADUAL/MUNICIPAL)
+// FERIADOS – NACIONAIS + SÃO PAULO
 // ============================================================
 
-export function isSaoPauloHoliday(date: Date): boolean {
+export function isHoliday(date: Date): boolean {
   const d = toUtcMidnight(date);
   const year = d.getUTCFullYear();
   const month = d.getUTCMonth() + 1; // 1-12
   const day = d.getUTCDate();
 
-  // Fixos nacionais
-  const fixed = [
+  // Fixos nacionais (Lei 662/49, Lei 6.802/80, Lei 10.607/02, Lei 14.759/23)
+  const fixedNational = [
     [1, 1],   // 01/01 – Confraternização Universal
     [4, 21],  // 21/04 – Tiradentes
     [5, 1],   // 01/05 – Dia do Trabalho
@@ -496,17 +507,17 @@ export function isSaoPauloHoliday(date: Date): boolean {
     [10, 12], // 12/10 – N. Sra Aparecida
     [11, 2],  // 02/11 – Finados
     [11, 15], // 15/11 – Proclamação da República
+    [11, 20], // 20/11 – Consciência Negra (Feriado Nacional desde 2024)
     [12, 25], // 25/12 – Natal
   ];
 
-  // Fixos estado/município SP
+  // Fixos município SP (mantido como fallback ou por contexto da empresa)
   const fixedSp = [
     [1, 25],  // 25/01 – Aniversário da cidade de SP
     [7, 9],   // 09/07 – Revolução Constitucionalista (feriado estadual)
-    [11, 20], // 20/11 – Consciência Negra (feriado municipal SP)
   ];
 
-  if (fixed.concat(fixedSp).some(([m, d0]) => m === month && d0 === day)) return true;
+  if (fixedNational.concat(fixedSp).some(([m, d0]) => m === month && d0 === day)) return true;
 
   // Móveis baseados na Páscoa: Carnaval (3ª feira), Sexta-Feira Santa, Corpus Christi
   const easter = getEasterSunday(year); // domingo
@@ -516,7 +527,6 @@ export function isSaoPauloHoliday(date: Date): boolean {
 
   const movables = [carnival, goodFriday, corpusChristi];
   return movables.some((h) => {
-    // h já é toUtcMidnight ou Date.UTC
     return h.getTime() === d.getTime();
   });
 }
@@ -614,11 +624,6 @@ export function validateCltPeriod(startDate: Date, endDate: Date): string | null
   if (startWeekDay === 5 || startWeekDay === 6) {
     return "O início das férias não pode ocorrer na sexta ou no sábado (art. 134, §3º, CLT).";
   }
-  const endWeekDay = getUtcWeekDay(endDate);
-  if (endWeekDay === 0 || endWeekDay === 6) {
-    return "O término das férias não pode ocorrer no sábado ou no domingo (repouso semanal remunerado).";
-  }
-
   const today = toUtcMidnight(new Date());
   const diffDays = Math.floor(
     (toUtcMidnight(startDate).getTime() - today.getTime()) / ONE_DAY_MS,
@@ -663,12 +668,6 @@ export function validateCltPeriods(
     if (days < 5) return "Cada período deve ter no mínimo 5 dias corridos.";
     if (days >= 14) hasPeriodWith14OrMore = true;
 
-    // CLT (art. 134, §3º e interpretação): término não pode ser no sábado ou domingo (DSR)
-    const endWeekDay = getUtcWeekDay(end); // 0 = domingo, 6 = sábado
-    if (endWeekDay === 0 || endWeekDay === 6) {
-      return "O término das férias não pode ocorrer no sábado ou no domingo (repouso semanal remunerado).";
-    }
-
     if (i > 0 && start <= sorted[i - 1].end) {
       return "Os períodos não podem se sobrepor.";
     }
@@ -705,11 +704,11 @@ export function validateCltPeriods(
       return "O início das férias não pode ocorrer na sexta ou no sábado, conforme art. 134, §3º, da CLT.";
     }
 
-    // Feriados (São Paulo capital + nacionais): não pode iniciar nos 2 dias que antecedem
+    // Feriados (Nacionais): não pode iniciar nos 2 dias que antecedem
     for (let offset = 1; offset <= 2; offset++) {
       const check = new Date(firstStart);
       check.setUTCDate(check.getUTCDate() + offset);
-      if (isSaoPauloHoliday(check)) {
+      if (isHoliday(check)) {
         return "O início das férias não pode ocorrer nos 2 dias que antecedem feriado, conforme art. 134, §3º, da CLT.";
       }
     }
