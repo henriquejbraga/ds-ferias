@@ -214,6 +214,19 @@ function renderApprovedEmailHtml(event: Extract<NotifyEvent, { type: "APPROVED" 
 }
 
 function obfuscateEmail(email: string): string {
+  if (!email) return "";
+  
+  // Trata formato "Nome <email@dominio.com>"
+  const match = email.match(/^([^<]*)<([^>]+)>$/);
+  if (match) {
+    const name = match[1].trim();
+    const fullEmail = match[2].trim();
+    const [user, domain] = fullEmail.split("@");
+    if (!domain) return email;
+    const maskedUser = user.length > 2 ? user.slice(0, 2) + "****" : user + "****";
+    return `${name} <${maskedUser}@${domain}>`;
+  }
+
   const [user, domain] = email.split("@");
   if (!domain) return email;
   const masked = user.length > 2 ? user.slice(0, 2) + "****" : user + "****";

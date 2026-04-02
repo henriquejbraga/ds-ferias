@@ -26,6 +26,16 @@ function formatError(error: unknown) {
     };
   }
   if (typeof error === "string") return { message: error };
+  
+  // Trata objetos simples que podem ter message ou name (como os do Resend)
+  if (error && typeof error === "object") {
+    const e = error as any;
+    return {
+      message: e.message || e.name || JSON.stringify(error),
+      code: e.code || e.status || e.statusCode,
+    };
+  }
+
   return { message: String(error) };
 }
 
