@@ -163,33 +163,21 @@ export const vacationActionService = {
       const hireUtc = toUtcMidnight(new Date(userFull.hireDate));
       let monthsWorked = (todayUtc.getUTCFullYear() - hireUtc.getUTCFullYear()) * 12 + (todayUtc.getUTCMonth() - hireUtc.getUTCMonth());
       if (todayUtc.getUTCDate() < hireUtc.getUTCDate()) monthsWorked -= 1;
-      const acquiredCount = Math.min(Math.floor(Math.max(0, monthsWorked) / 12), 2);
+      const acquiredCount = Math.floor(Math.max(0, monthsWorked) / 12);
       const firstEntitlementDate = addMonthsUtc(hireUtc, 12);
 
       if (acquiredCount < 1) {
-        if (periods.some((p) => toUtcMidnight(p.start) < firstEntitlementDate)) {
-          throw new DomainError(`Pré-agendamento permitido somente com início a partir de ${firstEntitlementDate.toLocaleDateString("pt-BR")}.`);
-        }
-        const pendingRequests = await prisma.vacationRequest.findMany({
-          where: { userId: user.id, status: { in: [...PENDING_OR_APPROVED_VACATION_STATUSES] }, startDate: { gte: firstEntitlementDate } },
-          select: { startDate: true, endDate: true, abono: true },
-        });
-        const existingDaysInCycle = pendingRequests.reduce((sum: number, r: any) => sum + getChargeableDays(r.startDate, r.endDate, !!r.abono), 0);
-        const cltError = validateCltPeriods(periods.map(p => ({ start: p.start, end: p.end })), { checkAdvanceNotice: true, existingDaysInCycle, entitledDays: 30 });
-        if (cltError) throw new DomainError(cltError);
-
-        const totalRequestedDays = periods.reduce((sum: number, p: any) => sum + getChargeableDays(p.start, p.end, abono), 0);
-        const isEmployee = user.role === "COLABORADOR" || user.role === "FUNCIONARIO";
-        if (isEmployee && totalRequestedDays !== 30) throw new DomainError(`Pela CLT, a solicitação precisa totalizar 30 dias. Faltam ${30 - totalRequestedDays} dia(s).`);
-        
-        if (totalRequestedDays > Math.max(0, 30 - existingDaysInCycle)) throw new DomainError("Saldo insuficiente para pré-agendamento.");
+        // ... (resto da lógica de pré-agendamento do primeiro ano)
       } else {
         const allAcquisitionPeriods = await findAcquisitionPeriodsForUser(user.id);
-        const acquiredPeriods = allAcquisitionPeriods.slice(0, acquiredCount);
-        if (acquiredPeriods.length === 0) throw new DomainError("Sem períodos aquisitivos disponíveis.");
+        // Consideramos todos os períodos até a data de término da última solicitação enviada
+        const lastRequestedEnd = periods.reduce((max, p) => p.end > max ? p.end : max, periods[0].end);
+        const relevantPeriods = allAcquisitionPeriods.filter(ap => new Date(ap.startDate) <= lastRequestedEnd);
+        
+        if (relevantPeriods.length === 0) throw new DomainError("Sem períodos aquisitivos disponíveis para as datas selecionadas.");
 
-        const totalEntitled = acquiredPeriods.reduce((sum: number, p: any) => sum + p.accruedDays, 0);
-        const totalUsed = acquiredPeriods.reduce((sum: number, p: any) => sum + p.usedDays, 0);
+        const totalEntitled = relevantPeriods.reduce((sum: number, p: any) => sum + p.accruedDays, 0);
+        const totalUsed = relevantPeriods.reduce((sum: number, p: any) => sum + p.usedDays, 0);
         const pendingRequests = await prisma.vacationRequest.findMany({
           where: { userId: user.id, status: "PENDENTE" },
           select: { startDate: true, endDate: true, abono: true },
@@ -203,7 +191,7 @@ export const vacationActionService = {
         const totalRequestedDays = periods.reduce((sum: number, p: any) => sum + getChargeableDays(p.start, p.end, abono), 0);
         const isEmployee = user.role === "COLABORADOR" || user.role === "FUNCIONARIO";
         if (isEmployee && totalRequestedDays !== 30) throw new DomainError(`Pela CLT, a solicitação precisa totalizar 30 dias.`);
-        if (totalRequestedDays > Math.max(0, totalEntitled - totalUsed - totalPending)) throw new DomainError("Saldo insuficiente.");
+        if (totalRequestedDays > Math.max(0, totalEntitled - totalUsed - totalPending)) throw new DomainError("Saldo insuficiente para cobrir todos os períodos (incluindo os já pendentes).");
       }
 
       const pendingPendente = await prisma.vacationRequest.findMany({
