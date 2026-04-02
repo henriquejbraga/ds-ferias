@@ -232,14 +232,17 @@ export const vacationActionService = {
       }))
     );
 
-    // Notificações em background
+    // Notificações
     if (created[0] && user.name && user.email) {
-      prisma.user.findUnique({ where: { id: user.id }, select: { manager: { select: { email: true } } } })
-        .then(m => notifyNewRequest({
+      try {
+        const m = await prisma.user.findUnique({ where: { id: user.id }, select: { manager: { select: { email: true } } } });
+        await notifyNewRequest({
           requestId: created[0].id, userName: user.name!, userEmail: user.email!, managerEmail: m?.manager?.email ?? null,
           startDate: created[0].startDate, endDate: created[0].endDate
-        }))
-        .catch(err => logger.error("Falha ao notificar nova solicitação", { error: String(err) }));
+        });
+      } catch (err) {
+        logger.error("Falha ao notificar nova solicitação", { error: err });
+      }
     }
 
     return created;
@@ -320,11 +323,11 @@ export const vacationActionService = {
     });
 
     if (finalUpdated && approver.name) {
-      notifyApproved({
+      await notifyApproved({
         requestId: id, userName: finalUpdated.user.name, userEmail: finalUpdated.user.email, approverName: approver.name,
         status: nextStatus, toEmails: [finalUpdated.user.email, approver.email], startDate: finalUpdated.startDate, endDate: finalUpdated.endDate,
         returnDate: computeReturnDate(new Date(finalUpdated.startDate), new Date(finalUpdated.endDate), finalUpdated.abono), abono: finalUpdated.abono, thirteenth: finalUpdated.thirteenth
-      }).catch(err => logger.error("Erro ao notificar aprovação", { error: String(err) }));
+      }).catch(err => logger.error("Erro ao notificar aprovação", { error: err }));
     }
 
     return finalUpdated;
@@ -370,8 +373,8 @@ export const vacationActionService = {
     });
 
     if (updated.user.name && updated.user.email) {
-      notifyRejected({ requestId: id, userName: updated.user.name, userEmail: updated.user.email, approverName: approver.name!, note })
-        .catch(err => logger.error("Erro ao notificar reprovação", { error: String(err) }));
+      await notifyRejected({ requestId: id, userName: updated.user.name, userEmail: updated.user.email, approverName: approver.name!, note })
+        .catch(err => logger.error("Erro ao notificar reprovação", { error: err }));
     }
 
     return updated;

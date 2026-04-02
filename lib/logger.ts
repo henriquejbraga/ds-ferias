@@ -30,8 +30,15 @@ function formatError(error: unknown) {
   // Trata objetos simples que podem ter message ou name (como os do Resend)
   if (error && typeof error === "object") {
     const e = error as any;
+    let fallbackMessage = "[Complex Object]";
+    try {
+      fallbackMessage = JSON.stringify(error);
+    } catch {
+      fallbackMessage = "[Circular or Non-Serializable Object]";
+    }
+
     return {
-      message: e.message || e.name || JSON.stringify(error),
+      message: e.message || e.name || fallbackMessage,
       code: e.code || e.status || e.statusCode,
     };
   }

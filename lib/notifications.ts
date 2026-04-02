@@ -95,29 +95,30 @@ async function sendNewRequestEmail(event: Extract<NotifyEvent, { type: "NEW_REQU
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.MAIL_FROM?.trim();
   
-  if (!apiKey || !from || !event.managerEmail) {
-    logger.warn("[sendNewRequestEmail] skipped - config missing", {
+  const recipients = [event.managerEmail].filter((e): e is string => Boolean(e && typeof e === "string" && e.includes("@")));
+
+  if (!apiKey || !from || recipients.length === 0) {
+    logger.warn("[sendNewRequestEmail] skipped - config missing or no valid manager email", {
       hasApiKey: Boolean(apiKey),
       hasFrom: Boolean(from),
-      hasManagerEmail: Boolean(event.managerEmail),
+      managerEmail: event.managerEmail ? obfuscateEmail(event.managerEmail) : null,
     });
     return;
   }
 
   const resend = new Resend(apiKey);
-  const to = event.managerEmail;
   const subject = `Nova solicitação de férias - ${event.userName}`;
 
   logger.info("[sendNewRequestEmail] attempting to send", {
     from: obfuscateEmail(from),
-    to: obfuscateEmail(to),
+    to: recipients.map(obfuscateEmail),
     subject,
   });
 
   try {
     const { data, error } = await resend.emails.send({
       from,
-      to: [to],
+      to: recipients,
       subject,
       html: renderNewRequestEmailHtml(event),
     });
@@ -126,18 +127,18 @@ async function sendNewRequestEmail(event: Extract<NotifyEvent, { type: "NEW_REQU
       logger.error("[sendNewRequestEmail] resend error", {
         error,
         from: obfuscateEmail(from),
-        to: obfuscateEmail(to),
+        to: recipients.map(obfuscateEmail),
       });
       return;
     }
     logger.info("[sendNewRequestEmail] sent successfully", {
       id: data?.id,
-      to: obfuscateEmail(to),
+      to: recipients.map(obfuscateEmail),
     });
   } catch (err) {
     logger.error("[sendNewRequestEmail] exception thrown", {
       error: err,
-      to: obfuscateEmail(to),
+      to: recipients.map(obfuscateEmail),
     });
   }
 }
@@ -165,29 +166,30 @@ async function sendRejectedEmail(event: Extract<NotifyEvent, { type: "REJECTED" 
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.MAIL_FROM?.trim();
 
-  if (!apiKey || !from || !event.userEmail) {
-    logger.warn("[sendRejectedEmail] skipped - config missing", {
+  const recipients = [event.userEmail].filter((e): e is string => Boolean(e && typeof e === "string" && e.includes("@")));
+
+  if (!apiKey || !from || recipients.length === 0) {
+    logger.warn("[sendRejectedEmail] skipped - config missing or no valid user email", {
       hasApiKey: Boolean(apiKey),
       hasFrom: Boolean(from),
-      hasUserEmail: Boolean(event.userEmail),
+      userEmail: event.userEmail ? obfuscateEmail(event.userEmail) : null,
     });
     return;
   }
 
   const resend = new Resend(apiKey);
-  const to = event.userEmail;
   const subject = `Solicitação de férias reprovada - ${event.userName}`;
 
   logger.info("[sendRejectedEmail] attempting to send", {
     from: obfuscateEmail(from),
-    to: obfuscateEmail(to),
+    to: recipients.map(obfuscateEmail),
     subject,
   });
 
   try {
     const { data, error } = await resend.emails.send({
       from,
-      to: [to],
+      to: recipients,
       subject,
       html: renderRejectedEmailHtml(event),
     });
@@ -196,18 +198,18 @@ async function sendRejectedEmail(event: Extract<NotifyEvent, { type: "REJECTED" 
       logger.error("[sendRejectedEmail] resend error", {
         error,
         from: obfuscateEmail(from),
-        to: obfuscateEmail(to),
+        to: recipients.map(obfuscateEmail),
       });
       return;
     }
     logger.info("[sendRejectedEmail] sent successfully", {
       id: data?.id,
-      to: obfuscateEmail(to),
+      to: recipients.map(obfuscateEmail),
     });
   } catch (err) {
     logger.error("[sendRejectedEmail] exception thrown", {
       error: err,
-      to: obfuscateEmail(to),
+      to: recipients.map(obfuscateEmail),
     });
   }
 }
@@ -293,21 +295,21 @@ async function sendApprovedEmail(event: Extract<NotifyEvent, { type: "APPROVED" 
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.MAIL_FROM?.trim();
 
-  if (!apiKey || !from || event.toEmails.length === 0) {
-    logger.warn("[sendApprovedEmail] skipped - config missing", {
+  const recipients = Array.from(
+    new Set(event.toEmails.filter((e): e is string => Boolean(e && typeof e === "string" && e.includes("@")))),
+  );
+
+  if (!apiKey || !from || recipients.length === 0) {
+    logger.warn("[sendApprovedEmail] skipped - config missing or no valid recipients", {
       hasApiKey: Boolean(apiKey),
       hasFrom: Boolean(from),
       toEmailsCount: event.toEmails?.length ?? 0,
+      validRecipientsCount: recipients.length,
     });
     return;
   }
 
   const resend = new Resend(apiKey);
-  const recipients = Array.from(new Set(event.toEmails.filter(Boolean)));
-  if (recipients.length === 0) {
-    logger.warn("[sendApprovedEmail] skipped - no valid recipients", { originalEmails: event.toEmails.map(obfuscateEmail) });
-    return;
-  }
   const subject = `Férias aprovadas - ${event.userName} (${event.startDate} a ${event.endDate})`;
 
   logger.info("[sendApprovedEmail] attempting to send", {
