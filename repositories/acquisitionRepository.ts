@@ -42,15 +42,13 @@ export async function syncAcquisitionPeriodsForUser(
 ) {
   if (!hireDate) return [];
 
-  // Em dev, pode acontecer de o Prisma Client ainda não ter sido regenerado após migrations.
-  const ap = (prisma as any)?.acquisitionPeriod;
-  if (!ap?.findMany || !ap?.createMany) return [];
+  const ap = prisma.acquisitionPeriod;
+  if (!ap) return [];
 
-  let periods: Array<{ id: string; startDate: Date; endDate: Date; accruedDays: number; usedDays: number; unjustifiedAbsences: number; isManual: boolean }> =
-    await ap.findMany({
-      where: { userId },
-      orderBy: { startDate: "asc" },
-    });
+  let periods = await ap.findMany({
+    where: { userId },
+    orderBy: { startDate: "asc" },
+  });
 
   // Se a data de admissão mudou drasticamente (o primeiro ciclo não bate), 
   // precisamos resetar os períodos para este usuário.
@@ -61,7 +59,7 @@ export async function syncAcquisitionPeriodsForUser(
     if (firstPeriodStart !== expectedStart) {
       logger.info("Full resync of acquisition periods triggered", { userId, reason: "hireDate change", oldStart: firstPeriodStart, newStart: expectedStart });
       // Desvincula e remove tudo para recomeçar do zero com a nova data
-      await (prisma as any).vacationRequest.updateMany({
+      await prisma.vacationRequest.updateMany({
         where: { userId, acquisitionPeriodId: { not: null } },
         data: { acquisitionPeriodId: null },
       });
@@ -89,7 +87,7 @@ export async function syncAcquisitionPeriodsForUser(
       const duplicateIds = duplicates.map((p) => p.id);
       if (duplicateIds.length === 0) continue;
 
-      await (prisma as any).vacationRequest.updateMany({
+      await prisma.vacationRequest.updateMany({
         where: { userId, acquisitionPeriodId: { in: duplicateIds } },
         data: { acquisitionPeriodId: canonical.id },
       });
@@ -172,14 +170,8 @@ export async function syncAcquisitionPeriodsForUser(
 
   // Resync FIFO completo: recalcula usedDays de cada período a partir das solicitações aprovadas.
   // Isso corrige atribuições erradas geradas pelo código legado (que usava range de datas).
-  const approvedRequests: Array<{
-    id: string;
-    startDate: Date;
-    endDate: Date;
-    acquisitionPeriodId: string | null;
-    abono: boolean;
-  }> =
-    await (prisma as any).vacationRequest.findMany({
+  const approvedRequests =
+    await prisma.vacationRequest.findMany({
       where: { userId, status: { in: [...APPROVED_VACATION_STATUSES, "APROVADO_RH"] } },
       orderBy: { startDate: "asc" },
       select: { id: true, startDate: true, endDate: true, acquisitionPeriodId: true, abono: true },
